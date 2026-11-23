@@ -1,8 +1,11 @@
 import Foundation
 import StockfishCore
+@testable import StockfishKit
 
 /// Drives the global C bridge for one session: start, send commands, collect output lines
 /// until a predicate matches (or a timeout), send any follow-up commands, then `sf_quit`.
+/// The shared `StockfishEngine` is shut down first so the session gets a fresh bridge; the
+/// engine starts again on its next request.
 enum BridgeHarness {
     struct Timeout: Error, CustomStringConvertible {
         let lines: [String]
@@ -32,6 +35,7 @@ enum BridgeHarness {
         timeout: Duration = .seconds(30),
         quitWithin quitTimeout: Duration = .seconds(10)
     ) async throws -> [String] {
+        await StockfishEngine.shared.shutdown()
         let (stream, continuation) = AsyncStream<String>.makeStream()
         let sink = Unmanaged.passRetained(Sink(continuation))
 

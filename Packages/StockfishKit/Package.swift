@@ -35,7 +35,11 @@ let package = Package(
         ),
         .testTarget(
             name: "StockfishKitTests",
-            dependencies: ["StockfishKit", "StockfishCore"]
+            dependencies: [
+                "StockfishKit",
+                "StockfishCore",
+                .product(name: "ChessCore", package: "ChessCore"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6],
