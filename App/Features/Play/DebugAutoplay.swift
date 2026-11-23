@@ -7,6 +7,7 @@ import StockfishKit
 ///   -debugScreen picker      opens the bot picker
 ///   -debugAutoplay pip       starts a Training game against that bot as White and plays it
 ///                            (see `DebugAutoplay`)
+///   -debugHistory 1          with autoplay: after the 6th move, view an earlier ply for 6 s
 enum DebugLaunch {
     static var autoplayBot: Bot? {
         UserDefaults.standard.string(forKey: "debugAutoplay").flatMap { id in Bot.all.first { $0.id == id } }
@@ -45,6 +46,7 @@ enum DebugAutoplay {
         var userMoves = 0
         var blundered = false
         var tookBack = false
+        var lookedBack = false
         while true {
             try? await Task.sleep(for: .milliseconds(300))
             switch session.phase {
@@ -64,6 +66,14 @@ enum DebugAutoplay {
                     uci = best
                 }
                 if model.move(uci) { userMoves += 1 }
+                if userMoves >= 6, !lookedBack, UserDefaults.standard.string(forKey: "debugHistory") != nil {
+                    // Look back while the bot replies, so "Back to live" gets its dot.
+                    lookedBack = true
+                    model.select(ply: max(0, session.moves.count - 4))
+                    log("history")
+                    try? await Task.sleep(for: .seconds(6))
+                    model.returnToLive()
+                }
             case .interrupted(let verdict):
                 if tookBack {
                     log("interrupt \(verdict.classification.label) -> continue")

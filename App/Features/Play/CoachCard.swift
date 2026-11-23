@@ -1,8 +1,9 @@
 import SwiftUI
 import ChessCore
 
-/// Training interrupt under the board: the move's class, a plain-words explanation and the
-/// three ways on. Opaque `surface` card; it never covers the board.
+/// Training interrupt: the move's class, a plain-words explanation and the three ways on.
+/// It slides up in place of the action bar (`GameBoardScaffold`'s card) and never covers the
+/// board. Opaque `surface` with a hairline edge; its bottom corners follow the screen's.
 struct CoachCard: View {
     let verdict: Verdict
     let onTakeBack: () -> Void
@@ -28,7 +29,13 @@ struct CoachCard: View {
         }
         .padding(DS.Spacing.m)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
+        .background(DS.Color.surface, in: Self.shape)
+        .overlay(Self.shape.stroke(DS.Color.surface2, lineWidth: 1))
+    }
+
+    private static var shape: ConcentricRectangle {
+        ConcentricRectangle(uniformTopCorners: .fixed(DS.Radius.large),
+                            uniformBottomCorners: .concentric(minimum: .fixed(DS.Radius.large)))
     }
 }
 

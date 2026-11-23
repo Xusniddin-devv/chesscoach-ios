@@ -3,6 +3,9 @@ import ChessCore
 
 /// The result over the final position: result word, reason, score line, the user's accuracy
 /// in an accent arc, move counts, and Play again / Done. Confetti on a win only.
+///
+/// The sheet sizes itself to its content (one height detent), so the stats rows never sit
+/// under the buttons; content taller than the screen scrolls.
 struct GameOverSheet: View {
     let model: PlayModel
     let saveFailed: Bool
@@ -11,6 +14,14 @@ struct GameOverSheet: View {
     let onCloseWithoutSaving: () -> Void
 
     private var session: GameSession { model.session }
+
+    @State private var contentHeight: CGFloat = 0
+    @State private var barHeight: CGFloat = 0
+
+    /// Content plus buttons; the system caps a detent taller than the screen.
+    private var detent: PresentationDetent {
+        contentHeight > 0 ? .height(contentHeight + barHeight) : .medium
+    }
 
     var body: some View {
         ScrollView {
@@ -31,6 +42,8 @@ struct GameOverSheet: View {
             }
             .padding(.horizontal, DS.Spacing.m)
             .padding(.top, DS.Spacing.l)
+            .padding(.bottom, DS.Spacing.l)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }
         .scrollBounceBehavior(.basedOnSize)
         .safeAreaBar(edge: .bottom) {
@@ -41,7 +54,10 @@ struct GameOverSheet: View {
             .disabled(model.isSaving)
             .padding(.horizontal, DS.Spacing.m)
             .padding(.bottom, DS.Spacing.s)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = $0 }
         }
+        .presentationDetents([detent])
+        .presentationBackgroundInteraction(.enabled(upThrough: detent))
         .overlay(alignment: .top) {
             if model.outcome == .won {
                 ConfettiBurst()

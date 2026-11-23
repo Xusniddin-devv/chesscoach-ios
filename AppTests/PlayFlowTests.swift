@@ -85,7 +85,115 @@ struct PlayFlowTests {
         #expect(model.hintUnavailable)
     }
 
+    // MARK: History viewing
+
+    /// Tapping an earlier ply shows that position read-only; tapping the last ply is live.
+    @Test func viewingHistoryIsReadOnly() async throws {
+        let (model, _) = try await afterFirstReply()
+        let afterE4 = try #require(Rules.fen(startFen: Rules.startFen, moves: ["e2e4"]))
+        var tracker = PieceTracker(fen: Rules.startFen)
+        tracker.apply("e2e4", fenBefore: Rules.startFen)
+
+        model.select(ply: 1)
+        #expect(model.viewedPly == 1)
+        #expect(!model.interactive)
+        #expect(model.displayedFen == afterE4)
+        #expect(model.displayedTracker == tracker)
+        #expect(model.displayedLastMove.map { [$0.from, $0.to] } == [Square("e2"), Square("e4")])
+
+        model.select(ply: 2)
+        #expect(model.viewedPly == nil)
+        #expect(model.interactive)
+        #expect(model.displayedFen == model.session.fen)
+    }
+
+    @Test func stepsStayInsideTheGame() async throws {
+        let (model, _) = try await afterFirstReply()
+        model.step(-1)
+        #expect(model.viewedPly == 1)
+        model.step(-5)
+        #expect(model.viewedPly == 0)
+        #expect(model.displayedFen == Rules.startFen)
+        #expect(model.displayedLastMove == nil)
+        model.step(1)
+        #expect(model.viewedPly == 1)
+        model.step(5)
+        #expect(model.viewedPly == nil)
+    }
+
+    /// The bot replies while the user looks back: the view stays put and flags the new move;
+    /// "Back to live" returns.
+    @Test func botMoveWhileViewingFlagsNewMoves() async throws {
+        let engine = FakeEngine(botMoves: ["e7e5"])
+        let model = PlayModel(session: GameSession(bot: Bot.all[0], userColor: .white, mode: .training,
+                                                   engine: engine, clock: ImmediateClock()))
+        model.start()
+        engine.holdAnalyses()  // the grade (and so the bot's reply) waits
+        #expect(model.move("e2e4"))
+        model.select(ply: 0)
+        #expect(!model.hasNewMovesWhileViewing)
+        engine.releaseAnalyses()
+        #expect(await eventually { model.session.moves.count == 2 })
+
+        #expect(model.viewedPly == 0)
+        #expect(model.hasNewMovesWhileViewing)
+        model.returnToLive()
+        #expect(model.viewedPly == nil)
+        #expect(!model.hasNewMovesWhileViewing)
+        #expect(await eventually { model.interactive })
+    }
+
+    /// The user's own move always lands on the live board.
+    @Test func userMoveReturnsToLive() async throws {
+        let (model, _) = try await afterFirstReply()
+        model.select(ply: 0)
+        #expect(model.move("g1f3"))
+        #expect(model.viewedPly == nil)
+        #expect(model.session.moves.count >= 3)
+    }
+
+    // MARK: Move strip and status
+
+    /// Training: the user's graded moves carry their class; the bot's never do.
+    @Test func stripItemsCarryTheUsersGrades() async throws {
+        let (model, _) = try await afterFirstReply()
+        #expect(await eventually { model.session.verdicts[1] != nil })
+        let items = model.stripItems
+        #expect(items.map(\.san) == ["e4", "e5"])
+        #expect(items.map(\.ply) == [1, 2])
+        #expect(items[0].moveClass != nil)
+        #expect(items[1].moveClass == nil)
+    }
+
+    /// Silent mode keeps grades out of sight until the game is over.
+    @Test func silentStripHidesGradesDuringPlay() async throws {
+        let engine = FakeEngine(botMoves: ["e7e5"])
+        let model = PlayModel(session: GameSession(bot: Bot.all[0], userColor: .white, mode: .silent,
+                                                   engine: engine, clock: ImmediateClock()))
+        model.start()
+        #expect(model.move("e2e4"))
+        #expect(await eventually { model.session.verdicts[1] != nil && model.interactive })
+        #expect(model.stripItems.allSatisfy { $0.moveClass == nil })
+    }
+
+    @Test func statusNamesTheOpening() async throws {
+        let (model, _) = try await afterFirstReply()
+        let opening = try #require(OpeningBook.deepest(startFen: Rules.startFen, moves: ["e2e4", "e7e5"]))
+        #expect(model.statusText == opening.name)
+    }
+
     // MARK: Helpers
+
+    /// 1.e4 e5 in Training mode, back on the user's turn.
+    private func afterFirstReply() async throws -> (PlayModel, FakeEngine) {
+        let engine = FakeEngine(botMoves: ["e7e5", "b8c6", "g8f6"])
+        let model = PlayModel(session: GameSession(bot: Bot.all[0], userColor: .white, mode: .training,
+                                                   engine: engine, clock: ImmediateClock()))
+        model.start()
+        #expect(model.move("e2e4"))
+        #expect(await eventually { model.interactive })
+        return (model, engine)
+    }
 
     /// 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6 4.Qxf7#, Training mode. The final grade fails
     /// `failingFinalGrades` times; the test returns once that grade has stopped or finished.
