@@ -6,4 +6,11 @@ Powered by Stockfish.
 
 ## Build
 
-Build steps are added in Task 4.
+```sh
+brew install xcodegen
+scripts/fetch-nnue.sh      # downloads the NNUE nets (gitignored)
+xcodegen                   # generates ChessCoach.xcodeproj (gitignored)
+open ChessCoach.xcodeproj
+```
+
+Tests: `xcodebuild test -scheme ChessCoach -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`.

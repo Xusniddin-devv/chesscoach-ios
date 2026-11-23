@@ -1,0 +1,58 @@
+name: ChessCoach
+options:
+  bundleIdPrefix: uz.xq
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
+packages:
+  ChessCore:
+    path: Packages/ChessCore
+  StockfishKit:
+    path: Packages/StockfishKit
+targets:
+  ChessCoach:
+    type: application
+    platform: iOS
+    sources:
+      - App
+    dependencies:
+      - package: ChessCore
+      - package: StockfishKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: uz.xq.chessc
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Chess Coach
+        INFOPLIST_KEY_UIUserInterfaceStyle: Dark
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+  ChessCoachTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - AppTests
+    dependencies:
+      - target: ChessCoach
+      - package: ChessCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: uz.xq.chessc.tests
+schemes:
+  ChessCoach:
+    build:
+      targets:
+        ChessCoach: all
+    test:
+      targets:
+        - ChessCoachTests
