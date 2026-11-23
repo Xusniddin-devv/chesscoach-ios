@@ -27,6 +27,19 @@ targets:
       - package: ChessCore
       - package: StockfishKit
       - package: ChessKit
+    preBuildScripts:
+      # The nets are gitignored; without them the app builds but the engine dies at the first
+      # search. Names as in scripts/fetch-nnue.sh and StockfishResources.swift.
+      - name: Check NNUE nets
+        basedOnDependencyAnalysis: false
+        script: |
+          NNUE="$SRCROOT/Packages/StockfishKit/Sources/StockfishKit/Resources/nnue"
+          for net in nn-c288c895ea92.nnue nn-37f18f62d772.nnue; do
+            if [ ! -f "$NNUE/$net" ]; then
+              echo "error: NNUE nets missing — run scripts/fetch-nnue.sh ($net not found)"
+              exit 1
+            fi
+          done
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: uz.xq.chessc
