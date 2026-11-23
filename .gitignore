@@ -1,0 +1,10 @@
+# Xcode / SwiftPM
+.build/
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+.swiftpm/
+.DS_Store
+*.nnue
+.superpowers/
