@@ -4,7 +4,7 @@ struct RootTabView: View {
     var body: some View {
         TabView {
             Tab("Home", systemImage: "house") { HomeView() }
-            Tab("Puzzles", systemImage: "puzzlepiece") { ComingSoonView(title: "Puzzles") }
+            Tab("Puzzles", systemImage: "puzzlepiece") { PuzzlesView() }
             Tab("Learn", systemImage: "book") { ComingSoonView(title: "Learn") }
             Tab("Profile", systemImage: "person") {
 #if DEBUG

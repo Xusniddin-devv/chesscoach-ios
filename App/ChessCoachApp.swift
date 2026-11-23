@@ -18,6 +18,6 @@ struct ChessCoachApp: App {
 #endif
                 }
         }
-        .modelContainer(for: GameRecord.self)
+        .modelContainer(for: [GameRecord.self, PuzzleProgress.self, LessonProgress.self, StreakState.self])
     }
 }
