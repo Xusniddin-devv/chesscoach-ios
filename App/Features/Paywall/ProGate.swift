@@ -124,7 +124,12 @@ struct LockedExplanation: View {
                 .font(DS.Font.subheadline)
                 .foregroundStyle(DS.Color.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-            UpgradeButton(.trainingExplanations, title: "Unlock explanations")
+            // Subheadline, not headline: "Show best" below stays the card's one loud accent.
+            UpgradeButton(.trainingExplanations) {
+                Text("Unlock explanations")
+                    .font(DS.Font.subheadline.weight(.semibold))
+                    .foregroundStyle(DS.Color.accent)
+            }
         }
     }
 }

@@ -122,6 +122,14 @@ final class Entitlements {
                 }
                 plans = found.sorted { a, _ in a.period == .yearly }
             }
+            #if DEBUG
+            // `-demoPlans YES`: StoreKit's local config only serves runs started from Xcode;
+            // screenshots launched with simctl get these instead.
+            if plans.isEmpty, UserDefaults.standard.bool(forKey: "demoPlans") {
+                plans = [Plan(id: Self.yearlyID, period: .yearly, price: "$29.99", perMonth: "$2.50", freeTrial: "7 days"),
+                         Plan(id: Self.monthlyID, period: .monthly, price: "$4.99", perMonth: nil, freeTrial: nil)]
+            }
+            #endif
             plansFailed = plans.isEmpty
         } catch {
             Self.log.error("Loading plans failed: \(error.localizedDescription, privacy: .public)")

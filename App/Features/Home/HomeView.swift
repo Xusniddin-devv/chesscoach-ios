@@ -50,7 +50,7 @@ struct HomeView: View {
         }
         #if DEBUG
         .task { DebugLaunch.apply(path: { path = [.botPicker] }, play: { game = $0 }) }
-        .task { if UserDefaults.standard.string(forKey: "debugOpen") == "settings" { showingSettings = true } }
+        .task { if ["settings", "paywall"].contains(UserDefaults.standard.string(forKey: "debugOpen")) { showingSettings = true } }
         #endif
     }
 

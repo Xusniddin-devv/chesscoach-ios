@@ -212,7 +212,7 @@ private struct PlanRow: View {
                 Spacer(minLength: DS.Spacing.s)
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(plan.perMonth ?? plan.price)
-                        .font(DS.Font.numeral)
+                        .font(DS.Font.headline.monospacedDigit())  // SF Mono spaces the decimal point too wide
                         .foregroundStyle(DS.Color.text)
                     Text("a month")
                         .font(DS.Font.caption)

@@ -40,6 +40,9 @@ struct SettingsView: View {
         .background(DS.Color.background)
         .navigationTitle("Settings")
         .paywall(isPresented: $showingPaywall)
+        #if DEBUG
+        .task { if UserDefaults.standard.string(forKey: "debugOpen") == "paywall" { showingPaywall = true } }
+        #endif
         .manageSubscriptionsSheet(isPresented: $showingManage)
         .confirmationDialog("Delete all games and settings?", isPresented: $confirmingReset, titleVisibility: .visible) {
             Button("Delete everything", role: .destructive, action: reset)
