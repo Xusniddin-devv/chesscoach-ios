@@ -15,7 +15,7 @@ let package = Package(
         // arm64 only: NEON is required (macOS on Apple silicon, iOS devices and simulators).
         .target(
             name: "StockfishCore",
-            exclude: ["stockfish/Copying.txt", "stockfish/incbin/UNLICENCE"],
+            exclude: ["stockfish/Copying.txt", "stockfish/AUTHORS", "stockfish/VENDORED.md", "stockfish/incbin/UNLICENCE"],
             cxxSettings: [
                 .define("NNUE_EMBEDDING_OFF"),
                 .define("USE_POPCNT"),

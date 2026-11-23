@@ -11,7 +11,7 @@ Stockfish 18 through the StockfishKit C bridge (`Packages/StockfishKit`). Device
 | Step (startpos) | Wall time |
 | --- | --- |
 | Start + `uci` + load both nets (`EvalFile`, `EvalFileSmall`) + `isready` | 0.32–0.38 s |
-| Whole `searchesWithNetsLoaded` session: start, load nets, `go depth 8` to `bestmove`, `quit` | 0.32 s (test reports 0.47 s incl. harness) |
+| Whole `searchesWithNetsLoaded` session: start, load nets, `go depth 8` to `bestmove`, `quit` | the row above plus the 4–5 ms search, so ≈0.33–0.39 s of engine time; Swift Testing reports 0.47 s and 0.64 s for the test (two runs, 2026-11-24), the rest being test-process and harness overhead |
 | `go depth 8` search alone (engine-reported `time`) | 4–5 ms, 3,260 nodes, ~0.8 Mnps |
 
 Depth 8 result: `score cp 36`, `bestmove e2e4 ponder e7e5`.
