@@ -7,8 +7,15 @@ import Testing
     #expect(toCp(Score(cp: 40, mate: nil), sideToMove: .black) == -40)
 }
 
-@Test func toCpMateZeroIsZero() {
-    #expect(toCp(Score(cp: nil, mate: 0), sideToMove: .black) == 0)
+/// `mate 0` is Stockfish's report for a side to move that is already checkmated (a deliberate
+/// deviation from the web app, which mapped it to 0 cp — see web-rules.md "Score").
+@Test func toCpMateZeroMeansSideToMoveIsMated() {
+    #expect(toCp(Score(cp: nil, mate: 0), sideToMove: .black) == 10000)
+    #expect(toCp(Score(cp: nil, mate: 0), sideToMove: .white) == -10000)
+}
+
+@Test func toCpStalemateCpZeroIsUnaffected() {
+    #expect(toCp(Score(cp: 0, mate: nil), sideToMove: .black) == 0)
 }
 
 @Test func winPercentCurve() {

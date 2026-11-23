@@ -180,3 +180,45 @@ private func e4Input(ply: Int = 20, best: String = "e2e4", before: [Int], whiteA
     #expect(v.facts.mateAgainstMoverAfter == nil)
     #expect(v.mateBefore == nil && v.mateAfter == nil)
 }
+
+/// 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6?? — White mates with Qxf7#. Stockfish reports the mated position
+/// as `info depth 0 score mate 0` with no best move.
+private let scholarsFen = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"
+private func matingInput(before: AnalysisResult) -> PlayedMoveInput {
+    let applied = Rules.apply(uci: "h5f7", to: scholarsFen)!
+    return PlayedMoveInput(
+        fenBefore: scholarsFen, fenAfter: applied.fenAfter, playedUci: "h5f7", playedSan: applied.san,
+        mover: .white, ply: 20, before: before,
+        after: AnalysisResult(bestMove: "", lines: [PVLine(multipv: 1, depth: 0, score: Score(cp: nil, mate: 0), pv: [])]))
+}
+
+@Test func checkmatingMoveIsBestNotMiss() {
+    let v = classifyPlayed(matingInput(before: res(best: "h5f7", Score(mate: 1), pv: ["h5f7"])))
+    #expect(v.san == "Qxf7#")
+    #expect(v.classification == .best)
+    #expect(v.cpLoss == 0)
+    #expect(v.winDrop == 0)
+    #expect(v.evalWhiteCp == 10000)
+    #expect(v.motifs.isEmpty)
+    #expect(v.mateAfter == nil)
+}
+
+@Test func checkmatingMoveWithClearSecondBestIsGreat() {
+    let before = res(best: "h5f7", Score(mate: 1), Score(cp: 300), pv: ["h5f7"])
+    let v = classifyPlayed(matingInput(before: before))
+    #expect(v.classification == .great)
+    #expect(v.motifs.isEmpty)
+}
+
+@Test func checkmatingMoveAsBlackIsBest() {
+    // 1.f3 e5 2.g4 Qh4#: after the mate White is to move and reports mate 0.
+    let fen = "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2"
+    let applied = Rules.apply(uci: "d8h4", to: fen)!
+    let v = classifyPlayed(PlayedMoveInput(
+        fenBefore: fen, fenAfter: applied.fenAfter, playedUci: "d8h4", playedSan: applied.san,
+        mover: .black, ply: 20, before: res(best: "d8h4", Score(mate: 1), pv: ["d8h4"]),
+        after: AnalysisResult(bestMove: "", lines: [PVLine(multipv: 1, depth: 0, score: Score(mate: 0), pv: [])])))
+    #expect(v.classification == .best)
+    #expect(v.evalWhiteCp == -10000)
+    #expect(v.motifs.isEmpty)
+}

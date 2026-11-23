@@ -41,4 +41,21 @@ struct UserAccuracyTests {
         let other = verdict(ply: 2, mover: .black, winDrop: 50, evalWhiteCp: 0)
         #expect(userAccuracy(verdicts: [user, other], userColor: .white) == 40.0)
     }
+
+    /// Delivering mate is not a mistake: Stockfish reports the mated side as `mate 0`, and the
+    /// mating move keeps a perfect score.
+    @Test func matingLastMoveIsNotPenalised() {
+        let fen = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"
+        let applied = Rules.apply(uci: "h5f7", to: fen)!
+        let mate = classifyPlayed(PlayedMoveInput(
+            fenBefore: fen, fenAfter: applied.fenAfter, playedUci: "h5f7", playedSan: applied.san,
+            mover: .white, ply: 7,
+            before: AnalysisResult(bestMove: "h5f7", lines: [PVLine(multipv: 1, depth: 16, score: Score(mate: 1), pv: ["h5f7"])]),
+            after: AnalysisResult(bestMove: "", lines: [PVLine(multipv: 1, depth: 0, score: Score(mate: 0), pv: [])])))
+        let earlier = [verdict(ply: 1, mover: .white, winDrop: 0, evalWhiteCp: 30),
+                       verdict(ply: 3, mover: .white, winDrop: 0, evalWhiteCp: 40),
+                       verdict(ply: 5, mover: .white, winDrop: 0, evalWhiteCp: 900)]
+        #expect(mate.winDrop == 0)
+        #expect(userAccuracy(verdicts: earlier + [mate], userColor: .white) == 100)
+    }
 }
