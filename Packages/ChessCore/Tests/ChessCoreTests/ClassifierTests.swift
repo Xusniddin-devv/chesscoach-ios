@@ -120,6 +120,8 @@ private func e4Input(ply: Int = 20, best: String = "e2e4", before: [Int], whiteA
         before: res(best: "c7c5", Score(cp: 20)), after: res(best: "g1f3", Score(cp: 50))))
     // s = -20 (white cp), c = +50: black loses 70 cp
     #expect(v.cpLoss == 70)
+    #expect(v.winDrop == 6.4)
+    #expect(v.classification == .inaccuracy)
     #expect(v.evalWhiteCp == 50)
     #expect(v.facts.moveNumber == 1)
 }
@@ -128,4 +130,53 @@ private func e4Input(ply: Int = 20, best: String = "e2e4", before: [Int], whiteA
     let v = classifyPlayed(e4Input(before: [30], whiteAfterCp: 30))
     let data = try JSONEncoder().encode(v)
     #expect(try JSONDecoder().decode(Verdict.self, from: data) == v)
+}
+
+@Test func bookBeatsGreatWhenPlayedIsBest() {
+    let v = classifyPlayed(e4Input(ply: 3, before: [200, 40], whiteAfterCp: 200))
+    #expect(v.classification == .book)
+}
+
+@Test func missBeatsBook() {
+    let v = classifyPlayed(e4Input(ply: 4, best: "d2d4", before: [500], whiteAfterCp: 100))
+    #expect(v.classification == .miss)
+}
+
+@Test func missBeatsBestWhenPlayedIsBestMove() {
+    let v = classifyPlayed(PlayedMoveInput(
+        fenBefore: startFen, fenAfter: afterE4, playedUci: "e2e4", playedSan: "e4",
+        mover: .white, ply: 20,
+        before: res(best: "e2e4", Score(mate: 2)), after: res(best: "e7e5", Score(cp: -100))))
+    #expect(v.classification == .miss)
+}
+
+@Test func missBeatsBrilliantOnWinningSacrifice() {
+    let v = classifyPlayed(PlayedMoveInput(
+        fenBefore: "4k3/8/1p6/8/8/8/8/2R1K3 w - - 0 1",
+        fenAfter: "4k3/8/1p6/2R5/8/8/8/4K3 b - - 1 1",
+        playedUci: "c1c5", playedSan: "Rc5", mover: .white, ply: 20,
+        before: res(best: "c1c5", Score(cp: 500)), after: res(best: "b6c5", Score(cp: -100))))
+    #expect(v.classification == .miss)
+}
+
+@Test func cpLossAtMost5CountsAsBest() {
+    let v = classifyPlayed(e4Input(best: "d2d4", before: [30], whiteAfterCp: 27))
+    #expect(v.cpLoss == 3)
+    #expect(v.classification == .best)
+}
+
+@Test func bookRejectsLossOver35() {
+    let v = classifyPlayed(e4Input(ply: 3, best: "d2d4", before: [30], whiteAfterCp: -10))
+    #expect(v.cpLoss == 40)
+    #expect(v.classification == .good)
+}
+
+@Test func onlyPositiveMatesAreRecorded() {
+    let v = classifyPlayed(PlayedMoveInput(
+        fenBefore: startFen, fenAfter: afterE4, playedUci: "e2e4", playedSan: "e4",
+        mover: .white, ply: 20,
+        before: res(best: "d2d4", Score(mate: -3)), after: res(best: "e7e5", Score(mate: -2))))
+    #expect(v.facts.mateForMoverBefore == nil)
+    #expect(v.facts.mateAgainstMoverAfter == nil)
+    #expect(v.mateBefore == nil && v.mateAfter == nil)
 }
