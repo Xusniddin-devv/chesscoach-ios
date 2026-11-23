@@ -68,12 +68,15 @@ final class PlayModel {
         return session.userMove(uci)
     }
 
+    /// Shows the engine's best move. "Hint unavailable" only when the hint failed for the
+    /// position it was asked about; a hint overtaken by a move (or take-back) is just dropped.
     func hint() async {
         hintUnavailable = false
         isHinting = true
+        let askedAt = session.moves
         let shown = await session.hint()
         isHinting = false
-        hintUnavailable = !shown
+        hintUnavailable = !shown && session.moves == askedAt
     }
 
     func flip() { orientation = orientation.opposite }

@@ -57,6 +57,34 @@ struct PlayFlowTests {
         #expect(records.first?.snapshot?.verdicts.map(\.ply) == [1, 3, 5])
     }
 
+    // MARK: Hint
+
+    /// The user moved while the hint was searching: the hint is dropped, which is not a failure.
+    @Test func hintOvertakenByAMoveIsNotUnavailable() async throws {
+        let engine = FakeEngine(botMoves: ["e7e5"])
+        let model = PlayModel(session: GameSession(bot: Bot.all[0], userColor: .white, mode: .training,
+                                                   engine: engine, clock: ImmediateClock()))
+        model.start()
+        engine.holdAnalyses()
+        let hint = Task { await model.hint() }
+        #expect(await eventually { engine.analysisCount == 1 })
+        #expect(model.move("e2e4"))
+        engine.releaseAnalyses()
+        await hint.value
+        #expect(!model.hintUnavailable)
+        #expect(!model.isHinting)
+    }
+
+    @Test func failedHintIsUnavailable() async throws {
+        let engine = FakeEngine(botMoves: [])
+        let model = PlayModel(session: GameSession(bot: Bot.all[0], userColor: .white, mode: .training,
+                                                   engine: engine, clock: ImmediateClock()))
+        model.start()
+        engine.failNextAnalyses(1)
+        await model.hint()
+        #expect(model.hintUnavailable)
+    }
+
     // MARK: Helpers
 
     /// 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6 4.Qxf7#, Training mode. The final grade fails
@@ -71,6 +99,9 @@ struct PlayFlowTests {
             #expect(model.move(uci))
             #expect(await eventually { model.interactive })
         }
+        // Two analyses per graded move plus the prefetch after each bot move: let all of them
+        // run before arming failures, so only the final grade fails.
+        #expect(await eventually { engine.analysisCount == 9 })
         engine.failNextAnalyses(failingFinalGrades)
         #expect(model.move("h5f7"))
         #expect(session.phase == .over(.whiteWins, reason: .checkmate(winner: .white)))

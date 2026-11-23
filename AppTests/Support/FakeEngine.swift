@@ -10,6 +10,9 @@ final class FakeEngine: ChessEngine, @unchecked Sendable {
     private var botMoves: [String]
     private let result: AnalysisResult
     private var analysisFailures = 0
+    private var _analysisCount = 0
+    private var holding = false
+    private var held: [CheckedContinuation<Void, Never>] = []
 
     init(botMoves: [String],
          result: AnalysisResult = AnalysisResult(
@@ -21,12 +24,35 @@ final class FakeEngine: ChessEngine, @unchecked Sendable {
     /// The next `count` analyses throw (each failure stops one grade attempt).
     func failNextAnalyses(_ count: Int) { lock.withLock { analysisFailures = count } }
 
+    /// Analyses started so far (grades, prefetches and hints).
+    var analysisCount: Int { lock.withLock { _analysisCount } }
+
+    /// Analyses wait until `releaseAnalyses()`.
+    func holdAnalyses() { lock.withLock { holding = true } }
+
+    func releaseAnalyses() {
+        let waiting = lock.withLock { () -> [CheckedContinuation<Void, Never>] in
+            holding = false
+            defer { held = [] }
+            return held
+        }
+        waiting.forEach { $0.resume() }
+    }
+
     func analyze(_ request: AnalysisRequest) async throws -> AnalysisResult {
         let fail = lock.withLock { () -> Bool in
+            _analysisCount += 1
             defer { analysisFailures = max(0, analysisFailures - 1) }
             return analysisFailures > 0
         }
         if fail { throw FakeEngineError() }
+        await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+            let wait = lock.withLock { () -> Bool in
+                if holding { held.append(c) }
+                return holding
+            }
+            if !wait { c.resume() }
+        }
         return result
     }
 
