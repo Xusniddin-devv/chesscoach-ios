@@ -201,18 +201,13 @@ final class PlayModel {
     var opponentBar: PlayerBarModel {
         let color = session.userColor.opposite
         return PlayerBarModel(name: bot.name, elo: bot.elo, avatarAsset: bot.avatarAsset,
-                              captured: captured(by: color).map(Self.code), materialLead: materialLead(for: color))
+                              captured: captured(by: color).map(BoardMaterial.code), materialLead: materialLead(for: color))
     }
 
     var userBar: PlayerBarModel {
         let color = session.userColor
         return PlayerBarModel(name: "You", elo: nil, avatarAsset: nil,
-                              captured: captured(by: color).map(Self.code), materialLead: materialLead(for: color))
-    }
-
-    /// "bp", "wn": the piece's asset name without the folder.
-    private static func code(_ piece: Piece) -> String {
-        String(PieceImage.assetName(piece).dropFirst("Pieces/".count))
+                              captured: captured(by: color).map(BoardMaterial.code), materialLead: materialLead(for: color))
     }
 
     /// Shows the engine's best move. "Hint unavailable" only when the hint failed for the
@@ -272,27 +267,14 @@ final class PlayModel {
 
     // MARK: Captured material
 
-    private static let startCounts: [Piece.Kind: Int] = [.pawn: 8, .knight: 2, .bishop: 2, .rook: 2, .queen: 1]
-    private static let trayOrder: [Piece.Kind] = [.pawn, .knight, .bishop, .rook, .queen]
-
-    private var onBoard: [Piece] { Position(fen: displayedFen)?.pieces ?? [] }
-
-    /// Pieces `color` has taken, cheapest first (promotions can hide a capture; good enough for a tray).
+    /// Pieces `color` has taken in the shown position, cheapest first.
     func captured(by color: Piece.Color) -> [Piece] {
-        let pieces = onBoard
-        return Self.trayOrder.flatMap { kind -> [Piece] in
-            let left = pieces.filter { $0.color == color.opposite && $0.kind == kind }.count
-            let missing = max(0, (Self.startCounts[kind] ?? 0) - left)
-            return Array(repeating: Piece(kind, color: color.opposite, square: .a1), count: missing)
-        }
+        BoardMaterial.captured(by: color, fen: displayedFen)
     }
 
-    /// Material `color` is ahead by, in pawns (0 when level or behind).
+    /// Material `color` is ahead by in the shown position, in pawns (0 when level or behind).
     func materialLead(for color: Piece.Color) -> Int {
-        let pieces = onBoard.filter { $0.kind != .king }
-        let own = pieces.filter { $0.color == color }.map { pieceValue($0.kind) }.reduce(0, +)
-        let other = pieces.filter { $0.color != color }.map { pieceValue($0.kind) }.reduce(0, +)
-        return max(0, own - other)
+        BoardMaterial.lead(for: color, fen: displayedFen)
     }
 
     // MARK: Game over

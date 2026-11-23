@@ -18,6 +18,12 @@ final class GameRecord {
         snapshotData = try encodeSnapshot(snapshot)
     }
 
+    /// Replaces the stored game in place (same record, same id), e.g. to add its analysis.
+    /// The caller saves the context.
+    func update(_ snapshot: GameSnapshot) throws {
+        snapshotData = try encodeSnapshot(snapshot)
+    }
+
     /// The stored game, or nil (logged) if its data cannot be decoded. Decoding is lenient, so
     /// nil means the game itself is unreadable, not just one of its verdicts.
     var snapshot: GameSnapshot? {

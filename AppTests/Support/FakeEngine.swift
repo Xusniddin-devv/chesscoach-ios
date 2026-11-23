@@ -11,6 +11,7 @@ final class FakeEngine: ChessEngine, @unchecked Sendable {
     private let result: AnalysisResult
     private var analysisFailures = 0
     private var _analysisCount = 0
+    private var _requests: [AnalysisRequest] = []
     private var holding = false
     private var held: [CheckedContinuation<Void, Never>] = []
 
@@ -27,6 +28,9 @@ final class FakeEngine: ChessEngine, @unchecked Sendable {
     /// Analyses started so far (grades, prefetches and hints).
     var analysisCount: Int { lock.withLock { _analysisCount } }
 
+    /// Every analysis request, in the order they arrived.
+    var requests: [AnalysisRequest] { lock.withLock { _requests } }
+
     /// Analyses wait until `releaseAnalyses()`.
     func holdAnalyses() { lock.withLock { holding = true } }
 
@@ -42,6 +46,7 @@ final class FakeEngine: ChessEngine, @unchecked Sendable {
     func analyze(_ request: AnalysisRequest) async throws -> AnalysisResult {
         let fail = lock.withLock { () -> Bool in
             _analysisCount += 1
+            _requests.append(request)
             defer { analysisFailures = max(0, analysisFailures - 1) }
             return analysisFailures > 0
         }

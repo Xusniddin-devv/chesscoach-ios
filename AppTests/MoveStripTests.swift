@@ -83,4 +83,23 @@ struct BoardStackGeometryTests {
         let g = BoardStackGeometry(width: 402, height: 718, margin: 8, above: 88, below: 72, covered: 60)
         #expect(g == free)
     }
+
+    /// Review's card above the bar keeps the user bar clear: the board gives way earlier.
+    @Test func keptContentUnderTheBoardStaysClear() {
+        let g = BoardStackGeometry(width: 402, height: 718, margin: 8, above: 88, below: 72,
+                                   covered: 200, kept: 44)
+        #expect(g.top + 88 + g.side + 44 <= 718 - 200 + 0.001)
+        let without = BoardStackGeometry(width: 402, height: 718, margin: 8, above: 88, below: 72, covered: 200)
+        #expect(g.top + g.side < without.top + without.side)
+    }
+
+    /// Review: the stack moves up before the board shrinks.
+    @Test func movesFirstKeepsTheBoardSize() {
+        let free = BoardStackGeometry(width: 402, height: 718, margin: 8, above: 88, below: 72, covered: 0)
+        let g = BoardStackGeometry(width: 402, height: 718, margin: 8, above: 88, below: 72,
+                                   covered: 180, kept: 44, movesFirst: true)
+        #expect(g.side == free.side)
+        #expect(g.top < free.top)
+        #expect(g.top + 88 + g.side + 44 <= 718 - 180 + 0.001)
+    }
 }

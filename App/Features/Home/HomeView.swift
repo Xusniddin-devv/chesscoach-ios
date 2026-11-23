@@ -4,7 +4,10 @@ import ChessCore
 
 /// Greeting, the one accent "Play a bot" card, and the last five games.
 struct HomeView: View {
-    private enum Route: Hashable { case botPicker }
+    private enum Route: Hashable {
+        case botPicker
+        case review(GameRecord)
+    }
 
     @Query(HomeView.recentGames) private var records: [GameRecord]
     @State private var path: [Route] = []
@@ -29,8 +32,11 @@ struct HomeView: View {
             }
             .background(DS.Color.background)
             .navigationTitle(Self.greeting(for: .now))
-            .navigationDestination(for: Route.self) { _ in
-                BotPickerView { game = $0 }
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .botPicker: BotPickerView { game = $0 }
+                case .review(let record): ReviewView(record: record)
+                }
             }
         }
         .fullScreenCover(item: $game) { setup in
@@ -41,7 +47,10 @@ struct HomeView: View {
             if started != nil { var t = Transaction(); t.disablesAnimations = true; withTransaction(t) { path = [] } }
         }
         #if DEBUG
-        .task { DebugLaunch.apply(path: { path = [.botPicker] }, play: { game = $0 }) }
+        .task {
+            DebugLaunch.apply(path: { path = [.botPicker] }, play: { game = $0 })
+            if DebugReview.requested, let latest = records.first { path = [.review(latest)] }
+        }
         #endif
     }
 
@@ -58,18 +67,21 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: DS.Spacing.s) {
             SectionLabel("Recent games")
             // An unreadable record is skipped here; `GameRecord.snapshot` logs it.
-            let games = records.compactMap { record in record.snapshot.map { (record.id, $0) } }
+            let games = records.compactMap { record in record.snapshot.map { (record, $0) } }
             if games.isEmpty {
                 Text("Your games will show up here.")
                     .font(DS.Font.subheadline)
                     .foregroundStyle(DS.Color.textSecondary)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(games.enumerated()), id: \.element.0) { index, game in
+                    ForEach(Array(games.enumerated()), id: \.element.0.id) { index, game in
                         if index > 0 {
                             Divider().overlay(DS.Color.surface2).padding(.leading, DS.Spacing.m + 32 + DS.Spacing.sm)
                         }
-                        RecentGameRow(snapshot: game.1)
+                        NavigationLink(value: Route.review(game.0)) {
+                            GameRow(snapshot: game.1)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
@@ -109,58 +121,5 @@ private struct PlayCard: View {
         .contentShape(RoundedRectangle(cornerRadius: DS.Radius.large))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
-    }
-}
-
-/// "vs Pip", when, and the result from the user's side.
-private struct RecentGameRow: View {
-    let snapshot: GameSnapshot
-
-    private var bot: Bot? { Bot.all.first { $0.id == snapshot.botId } }
-
-    var body: some View {
-        HStack(spacing: DS.Spacing.sm) {
-            if let bot { AvatarTile(bot: bot, size: 32) }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("vs \(bot?.name ?? snapshot.botId)")
-                    .font(DS.Font.headline)
-                    .foregroundStyle(DS.Color.text)
-                Text(when)
-                    .font(DS.Font.caption)
-                    .foregroundStyle(DS.Color.textSecondary)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(outcome.score).font(DS.Font.numeral).foregroundStyle(DS.Color.text)
-                Text(outcome.word).font(DS.Font.caption).foregroundStyle(DS.Color.textSecondary)
-            }
-        }
-        .padding(.horizontal, DS.Spacing.m)
-        .padding(.vertical, DS.Spacing.sm)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var when: String {
-        let date = snapshot.date
-        let mode = snapshot.mode == .training ? "Training" : "Silent"
-        let day: String
-        if Calendar.current.isDateInToday(date) {
-            day = date.formatted(date: .omitted, time: .shortened)
-        } else if Calendar.current.isDateInYesterday(date) {
-            day = "Yesterday"
-        } else {
-            day = date.formatted(.dateTime.month(.abbreviated).day())
-        }
-        return "\(day) · \(mode)"
-    }
-
-    private var outcome: (score: String, word: String) {
-        switch snapshot.result {
-        case .draw: return ("½–½", "Draw")
-        case .ongoing: return ("–", "Unfinished")
-        case .whiteWins, .blackWins:
-            let won = (snapshot.result == .whiteWins) == (snapshot.userColor == .white)
-            return won ? ("1–0", "Won") : ("0–1", "Lost")
-        }
     }
 }

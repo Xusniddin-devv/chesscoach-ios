@@ -126,6 +126,19 @@ Plan 2 layout (owner: "the board is on the top side and the bottom is blank spac
 - **Coach card** on a training interrupt: slides up **in place of the action bar** (the bar fades out), opaque `surface` with a 1 pt `surface2` hairline, top corners `Radius.large`, bottom corners concentric with the screen's. It never covers the board: when it would, the board shrinks by up to 8 % in place, then the stack moves up into its free space, then the board shrinks the rest (animated); the user bar and status line under it fade out. Content unchanged: class pill (class fill, ink text, `label` style "?? BLUNDER"), explanation in `body`, Take back (`SecondaryButton`) + Show best (`PrimaryButton`) side by side, Continue as a plain text button under them. Not glass: it is content (anti-slop rule).
 - Danger red appears only in the blunder pill/badge/tint/strip glyph — never as a screen background.
 
+## Review (refs: `references/review/`)
+
+Screens: `screens/plan2-review-analysing.png`, `-blunder.png`, `-branch.png`, `-moves.png`. Pushed from Home's recent games (and Profile's history); tab bar hidden, system back button, inline title "vs Rookie Ron" with the opening name as the subtitle.
+
+- **Scaffold**: the Play layout (`GameBoardScaffold`). Action bar: move list `list.bullet` (inside a branch: back to the game `arrow.uturn.backward`) · best move `lightbulb` / `lightbulb.fill` when shown (enabled on negative moves) · `chevron.left` `chevron.right` · flip.
+- **Analysis**: runs once per game (depth 14, MultiPV 2, both colours) the first time the game is opened, then stored in the record. Status line "Analysing 13 / 25" with a 96 pt accent progress capsule on the right; moves can be stepped meanwhile, the board is read-only. Error: "Analysis stopped" + accent "Retry", inline.
+- **Player bars**: each side's accuracy at the trailing edge, `subheadline` mono semibold on a `surface2` tile (`Radius.small`).
+- **Board**: the selected move's destination in its class tint + `MoveBadge`; best-move arrow (accent) when toggled on a negative move; eval bar from the analysis' win %.
+- **Strip**: every move of both sides carries its class glyph.
+- **Comment card** above the action bar for every graded move: class pill + one sentence ("Nf3 is the best move.", "Rookie Ron played Bxg5, a book move."); the user's own inaccuracy / mistake / miss / blunder gets the full `explain` text. Opaque `surface`, 1 pt `surface2` hairline, `Radius.large`. The stack keeps 146 pt for it at all times so the board never resizes while stepping (a taller card moves the stack up, it does not shrink the board); the status line sits in that room when there is no card (start position, analysing, checking a branch move).
+- **Branches**: a move on the board that differs from the game starts a line from the shown position; its moves sit on `surface2` tiles in the strip, are graded live and in order (`LineGrader`), and are never saved. A move that equals the line's next move just steps forward.
+- **Move list** (sheet, medium / large): ACCURACY (You / bot), class count rows per side (only classes that occur), then the moves in rows of two with class glyphs; the selected move on a `surface2` tile.
+
 ## Bot picker (refs: `references/bot-picker/`)
 
 - Pushed from Home, large title "Choose a bot".

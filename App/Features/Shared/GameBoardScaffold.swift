@@ -12,6 +12,10 @@ import ChessCore
 struct GameBoardScaffold<Board: View, Actions: View, Card: View>: View {
     typealias StatusAccessory = BoardStatusAccessory
 
+    /// Where the card goes: in place of the action bar (Play's coach card, whose buttons
+    /// replace the bar's), or just above the bar (Review's explanation, read while stepping).
+    enum CardPlacement { case replacesBar, aboveBar }
+
     let moves: [MoveStripItem]
     let startFen: String
     let currentPly: Int?
@@ -23,6 +27,7 @@ struct GameBoardScaffold<Board: View, Actions: View, Card: View>: View {
     let board: Board
     let actions: Actions
     let card: Card
+    let cardPlacement: CardPlacement
 
     @State private var barHeight: CGFloat = 0
     @State private var cardHeight: CGFloat = 0
@@ -31,8 +36,10 @@ struct GameBoardScaffold<Board: View, Actions: View, Card: View>: View {
     init(moves: [MoveStripItem], startFen: String = Rules.startFen, currentPly: Int?,
          onSelectPly: @escaping (Int?) -> Void, top: PlayerBarModel, bottom: PlayerBarModel,
          status: String?, statusAccessory: StatusAccessory? = nil,
+         cardPlacement: CardPlacement = .replacesBar,
          @ViewBuilder board: () -> Board, @ViewBuilder actions: () -> Actions,
          @ViewBuilder card: () -> Card) {
+        self.cardPlacement = cardPlacement
         self.moves = moves
         self.startFen = startFen
         self.currentPly = currentPly
@@ -51,21 +58,33 @@ struct GameBoardScaffold<Board: View, Actions: View, Card: View>: View {
     /// How far the card reaches up into the stack's region (whose bottom is the action bar's
     /// top), plus a gap so the board never touches it.
     private var covered: CGFloat {
-        cardShown ? cardHeight + Self.barBottomInset - barHeight + DS.Spacing.s : 0
+        if cardPlacement == .aboveBar && !cardShown { return Self.aboveBarReserve }
+        guard cardShown else { return 0 }
+        switch cardPlacement {
+        case .replacesBar: return cardHeight + Self.barBottomInset - barHeight + DS.Spacing.s
+        case .aboveBar: return max(cardHeight + 2 * DS.Spacing.s, Self.aboveBarReserve)
+        }
     }
+
+    /// Room always kept for a card above the bar (about three lines of explanation), so the
+    /// board stays put while stepping between moves with and without a card.
+    static var aboveBarReserve: CGFloat { 146 }
+
+    private var hidesBar: Bool { cardShown && cardPlacement == .replacesBar }
 
     /// The action bar and the card share this bottom inset, so the card sits where the bar was.
     private static var barBottomInset: CGFloat { DS.Spacing.s }
 
     var body: some View {
-        BoardStackLayout(margin: DS.Spacing.s, covered: covered) {
+        BoardStackLayout(margin: DS.Spacing.s, covered: covered, keepsFirstBelow: cardPlacement == .aboveBar) {
             MoveStrip(items: moves, startFen: startFen, currentPly: currentPly) { onSelectPly($0) }
                 .padding(.bottom, DS.Spacing.s)
             PlayerBar(model: top)
             board.layoutValue(key: BoardSlot.self, value: true)
             // Under the card; faded so nothing peeks out between the board and the card.
+            // A card above the bar keeps the user bar clear instead.
             PlayerBar(model: bottom)
-                .opacity(cardShown ? 0 : 1)
+                .opacity(hidesBar ? 0 : 1)
             StatusLine(text: status, accessory: statusAccessory) { onSelectPly(nil) }
                 .opacity(cardShown ? 0 : 1)
         }
@@ -75,9 +94,9 @@ struct GameBoardScaffold<Board: View, Actions: View, Card: View>: View {
                 .padding(.horizontal, DS.Spacing.m)
                 .padding(.bottom, Self.barBottomInset)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = $0 }
-                .opacity(cardShown ? 0 : 1)
-                .allowsHitTesting(!cardShown)
-                .accessibilityHidden(cardShown)
+                .opacity(hidesBar ? 0 : 1)
+                .allowsHitTesting(!hidesBar)
+                .accessibilityHidden(hidesBar)
         }
         .overlay(alignment: .bottom) {
             // Always present (an empty stack is 0 pt), so the height also reports the card leaving.
@@ -87,7 +106,7 @@ struct GameBoardScaffold<Board: View, Actions: View, Card: View>: View {
                     withAnimation(.snappy(duration: 0.3)) { cardHeight = height }
                 }
                 .padding(.horizontal, DS.Spacing.s)
-                .padding(.bottom, Self.barBottomInset)
+                .padding(.bottom, cardPlacement == .aboveBar ? barHeight + DS.Spacing.s : Self.barBottomInset)
         }
     }
 }
@@ -120,11 +139,20 @@ struct BoardStackGeometry: Equatable {
     /// The share of the board's side it may lose before the stack moves instead.
     static let preferredShrink: CGFloat = 0.08
 
-    init(width: CGFloat, height: CGFloat, margin: CGFloat, above: CGFloat, below: CGFloat, covered: CGFloat) {
+    /// `kept` is how much of what sits under the board the card must not cover either
+    /// (Review keeps the user bar visible above its explanation card).
+    /// `movesFirst`: the stack moves up into its free space before the board shrinks
+    /// (Review, where stepping between moves must not resize the board).
+    init(width: CGFloat, height: CGFloat, margin: CGFloat, above: CGFloat, below: CGFloat, covered: CGFloat,
+         kept: CGFloat = 0, movesFirst: Bool = false) {
         var side = max(0, min(width - 2 * margin, height - above - below))
         var top = max(0, (height - above - side - below) / 2)
-        var deficit = covered > 0 ? top + above + side - (height - covered) : 0
-        if deficit > 0 {
+        var deficit = covered > 0 ? top + above + side + kept - (height - covered) : 0
+        if deficit > 0 && movesFirst {
+            let shift = min(deficit, top)
+            top -= shift
+            side = max(0, side - (deficit - shift))
+        } else if deficit > 0 {
             let shrink = min(deficit, side * Self.preferredShrink)
             side -= shrink
             deficit -= shrink
@@ -148,6 +176,9 @@ private struct BoardSlot: LayoutValueKey {
 private struct BoardStackLayout: Layout {
     var margin: CGFloat
     var covered: CGFloat
+    /// The card must not cover the first subview under the board either; the stack moves
+    /// before the board shrinks.
+    var keepsFirstBelow = false
 
     var animatableData: CGFloat {
         get { covered }
@@ -165,8 +196,10 @@ private struct BoardStackLayout: Layout {
         }
         let above = heights[..<boardIndex].reduce(0, +)
         let below = heights[min(boardIndex + 1, heights.endIndex)...].reduce(0, +)
+        let kept = keepsFirstBelow && boardIndex + 1 < heights.endIndex ? heights[boardIndex + 1] : 0
         let geometry = BoardStackGeometry(width: bounds.width, height: bounds.height, margin: margin,
-                                          above: above, below: below, covered: covered)
+                                          above: above, below: below, covered: covered, kept: kept,
+                                          movesFirst: keepsFirstBelow)
         var y = bounds.minY + geometry.top
         for (index, subview) in subviews.enumerated() {
             if index == boardIndex {
@@ -190,6 +223,8 @@ enum BoardStatusAccessory {
     case backToLive(hasNewMoves: Bool)
     /// A quiet inline action, e.g. "Retry" after an engine error.
     case action(String, () -> Void)
+    /// A thin determinate progress bar (Review: analysing the game).
+    case progress(Double)
 }
 
 /// One quiet line under the user bar: opening name, last verdict or "Pip is thinking…", with
@@ -230,6 +265,17 @@ private struct StatusLine: View {
                 Button(title, action: action)
                     .font(DS.Font.headline)
                     .foregroundStyle(DS.Color.accent)
+            case .progress(let fraction):
+                ZStack(alignment: .leading) {
+                    Capsule().fill(DS.Color.surface2)
+                    Capsule().fill(DS.Color.accent)
+                        .frame(width: 96 * min(max(fraction, 0), 1))
+                }
+                .frame(width: 96, height: 4)
+                .animation(.smooth(duration: 0.3), value: fraction)
+                .accessibilityElement()
+                .accessibilityLabel("Analysis progress")
+                .accessibilityValue(Text(min(max(fraction, 0), 1), format: .percent.precision(.fractionLength(0))))
             case nil:
                 EmptyView()
             }

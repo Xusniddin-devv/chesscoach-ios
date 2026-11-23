@@ -8,6 +8,8 @@ struct MoveStripItem: Identifiable, Equatable {
     let ply: Int
     let san: String
     let moveClass: MoveClass?
+    /// Review: a move of a line tried on the board (not the game), drawn on a quiet tile.
+    var isBranch = false
 
     var id: Int { ply }
 }
@@ -102,6 +104,11 @@ struct MoveStrip: View {
             }
             .padding(.horizontal, DS.Spacing.xs)
             .padding(.vertical, DS.Spacing.xs)
+            .background {
+                if item.isBranch {
+                    RoundedRectangle(cornerRadius: 6).fill(DS.Color.surface2)
+                }
+            }
             .overlay(alignment: .bottom) {
                 if current {
                     Capsule().fill(DS.Color.accent).frame(height: 2)
@@ -111,7 +118,8 @@ struct MoveStrip: View {
         }
         .buttonStyle(.plain)
         .id(item.ply)
-        .accessibilityLabel(item.moveClass.map { "\(item.san), \($0.label)" } ?? item.san)
+        .accessibilityLabel((item.moveClass.map { "\(item.san), \($0.label)" } ?? item.san)
+                            + (item.isBranch ? ", your line" : ""))
         .accessibilityAddTraits(current ? .isSelected : [])
     }
 }

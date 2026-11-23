@@ -9,6 +9,8 @@ struct PlayerBarModel: Equatable {
     var avatarAsset: String?
     var captured: [String]
     var materialLead: Int
+    /// Review: the player's accuracy for the game, shown at the trailing edge.
+    var accuracy: Double? = nil
 }
 
 /// One player above or below the board: avatar, name and Elo on the left; what they have
@@ -34,6 +36,9 @@ struct PlayerBar: View {
             .lineLimit(1)
             Spacer(minLength: DS.Spacing.s)
             CapturedTray(codes: model.captured, lead: model.materialLead)
+            if let accuracy = model.accuracy {
+                AccuracyChip(value: accuracy)
+            }
         }
         .frame(height: Self.height)
         .padding(.horizontal, DS.Spacing.m)
@@ -52,6 +57,21 @@ struct PlayerBar: View {
         } else {
             UserTile(size: 32)
         }
+    }
+}
+
+/// "87.4" in mono on a quiet tile: the player's accuracy in Review.
+private struct AccuracyChip: View {
+    let value: Double
+
+    var body: some View {
+        Text(value, format: .number.precision(.fractionLength(1)))
+            .font(DS.Font.subheadline.monospacedDigit().weight(.semibold))
+            .foregroundStyle(DS.Color.text)
+            .padding(.horizontal, DS.Spacing.s)
+            .frame(minWidth: 52, minHeight: 28)
+            .background(DS.Color.surface2, in: RoundedRectangle(cornerRadius: DS.Radius.small))
+            .accessibilityLabel("Accuracy \(value.formatted(.number.precision(.fractionLength(1))))")
     }
 }
 
