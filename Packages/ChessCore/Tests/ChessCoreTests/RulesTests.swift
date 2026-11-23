@@ -27,3 +27,9 @@ import Testing
     let fen = Rules.fen(startFen: Rules.startFen, moves: moves)!
     #expect(Rules.state(fen: fen, history: moves) == .threefold)
 }
+@Test func threefoldFromCustomStart() {
+    let start = "4k3/8/8/8/8/8/8/R3K3 w - - 0 1"
+    let moves = ["a1a2","e8d8","a2a1","d8e8","a1a2","e8d8","a2a1","d8e8"]
+    let fen = Rules.fen(startFen: start, moves: moves)!
+    #expect(Rules.state(fen: fen, history: moves, startFen: start) == .threefold)
+}

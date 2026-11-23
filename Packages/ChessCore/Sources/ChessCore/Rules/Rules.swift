@@ -172,7 +172,7 @@ public enum Rules {
 
     // MARK: Game state
 
-    public static func state(fen: String, history: [String]) -> GameState {
+    public static func state(fen: String, history: [String], startFen: String = Rules.startFen) -> GameState {
         guard let position = Position(fen: fen) else { return .active }
 
         let king = position.pieces.first { $0.kind == .king && $0.color == position.sideToMove }
@@ -184,7 +184,7 @@ public enum Rules {
             return inCheck ? .checkmate(winner: position.sideToMove.opposite) : .stalemate
         }
         if position.hasInsufficientMaterial { return .insufficientMaterial }
-        if isThreefold(fen: fen, history: history) { return .threefold }
+        if isThreefold(fen: fen, history: history, startFen: startFen) { return .threefold }
         if position.clock.halfmoves >= 100 { return .fiftyMove }
         return inCheck ? .check : .active
     }
@@ -193,7 +193,7 @@ public enum Rules {
         fen.split(separator: " ").prefix(4).joined(separator: " ")
     }
 
-    private static func isThreefold(fen: String, history: [String]) -> Bool {
+    private static func isThreefold(fen: String, history: [String], startFen: String) -> Bool {
         let target = repetitionKey(fen)
         var current = startFen
         var count = repetitionKey(current) == target ? 1 : 0
