@@ -82,7 +82,8 @@ enum DebugAutoplay {
             case .over:
                 log("over \(session.pendingGradeCount)")
                 while session.pendingGradeCount > 0 { try? await Task.sleep(for: .milliseconds(300)) }
-                log("graded")
+                let graded = session.verdicts.values.sorted { $0.ply < $1.ply }
+                log("graded " + graded.map { "\($0.san):\($0.classification.rawValue)" }.joined(separator: " "))
                 return
             case .engineError:
                 log("engineError -> retry")
