@@ -17,6 +17,10 @@ packages:
   ChessKit:
     url: https://github.com/chesskit-studio/chesskit-swift
     exactVersion: 0.17.0
+  # RevenueCat's SPM mirror of purchases-ios (MIT); smaller checkout than the main repo.
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm
+    exactVersion: 5.103.2
 targets:
   ChessCoach:
     type: application
@@ -27,6 +31,11 @@ targets:
       - package: ChessCore
       - package: StockfishKit
       - package: ChessKit
+      - package: RevenueCat
+        product: RevenueCat
+    configFiles:
+      Debug: Config/App.xcconfig
+      Release: Config/App.xcconfig
     preBuildScripts:
       # The nets are gitignored; without them the app builds but the engine dies at the first
       # search. Names as in scripts/fetch-nnue.sh and StockfishResources.swift.
@@ -52,6 +61,11 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         MARKETING_VERSION: "0.1.0"
+        # Settings / Paywall / Voice / CloudKit (feat/settings-paywall)
+        INFOPLIST_FILE: App/Info.plist
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Chess Coach listens while you hold the mic button so you can say your move."
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Your spoken move is turned into text on this iPhone. Nothing is sent anywhere."
+        CODE_SIGN_ENTITLEMENTS: App/ChessCoach.entitlements
         CURRENT_PROJECT_VERSION: "1"
   ChessCoachTests:
     type: bundle.unit-test
@@ -72,6 +86,9 @@ schemes:
     build:
       targets:
         ChessCoach: all
+    run:
+      # Simulator purchases without App Store Connect (monthly $4.99, yearly $29.99 + 7-day trial).
+      storeKitConfiguration: Config/ChessCoach.storekit
     test:
       targets:
         - ChessCoachTests
