@@ -17,6 +17,7 @@ let package = Package(
             resources: [
                 .copy("Resources/openings.json"),
                 .copy("Resources/puzzles.json"),
+                .copy("Resources/lessons.json"),
             ]
         ),
         // Dev-time tool: scripts/gen-openings.sh regenerates Resources/openings.json.
