@@ -61,7 +61,10 @@ private func isInterrupted(_ phase: GameSession.Phase) -> Bool {
     }
     #expect(session.moves == history)
     // The engine is held on the first grade; the queue must not fire the others concurrently.
-    #expect(engine.requests == [gradeRequest([])])
+    // Besides it, only the prefetches of each next grade's "before" (one per bot move) ran.
+    let prefetches = [2, 4, 6, 8].map { gradeRequest(Array(history.prefix($0))) }
+    #expect(await eventually { engine.requests.count == 5 })
+    #expect(Set(engine.requests) == Set([gradeRequest([])] + prefetches))
     #expect(session.verdicts.isEmpty)
 
     engine.analysisGate.open()
@@ -71,7 +74,7 @@ private func isInterrupted(_ phase: GameSession.Phase) -> Bool {
     let expected = [1, 3, 5, 7].flatMap { ply in
         [gradeRequest(Array(history.prefix(ply - 1))), gradeRequest(Array(history.prefix(ply)))]
     }
-    #expect(engine.requests == expected)
+    #expect(Array(engine.requests.dropFirst(5)) == Array(expected.dropFirst()))
     for ply in [1, 3, 5, 7] {
         let v = session.verdicts[ply]
         #expect(v?.uci == history[ply - 1])
@@ -304,12 +307,13 @@ func noBotRequestAfterCheckmate(mode: PlayMode) async {
 
 @MainActor @Test func hintShowsEngineBestMove() async {
     let engine = FakeEngine()
-    engine.script(AnalysisRequest(startFen: startFen, moves: [], depth: 16, multiPV: 1), result(best: "g1f3", cp: 30))
+    engine.script(gradeRequest([]), result(best: "g1f3", cp: 30))
     let training = makeSession(engine, mode: .training)
     training.start()
     #expect(await training.hint())
     #expect(training.bestArrow?.from == .g1 && training.bestArrow?.to == .f3)
-    #expect(engine.requests == [AnalysisRequest(startFen: startFen, moves: [], depth: 16, multiPV: 1)])
+    // The same request the next grade's "before" uses, so the two share the engine's cache entry.
+    #expect(engine.requests == [gradeRequest([])])
 
     let silentEngine = FakeEngine()
     let silent = makeSession(silentEngine, mode: .silent)
@@ -317,6 +321,75 @@ func noBotRequestAfterCheckmate(mode: PlayMode) async {
     #expect(await silent.hint() == false)
     #expect(silent.bestArrow == nil)
     #expect(silentEngine.requests.isEmpty)
+}
+
+// MARK: - Prefetch
+
+/// Only user moves are graded, so the "before" of the user's next move is never the "after" of
+/// an earlier grade. The session analyses it as soon as the bot's move lands, while the user
+/// thinks, with exactly the request the grade will make.
+@MainActor @Test(arguments: [PlayMode.training, .silent])
+func botMovePrefetchesNextGradeBefore(mode: PlayMode) async {
+    let engine = FakeEngine(botMoves: ["e7e5", "b8c6"])
+    let session = makeSession(engine, mode: mode)
+    session.start()
+
+    #expect(session.userMove("e2e4"))
+    #expect(await eventually { session.phase == .userTurn && session.moves == ["e2e4", "e7e5"] })
+    let prefetch = gradeRequest(["e2e4", "e7e5"])
+    // Fired by the bot's move, before the user has moved again.
+    #expect(await eventually { engine.requests.contains(prefetch) })
+    let loggedBeforeUserMove = engine.requests.count
+    #expect(engine.requests.filter { $0 == prefetch }.count == 1)
+
+    #expect(session.userMove("g1f3"))
+    #expect(await eventually { session.verdicts[3] != nil })
+    // The grade's "before" is the very same request (same cache key), so the engine's cache answers it.
+    let later = engine.requests.dropFirst(loggedBeforeUserMove)
+    let gradeBefore = later.first { $0.moves == ["e2e4", "e7e5"] }
+    #expect(gradeBefore == prefetch)
+    #expect(gradeBefore?.cacheKey == prefetch.cacheKey)
+    #expect(later.contains(gradeRequest(["e2e4", "e7e5", "g1f3"])))
+}
+
+@MainActor @Test func hintAfterBotMoveRepeatsThePrefetchRequest() async {
+    let engine = FakeEngine(botMoves: ["e7e5"])
+    let session = makeSession(engine, mode: .training)
+    session.start()
+    #expect(session.userMove("e2e4"))
+    let prefetch = gradeRequest(["e2e4", "e7e5"])
+    #expect(await eventually { session.phase == .userTurn && engine.requests.last == prefetch })
+    _ = await session.hint()
+    #expect(engine.requests.suffix(2) == [prefetch, prefetch])
+}
+
+@MainActor @Test func noPrefetchAfterTheBotMates() async {
+    // 1.f3 e5 2.g4 Qh4#: the user (White) has no next move to grade.
+    let engine = FakeEngine(botMoves: ["e7e5", "d8h4"])
+    let session = makeSession(engine, mode: .silent)
+    session.start()
+    #expect(session.userMove("f2f3"))
+    #expect(await eventually { session.phase == .userTurn && session.moves.count == 2 })
+    #expect(session.userMove("g2g4"))
+    #expect(await eventually { if case .over = session.phase { return true } else { return false } })
+    await settle()
+    #expect(!engine.requests.contains(gradeRequest(["f2f3", "e7e5", "g2g4", "d8h4"])))
+}
+
+@MainActor @Test func takeBackCancelsInFlightPrefetch() async {
+    let engine = FakeEngine(botMoves: ["e7e5"])
+    engine.analysisGate.close()
+    let session = makeSession(engine, mode: .silent)
+    session.start()
+    #expect(session.userMove("e2e4"))
+    // Silent mode: the bot replies while the grade waits; then the prefetch waits too.
+    #expect(await eventually { session.moves.count == 2 && engine.analysisGate.waiterCount == 2 })
+    #expect(engine.requests.last == gradeRequest(["e2e4", "e7e5"]))
+
+    session.takeBack()
+    // Both the grade and the prefetch were cancelled, so nothing holds the engine.
+    #expect(await eventually { engine.analysisGate.waiterCount == 0 })
+    engine.analysisGate.open()
 }
 
 @MainActor @Test func hintReportsEngineFailure() async {

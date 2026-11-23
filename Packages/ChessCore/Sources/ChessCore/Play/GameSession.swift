@@ -65,6 +65,9 @@ public final class GameSession {
     }
     @ObservationIgnored private var drainWaiters: [CheckedContinuation<Void, Never>] = []
     @ObservationIgnored private var botTask: Task<Void, Never>?
+    /// Analysis of the position the bot's move left, warming the engine's cache for the user's
+    /// next grade (its "before") and for a hint.
+    @ObservationIgnored private var prefetchTask: Task<Void, Never>?
     @ObservationIgnored private var interruptingVerdict: Verdict?
     @ObservationIgnored private var ending: (result: GameResult, reason: GameState?)?
 
@@ -122,6 +125,7 @@ public final class GameSession {
         generation += 1
         botTask?.cancel()
         botTask = nil
+        cancelPrefetch()
         drainTask?.cancel()
         drainTask = nil
         // Grades of earlier, kept moves stay valid; re-stamp them for the new generation.
@@ -168,19 +172,21 @@ public final class GameSession {
         guard ending == nil else { return }
         botTask?.cancel()
         botTask = nil
+        cancelPrefetch()
         interruptingVerdict = nil
         end(userColor == .white ? .blackWins : .whiteWins, reason: nil)
     }
 
     /// Training only, on the user's turn: shows the engine's best move in the current position.
     /// Returns true if `bestArrow` was set. A hint is optional help: an engine failure (or
-    /// cancellation) returns false and leaves the phase alone.
+    /// cancellation) returns false and leaves the phase alone. It asks exactly what the next
+    /// grade's "before" asks, so the two share one search.
     @discardableResult
     public func hint() async -> Bool {
         guard mode == .training, phase == .userTurn else { return false }
         let gen = generation
         let ply = moves.count
-        let request = AnalysisRequest(startFen: startFen, moves: moves, depth: analysisDepth, multiPV: 1)
+        let request = analysisRequest(moves)
         let result: AnalysisResult
         do {
             result = try await engine.analyze(request)
@@ -324,11 +330,21 @@ public final class GameSession {
         trainingSeverity(cpLoss: verdict.cpLoss, level: playerRating) >= .mistake || verdict.classification == .miss
     }
 
+    /// The analysis a grade asks for (before and after a move); the prefetch and the hint ask
+    /// for the same thing so they hit the engine's cache.
+    private func analysisRequest(_ history: [String]) -> AnalysisRequest {
+        Self.analysisRequest(startFen: startFen, moves: history, depth: analysisDepth)
+    }
+
+    private nonisolated static func analysisRequest(startFen: String, moves: [String], depth: Int) -> AnalysisRequest {
+        AnalysisRequest(startFen: startFen, moves: moves, depth: depth, multiPV: 2)
+    }
+
     private nonisolated static func grade(_ job: GradeJob, engine: any ChessEngine, depth: Int) async throws -> Verdict {
         let before = try await engine.analyze(
-            AnalysisRequest(startFen: job.startFen, moves: job.historyBefore, depth: depth, multiPV: 2))
+            analysisRequest(startFen: job.startFen, moves: job.historyBefore, depth: depth))
         let after = try await engine.analyze(
-            AnalysisRequest(startFen: job.startFen, moves: job.historyAfter, depth: depth, multiPV: 2))
+            analysisRequest(startFen: job.startFen, moves: job.historyAfter, depth: depth))
         return classifyPlayed(PlayedMoveInput(
             fenBefore: job.fenBefore, fenAfter: job.fenAfter, playedUci: job.uci, playedSan: job.san,
             mover: job.mover, ply: job.ply, before: before, after: after))
@@ -365,10 +381,33 @@ public final class GameSession {
                 return
             }
             apply(uci, applied)
-            if !endIfTerminal() { advance() }
+            if !endIfTerminal() {
+                prefetchNextGradeBefore()
+                advance()
+            }
         case .failure(let error):
             if !(error is CancellationError) { fail() }
         }
+    }
+
+    /// Only the user's moves are graded, so the "before" of the user's next move is never the
+    /// "after" of an earlier grade. Analysing it now, while the user thinks, means the grade
+    /// finds it in the engine's cache. Fire-and-forget: the result, errors and cancellation are
+    /// ignored; a take-back or resignation cancels it. An earlier prefetch still running is
+    /// left alone: a queued grade may be waiting for its answer.
+    private func prefetchNextGradeBefore() {
+        let gen = generation
+        let request = analysisRequest(moves)
+        let engine = engine
+        prefetchTask = Task { [weak self] in
+            guard self?.generation == gen else { return }
+            _ = try? await engine.analyze(request)
+        }
+    }
+
+    private func cancelPrefetch() {
+        prefetchTask?.cancel()
+        prefetchTask = nil
     }
 
     /// Asks for the bot's move, then pads to `think` only if the search finished early.

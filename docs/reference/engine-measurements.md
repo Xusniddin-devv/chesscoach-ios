@@ -21,7 +21,7 @@ Net loading (the 104 MB big net) dominates a session, so Task 4 should keep one 
 ## iOS Simulator (Mac host), 2026-11-24
 
 - Host: Apple M1 (8 cores), macOS 26.5.1, iPhone 17 Pro Simulator, Debug app build (StockfishCore still `-O3`). Host numbers, not device numbers.
-- Harness: `App/Debug/EngineBenchmark` (DEBUG only). Warm engine, one discarded warm-up pass, then 20 graded moves of a Ruy Lopez (Chigorin) line, each `analyze(before)` + `analyze(after)` at depth 16, MultiPV 2, full history; the one-entry cache makes `before` of move N+1 free, as in the app. Hash 64 MB. Also the depth reached by `go movetime 300` from the position after 10 plies.
+- Harness: `App/Debug/EngineBenchmark` (DEBUG only). Warm engine, one discarded warm-up pass, then 20 graded moves of a Ruy Lopez (Chigorin) line, each `analyze(before)` + `analyze(after)` at depth 16, MultiPV 2, full history. The benchmark grades every ply, so the one-entry cache makes `before` of move N+1 free and a graded move costs one search. The app grades only the user's moves, so on its own the user's next `before` would be a second search; `GameSession` prefetches it when the bot's move lands (same request, so the grade hits the cache), which runs it while the user thinks. The wait for a grade after the user's move is therefore one search, which is what this number measures. Hash 64 MB. Also the depth reached by `go movetime 300` from the position after 10 plies.
 - Run: launch with `-engineBenchmark` (headless, writes `Documents/engine-benchmark.md`), or Profile tab > "Engine benchmark (debug)" > Run, then "Copy as Markdown".
 - Single run each, so expect a few percent of noise (the 2-thread row is probably noise or contention, not a trend).
 

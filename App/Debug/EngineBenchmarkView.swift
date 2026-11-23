@@ -9,7 +9,9 @@ import StockfishKit
 ///
 /// Per configuration: one discarded warm-up pass, then a timed pass over 20 graded moves.
 /// A graded move is `analyze(before)` + `analyze(after)` at depth 16, MultiPV 2, with full
-/// history; the engine's one-entry cache makes `before` of move N+1 free, as in the app.
+/// history; the engine's one-entry cache makes `before` of move N+1 free, so a graded move
+/// costs one search. The app grades only the user's moves; it gets the same one-search wait
+/// because `GameSession` prefetches the next `before` while the user thinks.
 /// The cache is cleared before each pass so the pass really searches. Then `go movetime 300`
 /// from the middle position reports the depth reached.
 ///
