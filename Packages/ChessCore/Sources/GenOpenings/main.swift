@@ -22,7 +22,8 @@ let dir = URL(fileURLWithPath: args[1])
 let out = URL(fileURLWithPath: args[2])
 
 func key(_ fen: String) -> String {
-    fen.split(separator: " ").prefix(4).joined(separator: " ")
+    // En passant is dropped so transpositions share a key.
+    fen.split(separator: " ").prefix(3).joined(separator: " ") + " -"
 }
 
 func sanTokens(_ pgn: String) -> [String] {

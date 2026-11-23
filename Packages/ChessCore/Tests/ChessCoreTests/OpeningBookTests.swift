@@ -19,12 +19,21 @@ import Testing
     #expect(OpeningBook.lookup(fen: altered)?.name == "French Defense")
 }
 
+@Test func transpositionFindsSameOpening() {
+    let a = Rules.fen(startFen: Rules.startFen, moves: ["g1f3", "e7e5", "e2e4"])!
+    let b = Rules.fen(startFen: Rules.startFen, moves: ["e2e4", "e7e5", "g1f3"])!
+    let na = OpeningBook.lookup(fen: a)
+    #expect(na != nil)
+    #expect(na == OpeningBook.lookup(fen: b))
+}
+
 @Test func deepestKeepsLastKnownAfterLeavingBook() {
-    let inBook = ["e2e4", "e7e6"]
-    let expected = OpeningBook.deepest(startFen: Rules.startFen, moves: inBook)
-    #expect(expected?.name == "French Defense")
-    let out = inBook + ["a2a3", "a7a6", "h2h3", "h7h6", "b2b3", "b7b6"]
-    #expect(OpeningBook.deepest(startFen: Rules.startFen, moves: out) == expected)
+    let italian = ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4"]
+    let deep = OpeningBook.deepest(startFen: Rules.startFen, moves: italian)
+    #expect(deep?.name.contains("Italian") == true)
+    #expect(deep != OpeningBook.deepest(startFen: Rules.startFen, moves: ["e2e4", "e7e5"]))
+    let out = italian + ["a2a3", "a7a6", "h2h3", "h7h6", "b2b3", "b7b6"]
+    #expect(OpeningBook.deepest(startFen: Rules.startFen, moves: out) == deep)
 }
 
 @Test func unknownStartFenReturnsNil() {
