@@ -21,4 +21,13 @@ struct GameRecordTests {
         #expect(fetched.count == 1)
         #expect(fetched.first?.snapshot == original)
     }
+
+    @Test func unreadableRecordHasNoSnapshot() throws {
+        let record = try GameRecord(snapshot: GameSnapshot(
+            id: UUID(), date: .now, botId: "pip", userColor: .white, mode: .silent,
+            startFen: Rules.startFen, moves: [], sans: [], result: .ongoing,
+            verdicts: [], analysisVersion: 1, playerRatingUsed: 800))
+        record.snapshotData = Data("{\"id\": 1}".utf8)
+        #expect(record.snapshot == nil)
+    }
 }

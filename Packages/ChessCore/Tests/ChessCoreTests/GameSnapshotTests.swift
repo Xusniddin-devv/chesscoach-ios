@@ -74,3 +74,114 @@ private func sampleSnapshot() -> GameSnapshot {
     snapshot.date = Date.now
     #expect(try decodeSnapshot(encodeSnapshot(snapshot)) == snapshot)
 }
+
+// MARK: - Format stability
+
+/// The sample snapshot as a mutable JSON object, so tests can drop or corrupt fields.
+private func sampleJSON() throws -> [String: Any] {
+    try JSONSerialization.jsonObject(with: encodeSnapshot(sampleSnapshot())) as! [String: Any]
+}
+
+private func decode(_ json: [String: Any]) throws -> GameSnapshot {
+    try decodeSnapshot(JSONSerialization.data(withJSONObject: json))
+}
+
+@Test func newSnapshotsCarrySchemaVersion1() throws {
+    #expect(sampleSnapshot().schemaVersion == 1)
+    #expect(try sampleJSON()["schemaVersion"] as? Int == 1)
+}
+
+@Test func decodesBlobMissingOptionalAndNewerFields() throws {
+    var json = try sampleJSON()
+    for key in ["schemaVersion", "sans", "verdicts", "analysisVersion", "playerRatingUsed", "mode", "result", "startFen"] {
+        json.removeValue(forKey: key)
+    }
+    let decoded = try decode(json)
+    let sample = sampleSnapshot()
+    #expect(decoded.id == sample.id)
+    #expect(decoded.date == sample.date)
+    #expect(decoded.botId == sample.botId)
+    #expect(decoded.userColor == sample.userColor)
+    #expect(decoded.moves == sample.moves)
+    #expect(decoded.schemaVersion == 1)
+    #expect(decoded.startFen == Rules.startFen)
+    #expect(decoded.sans.isEmpty)
+    #expect(decoded.verdicts.isEmpty)
+    #expect(decoded.analysisVersion == 1)
+    #expect(decoded.playerRatingUsed == PlayerProfile.defaultRating)
+    #expect(decoded.mode == .training)
+    #expect(decoded.result == .ongoing)
+}
+
+@Test func decodesVerdictMissingOptionalFields() throws {
+    var json = try sampleJSON()
+    var verdicts = json["verdicts"] as! [[String: Any]]
+    for key in ["motifs", "bestLineSan", "bestSan", "mateBefore", "mateAfter"] {
+        verdicts[1].removeValue(forKey: key)
+    }
+    var facts = verdicts[1]["facts"] as! [String: Any]
+    for key in ["bestPv", "bestReplyUci", "mateForMoverBefore", "mateAgainstMoverAfter"] {
+        facts.removeValue(forKey: key)
+    }
+    verdicts[1]["facts"] = facts
+    json["verdicts"] = verdicts
+    let v = try decode(json).verdicts[1]
+    #expect(v.classification == hangingKnightVerdict().classification)
+    #expect(v.motifs.isEmpty)
+    #expect(v.bestLineSan.isEmpty)
+    #expect(v.bestSan == v.bestMove)
+    #expect(v.facts.bestPv.isEmpty)
+    #expect(v.facts.bestReplyUci == "")
+}
+
+@Test func unknownFieldsAreIgnored() throws {
+    var json = try sampleJSON()
+    json["schemaVersion"] = 2
+    json["somethingAddedLater"] = ["a": 1]
+    var verdicts = json["verdicts"] as! [[String: Any]]
+    verdicts[0]["somethingAddedLater"] = true
+    json["verdicts"] = verdicts
+    let decoded = try decode(json)
+    #expect(decoded.schemaVersion == 2)
+    #expect(decoded.verdicts.count == 2)
+}
+
+@Test func corruptVerdictIsDroppedNotTheGame() throws {
+    var json = try sampleJSON()
+    var verdicts = json["verdicts"] as! [[String: Any]]
+    verdicts[0]["classification"] = "not-a-class"
+    json["verdicts"] = verdicts + [["ply": "garbage"]]
+    let decoded = try decode(json)
+    #expect(decoded.moves == sampleSnapshot().moves)
+    #expect(decoded.verdicts == [hangingKnightVerdict()])
+}
+
+@Test func unknownMotifIsDroppedNotTheVerdict() throws {
+    var json = try sampleJSON()
+    var verdicts = json["verdicts"] as! [[String: Any]]
+    verdicts[1]["motifs"] = ["hanging-piece", "added-later"]
+    json["verdicts"] = verdicts
+    #expect(try decode(json).verdicts[1].motifs == [.hangingPiece])
+}
+
+@Test func missingCoreFieldStillFails() throws {
+    var json = try sampleJSON()
+    json.removeValue(forKey: "moves")
+    #expect(throws: (any Error).self) { try decode(json) }
+}
+
+/// Stored raw values: changing one breaks every saved game.
+@Test func storedRawValuesArePinned() throws {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.withoutEscapingSlashes]
+    let results: [(GameResult, String)] = [(.whiteWins, "1-0"), (.blackWins, "0-1"), (.draw, "1/2-1/2"), (.ongoing, "*")]
+    for (value, raw) in results {
+        #expect(try encoder.encode([value]) == Data("[\"\(raw)\"]".utf8))
+        #expect(try JSONDecoder().decode([GameResult].self, from: Data("[\"\(raw)\"]".utf8)) == [value])
+    }
+    let modes: [(PlayMode, String)] = [(.training, "training"), (.silent, "silent")]
+    for (value, raw) in modes {
+        #expect(try encoder.encode([value]) == Data("[\"\(raw)\"]".utf8))
+        #expect(try JSONDecoder().decode([PlayMode].self, from: Data("[\"\(raw)\"]".utf8)) == [value])
+    }
+}

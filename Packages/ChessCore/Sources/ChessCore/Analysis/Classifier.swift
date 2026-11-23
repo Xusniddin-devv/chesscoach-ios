@@ -76,6 +76,50 @@ public struct Verdict: Codable, Sendable, Equatable {
     public var facts: MoveFacts
 }
 
+// Stored inside saved games (GameSnapshot): decoding is lenient so the format can grow.
+// Fields added later must use `decodeIfPresent` with a default.
+
+extension Verdict {
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ply = try c.decode(Int.self, forKey: .ply)
+        san = try c.decode(String.self, forKey: .san)
+        uci = try c.decode(String.self, forKey: .uci)
+        mover = try c.decode(Piece.Color.self, forKey: .mover)
+        classification = try c.decode(MoveClass.self, forKey: .classification)
+        cpLoss = try c.decode(Int.self, forKey: .cpLoss)
+        winDrop = try c.decode(Double.self, forKey: .winDrop)
+        evalWhiteCp = try c.decode(Int.self, forKey: .evalWhiteCp)
+        bestMove = try c.decode(String.self, forKey: .bestMove)
+        facts = try c.decode(MoveFacts.self, forKey: .facts)
+        mateBefore = try c.decodeIfPresent(Int.self, forKey: .mateBefore)
+        mateAfter = try c.decodeIfPresent(Int.self, forKey: .mateAfter)
+        bestSan = try c.decodeIfPresent(String.self, forKey: .bestSan) ?? bestMove
+        bestLineSan = try c.decodeIfPresent([String].self, forKey: .bestLineSan) ?? []
+        // A motif added in a later version is unknown here: drop it, keep the verdict.
+        motifs = (try c.decodeIfPresent([String].self, forKey: .motifs) ?? []).compactMap(Motif.init(rawValue:))
+    }
+}
+
+extension MoveFacts {
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fenBefore = try c.decode(String.self, forKey: .fenBefore)
+        fenAfter = try c.decode(String.self, forKey: .fenAfter)
+        playedUci = try c.decode(String.self, forKey: .playedUci)
+        playedSan = try c.decode(String.self, forKey: .playedSan)
+        bestUci = try c.decode(String.self, forKey: .bestUci)
+        cpLoss = try c.decode(Int.self, forKey: .cpLoss)
+        evalAfterWhiteCp = try c.decode(Int.self, forKey: .evalAfterWhiteCp)
+        mover = try c.decode(Piece.Color.self, forKey: .mover)
+        bestPv = try c.decodeIfPresent([String].self, forKey: .bestPv) ?? []
+        bestReplyUci = try c.decodeIfPresent(String.self, forKey: .bestReplyUci) ?? ""
+        mateForMoverBefore = try c.decodeIfPresent(Int.self, forKey: .mateForMoverBefore)
+        mateAgainstMoverAfter = try c.decodeIfPresent(Int.self, forKey: .mateAgainstMoverAfter)
+        moveNumber = try c.decodeIfPresent(Int.self, forKey: .moveNumber) ?? 1
+    }
+}
+
 /// JS `Math.round` semantics: halves round toward +infinity.
 private func jsRound(_ x: Double) -> Double { (x + 0.5).rounded(.down) }
 

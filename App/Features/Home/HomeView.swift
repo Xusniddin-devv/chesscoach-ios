@@ -57,6 +57,7 @@ struct HomeView: View {
     private var recent: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s) {
             SectionLabel("Recent games")
+            // An unreadable record is skipped here; `GameRecord.snapshot` logs it.
             let games = records.compactMap { record in record.snapshot.map { (record.id, $0) } }
             if games.isEmpty {
                 Text("Your games will show up here.")
