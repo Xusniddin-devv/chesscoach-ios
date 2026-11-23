@@ -7,23 +7,17 @@ import StockfishKit
 @MainActor
 @Observable
 final class EngineHub {
-    private weak var current: GameSession?
+    /// One thread, 64 MB hash until device measurements (Plan 4).
+    private static let threads = 1
+    private static let hashMB = 64
 
     init() {}
 
     func configure() async {
-        await StockfishEngine.shared.configure(threads: max(1, ProcessInfo.processInfo.activeProcessorCount - 2), hashMB: 64)
+        await StockfishEngine.shared.configure(threads: Self.threads, hashMB: Self.hashMB)
     }
 
     func makeSession(bot: Bot, userColor: Piece.Color, mode: PlayMode) -> GameSession {
-        let session = GameSession(bot: bot, userColor: userColor, mode: mode, engine: StockfishEngine.shared)
-        current = session
-        return session
-    }
-
-    /// Call when the app becomes active: restarts the engine if the last call failed.
-    func recoverIfNeeded() async {
-        guard let current, current.hasEngineError else { return }
-        await StockfishEngine.shared.restart()
+        GameSession(bot: bot, userColor: userColor, mode: mode, engine: StockfishEngine.shared)
     }
 }
