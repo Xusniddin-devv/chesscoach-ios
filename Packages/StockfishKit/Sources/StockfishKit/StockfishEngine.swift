@@ -260,7 +260,9 @@ public actor StockfishEngine: ChessEngine {
                 throw EngineError.notRunning
             }
             group.addTask {
-                try await Task.sleep(for: searchTimeout)
+                // Suspending clock: time the app spends suspended does not count, so coming
+                // back to the foreground mid-search does not look like a hung engine.
+                try await Task.sleep(for: searchTimeout, tolerance: nil, clock: .suspending)
                 return nil
             }
             defer { group.cancelAll() }
