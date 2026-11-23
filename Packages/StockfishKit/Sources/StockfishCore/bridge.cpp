@@ -22,12 +22,34 @@
 
 namespace {
 
+// Stockfish keeps UCIEngine::engine private, but sf_quit needs Engine::stop() to end a
+// search that a blocking command (ucinewgame, go, setoption Hash...) is waiting on.
+// Explicit template instantiation may name private members, so this reaches it legally.
+Stockfish::Engine& engine_of(Stockfish::UCIEngine& uci);
+
+template<Stockfish::Engine Stockfish::UCIEngine::*Member>
+struct EngineAccess {
+    friend Stockfish::Engine& engine_of(Stockfish::UCIEngine& uci) { return uci.*Member; }
+};
+
+template struct EngineAccess<&Stockfish::UCIEngine::engine>;
+
 // std::cin replacement: underflow blocks until sf_send enqueues a line.
 class LineQueueBuf: public std::streambuf {
    public:
     void push(std::string line) {
         {
             std::lock_guard<std::mutex> lock(mutex);
+            lines.push_back(std::move(line) + '\n');
+        }
+        ready.notify_one();
+    }
+
+    // Drops unread commands and leaves `line` as the only one.
+    void replace_all(std::string line) {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            lines.clear();
             lines.push_back(std::move(line) + '\n');
         }
         ready.notify_one();
@@ -111,6 +133,11 @@ std::unique_ptr<Stockfish::NativeThread> engineThread;
 std::streambuf*              savedCin  = nullptr;
 std::streambuf*              savedCout = nullptr;
 
+// The live engine, set while the UCI loop runs. Guarded by engineMutex so sf_quit can
+// call stop() without racing the engine's destruction.
+std::mutex         engineMutex;
+Stockfish::Engine* runningEngine = nullptr;
+
 void run_uci_loop() {
     using namespace Stockfish;
 
@@ -124,7 +151,15 @@ void run_uci_loop() {
     char  name[] = "stockfish";
     char* argv[] = {name, nullptr};
     auto  uci    = std::make_unique<UCIEngine>(1, argv);
+    {
+        std::lock_guard<std::mutex> lock(engineMutex);
+        runningEngine = &engine_of(*uci);
+    }
     uci->loop();
+    {
+        std::lock_guard<std::mutex> lock(engineMutex);
+        runningEngine = nullptr;
+    }
 }
 
 }  // namespace
@@ -154,7 +189,16 @@ void sf_quit(void) {
     if (!engineThread)
         return;
 
-    inputBuf.push("quit");
+    {
+        // Stop first: the UCI thread may be blocked in a command that waits for the search,
+        // in which case a queued `quit` alone would never be read. Commands still queued are
+        // dropped so none of them can start or wait on another search before `quit`.
+        // The engine cannot be destroyed meanwhile: that needs `quit`, which is pushed here.
+        std::lock_guard<std::mutex> lock(engineMutex);
+        if (runningEngine)
+            runningEngine->stop();
+        inputBuf.replace_all("quit");
+    }
     engineThread->join();
     engineThread.reset();
 
