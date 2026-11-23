@@ -1,16 +1,19 @@
 import SwiftUI
 import ChessCore
 
-/// Small colored disc carrying the class glyph (glyphs from web-rules.md).
+/// Small colored disc carrying the class glyph (glyphs from web-rules.md), with a
+/// 2 pt ring so it separates from both board square colours.
 struct MoveBadge: View {
     let moveClass: MoveClass
 
     var body: some View {
         Text(Self.glyph(moveClass))
-            .font(.system(size: 12, weight: .heavy))
-            .foregroundStyle(DS.Color.onAccent)
+            .font(DS.Font.badgeGlyph)
+            .foregroundStyle(DS.Color.moveClassGlyph(moveClass))
             .frame(width: 22, height: 22)
             .background(DS.Color.moveClass(moveClass), in: Circle())
+            .padding(2)
+            .background(DS.Color.moveClassRing, in: Circle())
             .accessibilityLabel(moveClass.rawValue)
     }
 
