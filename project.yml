@@ -14,6 +14,9 @@ packages:
     path: Packages/ChessCore
   StockfishKit:
     path: Packages/StockfishKit
+  ChessKit:
+    url: https://github.com/chesskit-studio/chesskit-swift
+    exactVersion: 0.17.0
 targets:
   ChessCoach:
     type: application
@@ -23,6 +26,7 @@ targets:
     dependencies:
       - package: ChessCore
       - package: StockfishKit
+      - package: ChessKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: uz.xq.chessc
@@ -44,6 +48,7 @@ targets:
     dependencies:
       - target: ChessCoach
       - package: ChessCore
+      - package: ChessKit
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
