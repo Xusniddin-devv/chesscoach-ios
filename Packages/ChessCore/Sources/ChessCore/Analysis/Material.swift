@@ -44,7 +44,7 @@ public func isSacrifice(fenBefore: String, fenAfter: String, uci: String, mover:
         && pieceValue(piece.kind) > capturedValue(fenBefore: fenBefore, uci: uci)
 }
 
-private func uciSquares(_ uci: String) -> (Square, Square)? {
+func uciSquares(_ uci: String) -> (Square, Square)? {
     let chars = Array(uci)
     guard chars.count == 4 || chars.count == 5 else { return nil }
     let from = String(chars[0...1]), to = String(chars[2...3])
