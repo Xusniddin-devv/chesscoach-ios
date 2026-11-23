@@ -10,6 +10,10 @@
 // previous `bestmove` has arrived (see the blocking rule in stockfish_bridge.h). Each search
 // first sends the nets (Stockfish exits the process on `go` without them) and waits for
 // `readyok`.
+//
+// Cancelling a caller never cuts an exchange short: it sends `stop` (allowed mid-search), the
+// engine output is still read up to `bestmove`, and the caller gets `CancellationError`. The
+// engine keeps running; only `EngineError`s restart it.
 
 import ChessCore
 import Foundation
@@ -42,11 +46,17 @@ public actor StockfishEngine: ChessEngine {
     private(set) var searchCount = 0
     /// The last `position` command sent (test hook).
     private(set) var lastPositionCommand: String?
+    /// The `setoption` commands sent before the last search (test hook).
+    private(set) var lastSearchOptions: [String] = []
+    /// Number of engine starts (test hook).
+    private(set) var startCount = 0
 
     private init() {}
 
     /// Threads and hash size, applied before the next search (never during one).
-    public func configure(threads: Int, hashMB: Int) {
+    public func configure(threads: Int, hashMB: Int) async {
+        await acquire()
+        defer { release() }
         self.threads = threads
         self.hashMB = hashMB
         optionsChanged = true
@@ -123,6 +133,7 @@ public actor StockfishEngine: ChessEngine {
     private func search(startFen: String, moves: [String], options: KeyValuePairs<String, String>, go: String)
         async throws -> [String]
     {
+        try Task.checkCancellation()
         do {
             try await startIfNeeded()
             var commands: [String] = []
@@ -138,10 +149,14 @@ public actor StockfishEngine: ChessEngine {
             _ = try await exchange(commands, until: { $0 == "readyok" })
             optionsChanged = false
             lastPositionCommand = position
+            lastSearchOptions = commands.filter { $0.hasPrefix("setoption") }
 
+            try Task.checkCancellation()
             searchCount += 1
-            return try await exchange([go], until: { UCIParser.bestMove($0) != nil })
-        } catch {
+            let output = try await exchange([go], until: { UCIParser.bestMove($0) != nil })
+            try Task.checkCancellation()  // the move of a stopped search is not an answer
+            return output
+        } catch let error as EngineError {
             await restartNow()
             throw error
         }
@@ -156,9 +171,10 @@ public actor StockfishEngine: ChessEngine {
         }, nil)
         running = true
         optionsChanged = true
+        startCount += 1
         do {
             sf_send("uci")
-            _ = try await Self.read(lines, until: { $0 == "uciok" })
+            _ = try await Self.readToEnd(lines, until: { $0 == "uciok" })
             _ = try await exchange(Self.netCommands() + ["isready"], until: { $0 == "readyok" })
         } catch {
             stop()  // a half-started engine is quit, so the next request starts it again
@@ -186,12 +202,25 @@ public actor StockfishEngine: ChessEngine {
     }
 
     /// Sends `commands` and returns the output up to and including the line matching `done`.
+    /// Cancellation sends `stop` and still waits for `done`.
     private func exchange(_ commands: [String], until done: @escaping @Sendable (String) -> Bool)
         async throws -> [String]
     {
         let lines = Self.output.open()
-        for command in commands { sf_send(command) }
-        return try await Self.read(lines, until: done)
+        return try await withTaskCancellationHandler {
+            for command in commands { sf_send(command) }
+            if Task.isCancelled { sf_send("stop") }  // cancelled before `go` was queued
+            return try await Self.readToEnd(lines, until: done)
+        } onCancel: {
+            sf_send("stop")
+        }
+    }
+
+    /// Reads in a task of its own, so the caller's cancellation cannot end it early.
+    private static func readToEnd(_ lines: AsyncStream<String>, until done: @escaping @Sendable (String) -> Bool)
+        async throws -> [String]
+    {
+        try await Task.detached { try await read(lines, until: done) }.value
     }
 
     private static func read(_ lines: AsyncStream<String>, until done: @escaping @Sendable (String) -> Bool)

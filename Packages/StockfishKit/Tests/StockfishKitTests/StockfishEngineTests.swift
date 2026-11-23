@@ -49,6 +49,47 @@ extension GlobalEngineSuite {
             #expect(r.bestMove == "d1d8" && r.lines.map(\.multipv) == [1, 2, 3])
         }
 
+        @Test func cancelledAnalyzeDoesNotRestartEngine() async throws {
+            let e = StockfishEngine.shared
+            _ = try await e.analyze(.init(startFen: Rules.startFen, moves: ["a2a3"], depth: 4, multiPV: 1))
+            let starts = await e.startCount
+            let deep = Task { try await e.analyze(.init(startFen: Rules.startFen, moves: ["g1f3"], depth: 30, multiPV: 1)) }
+            try await Task.sleep(for: .milliseconds(300))
+            deep.cancel()
+            await #expect(throws: CancellationError.self) { try await deep.value }
+            let r = try await e.analyze(.init(startFen: Rules.startFen, moves: ["b1c3"], depth: 6, multiPV: 1))
+            #expect(r.bestMove.isEmpty == false && r.lines[0].depth == 6)
+            #expect(await e.startCount == starts)
+        }
+
+        @Test func cancelledQueuedRequestSendsNothing() async throws {
+            let e = StockfishEngine.shared
+            let before = await e.searchCount
+            let running = Task { try await e.analyze(.init(startFen: Rules.startFen, moves: ["h2h3"], depth: 12, multiPV: 1)) }
+            try await Task.sleep(for: .milliseconds(50))
+            let queued = Task { try await e.analyze(.init(startFen: Rules.startFen, moves: ["h2h4"], depth: 12, multiPV: 1)) }
+            queued.cancel()
+            await #expect(throws: CancellationError.self) { try await queued.value }
+            _ = try await running.value
+            #expect(await e.searchCount == before + 1)  // only the running search
+            #expect(await e.lastPositionCommand == "position fen \(Rules.startFen) moves h2h3")
+        }
+
+        @Test func configureDuringSearchAppliesToNextSearch() async throws {
+            let e = StockfishEngine.shared
+            let running = Task { try await e.analyze(.init(startFen: Rules.startFen, moves: ["g2g3"], depth: 12, multiPV: 1)) }
+            try await Task.sleep(for: .milliseconds(20))
+            await e.configure(threads: 2, hashMB: 32)
+            _ = try await running.value
+            _ = try await e.analyze(.init(startFen: Rules.startFen, moves: ["g2g4"], depth: 4, multiPV: 1))
+            let sent = await e.lastSearchOptions
+            #expect(sent.contains("setoption name Threads value 2") && sent.contains("setoption name Hash value 32"))
+
+            await e.configure(threads: 1, hashMB: 64)
+            _ = try await e.analyze(.init(startFen: Rules.startFen, moves: ["b2b3"], depth: 4, multiPV: 1))
+            #expect(await e.lastSearchOptions.contains("setoption name Threads value 1"))
+        }
+
         @Test func sendsHistoryNotBareFen() async throws {
             let e = StockfishEngine.shared
             _ = try await e.analyze(.init(startFen: Rules.startFen, moves: ["e2e4", "e7e5"], depth: 2, multiPV: 1))
