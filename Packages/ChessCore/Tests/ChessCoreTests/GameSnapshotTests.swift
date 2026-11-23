@@ -93,7 +93,7 @@ private func decode(_ json: [String: Any]) throws -> GameSnapshot {
 
 @Test func decodesBlobMissingOptionalAndNewerFields() throws {
     var json = try sampleJSON()
-    for key in ["schemaVersion", "sans", "verdicts", "analysisVersion", "playerRatingUsed", "mode", "result", "startFen"] {
+    for key in ["schemaVersion", "sans", "verdicts", "analysisVersion", "playerRatingUsed", "analysis", "openingName"] {
         json.removeValue(forKey: key)
     }
     let decoded = try decode(json)
@@ -104,13 +104,15 @@ private func decode(_ json: [String: Any]) throws -> GameSnapshot {
     #expect(decoded.userColor == sample.userColor)
     #expect(decoded.moves == sample.moves)
     #expect(decoded.schemaVersion == 1)
-    #expect(decoded.startFen == Rules.startFen)
+    #expect(decoded.startFen == sample.startFen)
     #expect(decoded.sans.isEmpty)
     #expect(decoded.verdicts.isEmpty)
     #expect(decoded.analysisVersion == 1)
     #expect(decoded.playerRatingUsed == PlayerProfile.defaultRating)
-    #expect(decoded.mode == .training)
-    #expect(decoded.result == .ongoing)
+    #expect(decoded.mode == sample.mode)
+    #expect(decoded.result == sample.result)
+    #expect(decoded.analysis == nil)
+    #expect(decoded.openingName == nil)
 }
 
 @Test func decodesVerdictMissingOptionalFields() throws {
@@ -184,4 +186,59 @@ private func decode(_ json: [String: Any]) throws -> GameSnapshot {
         #expect(try encoder.encode([value]) == Data("[\"\(raw)\"]".utf8))
         #expect(try JSONDecoder().decode([PlayMode].self, from: Data("[\"\(raw)\"]".utf8)) == [value])
     }
+}
+
+// MARK: - Required core fields and analysis
+
+@Test func missingResultFailsToDecode() throws {
+    var json = try sampleJSON()
+    json.removeValue(forKey: "result")
+    #expect(throws: (any Error).self) { try decode(json) }
+}
+
+@Test func missingStartFenFailsToDecode() throws {
+    var json = try sampleJSON()
+    json.removeValue(forKey: "startFen")
+    #expect(throws: (any Error).self) { try decode(json) }
+}
+
+@Test func missingModeFailsToDecode() throws {
+    var json = try sampleJSON()
+    json.removeValue(forKey: "mode")
+    #expect(throws: (any Error).self) { try decode(json) }
+}
+
+@Test func analysisRoundTrips() throws {
+    var snapshot = sampleSnapshot()
+    snapshot.openingName = "King's Pawn Game"
+    snapshot.analysis = GameAnalysis(
+        depth: 14,
+        verdicts: [matingVerdict(), hangingKnightVerdict()],
+        whiteWin: [50, 55.5, 60, 20],
+        accuracyWhite: 87.5,
+        accuracyBlack: 92.25)
+    let decoded = try decodeSnapshot(encodeSnapshot(snapshot))
+    #expect(decoded == snapshot)
+    #expect(decoded.analysis?.version == GameAnalysis.currentVersion)
+    #expect(decoded.analysis?.whiteWin.count == 4)
+    #expect(decoded.openingName == "King's Pawn Game")
+    #expect(GameAnalysis.currentVersion == 1)
+}
+
+@Test func oldBlobWithoutAnalysisDecodes() throws {
+    var json = try sampleJSON()
+    json.removeValue(forKey: "analysis")
+    json.removeValue(forKey: "openingName")
+    let decoded = try decode(json)
+    #expect(decoded.analysis == nil)
+    #expect(decoded.openingName == nil)
+    #expect(decoded.verdicts.count == 2)
+}
+
+@Test func corruptAnalysisIsDroppedNotTheGame() throws {
+    var json = try sampleJSON()
+    json["analysis"] = ["depth": "garbage"]
+    let decoded = try decode(json)
+    #expect(decoded.analysis == nil)
+    #expect(decoded.moves == sampleSnapshot().moves)
 }

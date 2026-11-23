@@ -17,6 +17,7 @@ public enum GameResult: String, Codable, Sendable {
 /// Stored as JSON, so the format must survive app updates. Decoding is lenient (see the
 /// `Decodable` extension below): every field that is not the game itself has a default, a
 /// verdict that fails to decode is dropped rather than the game, and unknown keys are ignored.
+/// `mode`, `startFen`, `moves` and `result` are required: a record without them is skipped.
 /// A field added later must be decoded with `decodeIfPresent` and a default.
 public struct GameSnapshot: Codable, Sendable, Equatable {
     /// Version of this stored format. Data saved before the field existed is version 1.
@@ -35,11 +36,16 @@ public struct GameSnapshot: Codable, Sendable, Equatable {
     public var analysisVersion: Int
     public var playerRatingUsed: Int
     public var schemaVersion: Int
+    public var analysis: GameAnalysis?
+    public var openingName: String?
 
     public init(id: UUID, date: Date, botId: String, userColor: Piece.Color, mode: PlayMode,
                 startFen: String, moves: [String], sans: [String], result: GameResult,
                 verdicts: [Verdict], analysisVersion: Int, playerRatingUsed: Int,
-                schemaVersion: Int = GameSnapshot.currentSchemaVersion) {
+                schemaVersion: Int = GameSnapshot.currentSchemaVersion,
+                analysis: GameAnalysis? = nil, openingName: String? = nil) {
+        self.analysis = analysis
+        self.openingName = openingName
         self.schemaVersion = schemaVersion
         self.id = id
         self.date = date
@@ -65,15 +71,18 @@ extension GameSnapshot {
         botId = try c.decode(String.self, forKey: .botId)
         userColor = try c.decode(Piece.Color.self, forKey: .userColor)
         moves = try c.decode([String].self, forKey: .moves)
+        mode = try c.decode(PlayMode.self, forKey: .mode)
+        startFen = try c.decode(String.self, forKey: .startFen)
+        result = try c.decode(GameResult.self, forKey: .result)
         // Everything else has a default.
         schemaVersion = try c.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
-        mode = try c.decodeIfPresent(PlayMode.self, forKey: .mode) ?? .training
-        startFen = try c.decodeIfPresent(String.self, forKey: .startFen) ?? Rules.startFen
         sans = try c.decodeIfPresent([String].self, forKey: .sans) ?? []
-        result = try c.decodeIfPresent(GameResult.self, forKey: .result) ?? .ongoing
         analysisVersion = try c.decodeIfPresent(Int.self, forKey: .analysisVersion) ?? 1
         playerRatingUsed = try c.decodeIfPresent(Int.self, forKey: .playerRatingUsed) ?? PlayerProfile.defaultRating
         verdicts = (try c.decodeIfPresent([Lenient<Verdict>].self, forKey: .verdicts) ?? []).compactMap(\.value)
+        // A broken or newer analysis block is dropped: the game stays viewable and can be re-analysed.
+        analysis = (try? c.decodeIfPresent(GameAnalysis.self, forKey: .analysis)) ?? nil
+        openingName = try? c.decodeIfPresent(String.self, forKey: .openingName)
     }
 }
 
