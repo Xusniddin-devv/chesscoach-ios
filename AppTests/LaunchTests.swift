@@ -1,6 +1,7 @@
 import Testing
 import SwiftUI
 import UIKit
+import SwiftData
 @testable import ChessCoach
 
 @MainActor
@@ -9,7 +10,11 @@ struct LaunchTests {
     @Test func rootShowsFourTabs() throws {
         let scene = try #require(UIApplication.shared.connectedScenes.first as? UIWindowScene)
         let window = UIWindow(windowScene: scene)
-        let host = UIHostingController(rootView: RootTabView())
+        let container = try ModelContainer(
+            for: GameRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let host = UIHostingController(rootView: RootTabView()
+            .environment(EngineHub())
+            .modelContainer(container))
         window.rootViewController = host
         window.makeKeyAndVisible()
         host.view.layoutIfNeeded()
