@@ -188,7 +188,8 @@ Banned list: gradients, purple, neon, emoji as icons, default SF-Symbol icon gri
 1. **No newer web source exists** (not on GitHub, not on the Mac). The July 29–30 classifier numbers (great gap, non-crushing cut, win% and accuracy formulas, level scaling) must be **recovered from the live Netlify bundle** at https://xq-chesscoach.netlify.app (minified JS chunks) and written down with tests. This is the first task of the plan.
 2. **Definition of done: TestFlight** (internal testing build with working subscription sandbox). App Store submission is out of scope.
 3. Higgsfield budget approved: ~20–30 credits for 12 pieces + 8 bot avatars, including retries.
-4. App Store name, bundle ID and test device were not given. Working values: display name "ChessCoach", bundle ID `uz.xq.chesscoach` — both must be confirmed by the owner before the TestFlight upload. Engine measurements run on the owner's iPhone when available; until then use the standard SF18 big + small nets, single thread, and keep the measurement harness ready.
+4. **Name:** App Store name "ChessC - Chess Coach"; home-screen display name "Chess Coach"; bundle ID `uz.xq.chessc`. Test device still not given: engine measurements run on the owner's iPhone when available; until then use the standard SF18 big + small nets, single thread, and keep the measurement harness ready.
+5. Execution: owner delegated the build to run solo (subagent-driven), including the Plan 1 Task 12 design gate — calls are documented for later owner review.
 
 ## Calls I made (owner can veto)
 

@@ -21,7 +21,7 @@
 - iOS deployment target **26.0**; iPhone only; portrait only; dark appearance forced (`.preferredColorScheme(.dark)`).
 - Swift 6 language mode, strict concurrency complete.
 - License **GPLv3**: `LICENSE` file at repo root (GPL-3.0 text); every dependency must be GPL-compatible. Never name the app or a feature "Stockfish"; "Powered by Stockfish" allowed.
-- Bundle ID `uz.xq.chesscoach` (working value), display name "ChessCoach".
+- Bundle ID `uz.xq.chessc`; App Store name "ChessC - Chess Coach"; home-screen display name (`CFBundleDisplayName`) "Chess Coach".
 - No secrets in the repo. NNUE files are fetched by script and gitignored.
 - Grading numbers come only from `docs/reference/web-rules.md`; changing one requires changing its golden test in the same commit.
 - `analysisVersion = 1` (iOS lineage).
@@ -553,7 +553,7 @@ Write each with concrete FENs, scripted scores and `#expect`s on `phase`, `verdi
   - `@Model final class GameRecord { var id: UUID = UUID(); var date: Date = Date.now; var snapshotData: Data = Data(); init(snapshot:) ; var snapshot: GameSnapshot? }` — CloudKit-compatible (all defaults, no unique).
   - `@MainActor final class EngineHub` — owns one shared `StockfishEngine` (analyst) and creates sessions; restarts engine on `scenePhase == .active` if it errored.
   - `RootTabView`: `TabView` with tabs Home, Puzzles, Learn, Profile using system Liquid Glass (`.tabBarMinimizeBehavior(.onScrollDown)`); Puzzles/Learn/Profile show `ComingSoonView` (one line of copy, no illustration) — dev builds only, replaced in Plans 3–4.
-- `project.yml`: app target `ChessCoach` (iOS 26.0, iPhone, portrait, `UIUserInterfaceStyle = Dark`, bundle `uz.xq.chesscoach`), local packages `Packages/ChessCore`, `Packages/StockfishKit`, test target `ChessCoachTests` (hosted).
+- `project.yml`: app target `ChessCoach` (iOS 26.0, iPhone, portrait, `UIUserInterfaceStyle = Dark`, bundle `uz.xq.chessc`, `CFBundleDisplayName` "Chess Coach"), local packages `Packages/ChessCore`, `Packages/StockfishKit`, test target `ChessCoachTests` (hosted).
 
 - [ ] **Step 1: Failing tests** (simulator): `GameRecordTests.snapshotRoundTripInMemoryStore` — insert `GameRecord(snapshot:)` into an in-memory `ModelContainer`, fetch, `record.snapshot == original`. `LaunchTests.rootShowsFourTabs` — `RootTabView` hosted in `UIHostingController` renders without crash (smoke).
 - [ ] **Step 2: Run** `brew install xcodegen && xcodegen && xcodebuild test -scheme ChessCoach -destination 'platform=iOS Simulator,name=iPhone 17' -quiet` — Expected: FAIL (types missing). (If `iPhone 17` is absent, use any iOS 26 iPhone from `xcrun simctl list devices available`.)
@@ -574,7 +574,7 @@ Not TDD — a design gate before any screen UI. Output is committed reference ma
 - [ ] **Step 2: Decisions** in `docs/design/decisions.md`: font (system SF Pro with SF Mono for numbers/clock, or one OFL display face — not Space Grotesk/Inter/Poppins), type scale, spacing, radii, move-class palette (11 colors, each with ≥3:1 contrast against both `#D6D9D8` and `#7D8483`; blunder = `#FF3B46`), icon set rule (SF Symbols only where Apple uses them — tab bar, toolbar). Fill `DS.Font`, `DS.Color.moveClass` accordingly.
 - [ ] **Step 3: Pieces.** With Higgsfield (`gpt_image_2_6`, reference = job `597af496-dd5c-4438-bd7e-9541ad21333f` / `docs/design/references/pieces-c.png`): generate the 12 pieces individually (same angle, lighting, scale; cream white `#F1E6CF`-ish and dark slate), `remove_background`, normalise (shared baseline, king tallest, uniform scale), export transparent PNG at 3× with each piece ≥ 300 px tall. Compose a review sheet of all 12 on both board colours → `docs/design/references/pieces-final-sheet.png`. Budget: ≤ 20 credits for pieces.
 - [ ] **Step 4: Bot avatars.** 8 avatars in the same soft matte style (abstract character busts or piece-derived figures, no faces with uncanny detail), background `#2A2E31` or transparent. Budget ≤ 10 credits.
-- [ ] **Step 5: Owner review gate.** Show the reference boards, decisions and piece sheet to the owner; adjust until approved. Do not start Task 13 before approval.
+- [ ] **Step 5: Design gate.** Owner delegated this gate (solo run): the controller reviews references, decisions and the piece sheet against the spec and anti-slop list, then records "pending owner review" items in `docs/design/decisions.md`. Do not start Task 13 until the controller signs off.
 - [ ] **Step 6: Commit** `git add -A && git commit -m "design: references, decisions, piece and bot art"`
 
 ---
