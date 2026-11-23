@@ -63,6 +63,9 @@ public actor StockfishEngine: ChessEngine {
     }
 
 #if DEBUG
+    /// Measurement harness only: the threads and hash the next search will use.
+    public var currentConfiguration: (threads: Int, hashMB: Int) { (threads, hashMB) }
+
     /// Measurement harness only: `go movetime` from the position, returning the deepest
     /// depth the search reached. Not cached.
     public func searchMovetime(startFen: String, moves: [String], multiPV: Int, milliseconds: Int) async throws -> Int {

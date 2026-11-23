@@ -8,13 +8,13 @@ import StockfishKit
 @Observable
 final class EngineHub {
     /// One thread, 64 MB hash until device measurements (Plan 4).
-    private static let threads = 1
-    private static let hashMB = 64
+    nonisolated static let defaultThreads = 1
+    nonisolated static let defaultHashMB = 64
 
     init() {}
 
     func configure() async {
-        await StockfishEngine.shared.configure(threads: Self.threads, hashMB: Self.hashMB)
+        await StockfishEngine.shared.configure(threads: Self.defaultThreads, hashMB: Self.defaultHashMB)
     }
 
     func makeSession(bot: Bot, userColor: Piece.Color, mode: PlayMode) -> GameSession {

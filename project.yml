@@ -48,6 +48,7 @@ targets:
     dependencies:
       - target: ChessCoach
       - package: ChessCore
+      - package: StockfishKit
       - package: ChessKit
     settings:
       base:

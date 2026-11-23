@@ -23,7 +23,6 @@ enum EngineBenchmark {
         "f1e1", "b7b5", "a4b3", "d7d6", "c2c3", "e8g8", "h2h3", "c6a5", "b3c2", "c7c5",
     ]
     static let threadCounts = [1, 2, 4]
-    static let hashMB = 64
     static let depth = 16
     static let multiPV = 2
     static let movetimeMs = 300
@@ -46,17 +45,22 @@ enum EngineBenchmark {
         }
     }
 
-    /// Runs every configuration and restores threads 1 / hash 64 at the end, even on error.
-    static func run(progress: @escaping @Sendable (String) -> Void = { _ in }) async throws -> [Row] {
+    /// Runs every configuration; the app's default threads / hash are restored on every exit
+    /// path (finish, error, cancellation).
+    static func run(threadCounts: [Int] = EngineBenchmark.threadCounts, progress: @escaping @Sendable (String) -> Void = { _ in })
+        async throws -> [Row]
+    {
         verifyMoves()
         let engine = StockfishEngine.shared
         var rows: [Row] = []
         do {
             for threads in threadCounts {
+                try Task.checkCancellation()
                 progress("Threads \(threads): warming up")
-                await engine.configure(threads: threads, hashMB: hashMB)
+                await engine.configure(threads: threads, hashMB: EngineHub.defaultHashMB)
                 await engine.clearCache()
                 _ = try await gradePass(engine)  // discarded warm-up
+                try Task.checkCancellation()
                 await engine.clearCache()
                 progress("Threads \(threads): timing")
                 let ms = try await gradePass(engine)
@@ -66,11 +70,15 @@ enum EngineBenchmark {
                 rows.append(Row(threads: threads, msPerGradedMove: ms, movetimeDepth: reached))
             }
         } catch {
-            await engine.configure(threads: 1, hashMB: hashMB)
+            await restoreDefaults(engine)
             throw error
         }
-        await engine.configure(threads: 1, hashMB: hashMB)
+        await restoreDefaults(engine)
         return rows
+    }
+
+    private static func restoreDefaults(_ engine: StockfishEngine) async {
+        await engine.configure(threads: EngineHub.defaultThreads, hashMB: EngineHub.defaultHashMB)
     }
 
     /// Average ms per graded move over the 20 moves.
@@ -111,6 +119,7 @@ struct EngineBenchmarkView: View {
     @State private var rows: [EngineBenchmark.Row] = []
     @State private var status = "Not run"
     @State private var running = false
+    @State private var runTask: Task<Void, Never>?
 
     var body: some View {
         List {
@@ -134,13 +143,13 @@ struct EngineBenchmarkView: View {
         .scrollContentBackground(.hidden)
         .background(DS.Color.background)
         .navigationTitle("Engine benchmark")
-        .onDisappear { Task { await StockfishEngine.shared.configure(threads: 1, hashMB: EngineBenchmark.hashMB) } }
+        .onDisappear { runTask?.cancel() }  // run() restores the defaults itself
     }
 
     private func start() {
         running = true
         rows = []
-        Task {
+        runTask = Task {
             do {
                 rows = try await EngineBenchmark.run { message in Task { @MainActor in status = message } }
                 status = "Done"
