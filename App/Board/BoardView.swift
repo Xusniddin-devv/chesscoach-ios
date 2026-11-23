@@ -12,6 +12,8 @@ struct BoardView: View {
     let tracker: PieceTracker
     let fen: String
     let orientation: Piece.Color
+    /// Contract: the caller must pass `interactive == (sideToMove == userColor) && phase == .userTurn`.
+    /// When interactive, BoardView lets the side to move in `fen` play; it does not know the user's colour.
     let interactive: Bool
     let lastMove: (Square, Square)?
     let squareTint: [Square: Color]

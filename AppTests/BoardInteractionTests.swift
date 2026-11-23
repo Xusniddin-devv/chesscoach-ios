@@ -73,6 +73,42 @@ struct BoardInteractionTests {
             == .selected(Square("g1"), targets: [Square("f3"), Square("h3")]))
     }
 
+    @Test func kingWithCastlingRightsCanCastleBothWays() {
+        let fen = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"
+        var board = BoardInteraction()
+        guard case .selected(let from, let targets) = board.tap(Square("e1"), fen: fen, side: .white) else {
+            Issue.record("king not selected"); return
+        }
+        #expect(from == Square("e1"))
+        #expect(targets.contains(Square("g1")))
+        #expect(targets.contains(Square("c1")))
+        #expect(board.tap(Square("g1"), fen: fen, side: .white) == .move("e1g1"))
+    }
+
+    @Test func enPassantIsATargetAndPlays() {
+        let fen = "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2"
+        var board = BoardInteraction()
+        guard case .selected(_, let targets) = board.tap(Square("e5"), fen: fen, side: .white) else {
+            Issue.record("pawn not selected"); return
+        }
+        #expect(targets.contains(Square("d6")))
+        #expect(board.tap(Square("d6"), fen: fen, side: .white) == .move("e5d6"))
+    }
+
+    @Test func captureOntoLastRankAsksForPromotion() {
+        let fen = "3r3k/4P3/8/8/8/8/8/K7 w - - 0 1"
+        var board = BoardInteraction()
+        _ = board.tap(Square("e7"), fen: fen, side: .white)
+        #expect(board.tap(Square("d8"), fen: fen, side: .white)
+            == .needsPromotion(from: Square("e7"), to: Square("d8")))
+    }
+
+    @Test func dropWhenSideIsNotToMoveClears() {
+        var board = BoardInteraction()
+        #expect(board.drop(from: Square("e7"), to: Square("e5"), fen: Self.start, side: .black) == .cleared)
+        #expect(board.selected == nil)
+    }
+
     @Test func dropPawnOnLastRankAsksForPromotion() {
         var board = BoardInteraction()
         #expect(board.drop(from: Square("e7"), to: Square("e8"), fen: Self.promotion, side: .white)
