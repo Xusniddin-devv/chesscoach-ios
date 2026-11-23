@@ -65,3 +65,12 @@ private func sampleSnapshot() -> GameSnapshot {
     let snapshot = sampleSnapshot()
     #expect(try encodeSnapshot(snapshot) == encodeSnapshot(snapshot))
 }
+
+@Test func roundTripsFractionalDate() throws {
+    var snapshot = sampleSnapshot()
+    snapshot.date = Date(timeIntervalSinceReferenceDate: 780_000_000.123456)
+    #expect(try decodeSnapshot(encodeSnapshot(snapshot)) == snapshot)
+
+    snapshot.date = Date.now
+    #expect(try decodeSnapshot(encodeSnapshot(snapshot)) == snapshot)
+}

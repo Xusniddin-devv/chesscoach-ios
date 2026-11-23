@@ -48,12 +48,10 @@ public struct GameSnapshot: Codable, Sendable, Equatable {
 public func encodeSnapshot(_ snapshot: GameSnapshot) throws -> Data {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
-    encoder.dateEncodingStrategy = .iso8601
     return try encoder.encode(snapshot)
 }
 
 public func decodeSnapshot(_ data: Data) throws -> GameSnapshot {
     let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
     return try decoder.decode(GameSnapshot.self, from: data)
 }
