@@ -9,6 +9,7 @@ struct HomeView: View {
     @Query(HomeView.recentGames) private var records: [GameRecord]
     @State private var path: [Route] = []
     @State private var game: PlaySetup?
+    @State private var showingSettings = false  // feat/settings-paywall; moves to Profile after the merge
 
     static var recentGames: FetchDescriptor<GameRecord> {
         var descriptor = FetchDescriptor<GameRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)])
@@ -29,6 +30,13 @@ struct HomeView: View {
             }
             .background(DS.Color.background)
             .navigationTitle(Self.greeting(for: .now))
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingSettings = true } label: { Image(systemName: "gearshape") }
+                        .accessibilityLabel("Settings")
+                }
+            }
+            .sheet(isPresented: $showingSettings) { SettingsSheet() }
             .navigationDestination(for: Route.self) { _ in
                 BotPickerView { game = $0 }
             }
@@ -42,6 +50,7 @@ struct HomeView: View {
         }
         #if DEBUG
         .task { DebugLaunch.apply(path: { path = [.botPicker] }, play: { game = $0 }) }
+        .task { if UserDefaults.standard.string(forKey: "debugOpen") == "settings" { showingSettings = true } }
         #endif
     }
 

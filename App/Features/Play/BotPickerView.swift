@@ -13,7 +13,7 @@ struct BotPickerView: View {
     let onStart: (PlaySetup) -> Void
 
     @State private var selected = Bot.suggested
-    @State private var mode = PlayMode.training
+    @State private var mode = Pref.defaultModeValue
     @State private var color = PlaySetup.ColorChoice.white
 
     var body: some View {
