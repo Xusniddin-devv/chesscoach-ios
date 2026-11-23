@@ -6,7 +6,13 @@ struct RootTabView: View {
             Tab("Home", systemImage: "house") { HomeView() }
             Tab("Puzzles", systemImage: "puzzlepiece") { ComingSoonView(title: "Puzzles") }
             Tab("Learn", systemImage: "book") { ComingSoonView(title: "Learn") }
-            Tab("Profile", systemImage: "person") { ComingSoonView(title: "Profile") }
+            Tab("Profile", systemImage: "person") {
+#if DEBUG
+                DebugProfilePlaceholder()  // long-press on a system tab item is not available
+#else
+                ComingSoonView(title: "Profile")
+#endif
+            }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tint(DS.Color.accent)

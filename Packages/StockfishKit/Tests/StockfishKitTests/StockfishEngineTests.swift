@@ -90,6 +90,16 @@ extension GlobalEngineSuite {
             #expect(await e.lastSearchOptions.contains("setoption name Threads value 1"))
         }
 
+#if DEBUG
+        @Test func movetimeSearchReportsDepthAndSendsMovetime() async throws {
+            let e = StockfishEngine.shared
+            let depth = try await e.searchMovetime(startFen: Rules.startFen, moves: ["d2d4"], multiPV: 2, milliseconds: 200)
+            #expect(depth >= 1)
+            #expect(await e.lastPositionCommand == "position fen \(Rules.startFen) moves d2d4")
+            #expect(await e.lastSearchOptions.contains("setoption name MultiPV value 2"))
+        }
+#endif
+
         @Test func sendsHistoryNotBareFen() async throws {
             let e = StockfishEngine.shared
             _ = try await e.analyze(.init(startFen: Rules.startFen, moves: ["e2e4", "e7e5"], depth: 2, multiPV: 1))

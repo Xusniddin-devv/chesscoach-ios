@@ -9,7 +9,14 @@ struct ChessCoachApp: App {
         WindowGroup {
             RootTabView()
                 .environment(hub)
-                .task { await hub.configure() }
+                .task {
+                    await hub.configure()
+#if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("-engineBenchmark") {
+                        await EngineBenchmark.runHeadless()
+                    }
+#endif
+                }
         }
         .modelContainer(for: GameRecord.self)
     }

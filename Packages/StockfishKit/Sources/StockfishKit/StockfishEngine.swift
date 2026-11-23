@@ -62,6 +62,27 @@ public actor StockfishEngine: ChessEngine {
         optionsChanged = true
     }
 
+#if DEBUG
+    /// Measurement harness only: `go movetime` from the position, returning the deepest
+    /// depth the search reached. Not cached.
+    public func searchMovetime(startFen: String, moves: [String], multiPV: Int, milliseconds: Int) async throws -> Int {
+        await acquire()
+        defer { release() }
+        let lines = try await search(
+            startFen: startFen, moves: moves,
+            options: ["Skill Level": "20", "MultiPV": "\(multiPV)"],
+            go: "go movetime \(milliseconds)")
+        return lines.compactMap(UCIParser.info).map(\.depth).max() ?? 0
+    }
+
+    /// Measurement harness only: forget the cached analysis so the next pass really searches.
+    public func clearCache() async {
+        await acquire()
+        defer { release() }
+        cache = AnalysisCache()
+    }
+#endif
+
     public func analyze(_ request: AnalysisRequest) async throws -> AnalysisResult {
         await acquire()
         defer { release() }
