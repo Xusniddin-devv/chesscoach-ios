@@ -69,6 +69,7 @@ final class FakeEngine: ChessEngine, @unchecked Sendable {
     private var _opponentCalls: [OpponentCall] = []
     private var botMoves: [String]
     private var throwOnNextOpponentMove = false
+    private var throwOnNextAnalyze = false
 
     let defaultResult: AnalysisResult
     let analysisGate = Gate()
@@ -92,9 +93,15 @@ final class FakeEngine: ChessEngine, @unchecked Sendable {
     }
 
     func failNextOpponentMove() { lock.withLock { throwOnNextOpponentMove = true } }
+    func failNextAnalyze() { lock.withLock { throwOnNextAnalyze = true } }
 
     func analyze(_ request: AnalysisRequest) async throws -> AnalysisResult {
-        lock.withLock { _requests.append(request) }
+        let shouldThrow = lock.withLock { () -> Bool in
+            _requests.append(request)
+            defer { throwOnNextAnalyze = false }
+            return throwOnNextAnalyze
+        }
+        if shouldThrow { throw FakeEngineError() }
         try await analysisGate.pass(honoringCancellation: honorsCancellation)
         return lock.withLock { results[request.cacheKey] ?? defaultResult }
     }

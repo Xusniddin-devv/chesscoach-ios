@@ -29,6 +29,10 @@ public final class GameSession {
     public private(set) var phase: Phase
     public private(set) var lastMove: (from: Square, to: Square)?
     public private(set) var bestArrow: (from: Square, to: Square)?
+    /// User moves whose grade is queued or running.
+    public private(set) var pendingGradeCount = 0
+    /// An engine call failed; the failed step waits for `retry()`. Can be set while `.over`.
+    public private(set) var hasEngineError = false
 
     private struct GradeJob: Sendable {
         var startFen: String
@@ -53,11 +57,15 @@ public final class GameSession {
 
     /// Bumped by `takeBack()`; async results from an older generation are dropped.
     @ObservationIgnored private var generation = 0
-    @ObservationIgnored private var gradeQueue: [GradeJob] = []
-    @ObservationIgnored private var drainTask: Task<Void, Never>?
+    @ObservationIgnored private var gradeQueue: [GradeJob] = [] {
+        didSet { pendingGradeCount = gradeQueue.count }
+    }
+    @ObservationIgnored private var drainTask: Task<Void, Never>? {
+        didSet { if drainTask == nil { resumeDrainWaiters() } }
+    }
+    @ObservationIgnored private var drainWaiters: [CheckedContinuation<Void, Never>] = []
     @ObservationIgnored private var botTask: Task<Void, Never>?
     @ObservationIgnored private var interruptingVerdict: Verdict?
-    @ObservationIgnored private var hasEngineError = false
     @ObservationIgnored private var ending: (result: GameResult, reason: GameState?)?
 
     public init(bot: Bot, userColor: Piece.Color, mode: PlayMode, engine: any ChessEngine,
@@ -106,7 +114,9 @@ public final class GameSession {
     }
 
     /// Undoes back to the user's previous turn: the user's last move and any bot reply after it.
+    /// Allowed after a checkmate or draw; a resigned game stays resigned.
     public func takeBack() {
+        if let ending, ending.reason == nil { return }  // only resign ends without a reason
         guard let userIndex = moves.indices.last(where: { mover(atIndex: $0) == userColor }) else { return }
 
         generation += 1
@@ -163,20 +173,30 @@ public final class GameSession {
     }
 
     /// Training only, on the user's turn: shows the engine's best move in the current position.
-    public func hint() async {
-        guard mode == .training, phase == .userTurn else { return }
+    /// Returns true if `bestArrow` was set. A hint is optional help: an engine failure (or
+    /// cancellation) returns false and leaves the phase alone.
+    @discardableResult
+    public func hint() async -> Bool {
+        guard mode == .training, phase == .userTurn else { return false }
         let gen = generation
         let ply = moves.count
         let request = AnalysisRequest(startFen: startFen, moves: moves, depth: analysisDepth, multiPV: 1)
-        // A failed hint is optional help, not a game step: it leaves the game as it was.
-        guard let result = try? await engine.analyze(request),
-              gen == generation, ply == moves.count, phase == .userTurn else { return }
-        bestArrow = Self.squares(result.bestMove)
+        let result: AnalysisResult
+        do {
+            result = try await engine.analyze(request)
+        } catch {
+            return false
+        }
+        guard gen == generation, ply == moves.count, phase == .userTurn,
+              let arrow = Self.squares(result.bestMove) else { return false }
+        bestArrow = arrow
+        return true
     }
 
-    /// From `.engineError`, re-runs what failed: the grade at the head of the queue and/or the bot move.
+    /// After an engine error (also one raised after the game ended), re-runs what failed:
+    /// the grade at the head of the queue (the queue then carries on) and/or the bot move.
     public func retry() {
-        guard phase == .engineError else { return }
+        guard hasEngineError else { return }
         hasEngineError = false
         drainIfNeeded()
         advance()
@@ -188,6 +208,15 @@ public final class GameSession {
             startFen: startFen, moves: moves, sans: sans, result: ending?.result ?? .ongoing,
             verdicts: verdicts.values.sorted { $0.ply < $1.ply },
             analysisVersion: Self.analysisVersion, playerRatingUsed: playerRating)
+    }
+
+    /// The snapshot once grading has stopped: every queued grade done, or the queue halted
+    /// by an engine error (then it holds the verdicts that exist).
+    public func finalSnapshot() async -> GameSnapshot {
+        while drainTask != nil {
+            await withCheckedContinuation { drainWaiters.append($0) }
+        }
+        return snapshot()
     }
 
     // MARK: Flow
@@ -270,8 +299,8 @@ public final class GameSession {
             guard job.generation == generation, !Task.isCancelled else { return }
             switch outcome {
             case .success(let verdict):
-                gradeQueue.removeFirst()
                 verdicts[job.ply] = verdict
+                gradeQueue.removeFirst()
                 if mode == .training, ending == nil, job.ply == moves.count, interrupts(verdict) {
                     interruptingVerdict = verdict
                 }
@@ -283,6 +312,12 @@ public final class GameSession {
             }
         }
         drainTask = nil
+    }
+
+    private func resumeDrainWaiters() {
+        let waiters = drainWaiters
+        drainWaiters = []
+        waiters.forEach { $0.resume() }
     }
 
     private func interrupts(_ verdict: Verdict) -> Bool {

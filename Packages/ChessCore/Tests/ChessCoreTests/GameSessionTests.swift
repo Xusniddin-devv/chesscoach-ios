@@ -307,16 +307,28 @@ func noBotRequestAfterCheckmate(mode: PlayMode) async {
     engine.script(AnalysisRequest(startFen: startFen, moves: [], depth: 16, multiPV: 1), result(best: "g1f3", cp: 30))
     let training = makeSession(engine, mode: .training)
     training.start()
-    await training.hint()
+    #expect(await training.hint())
     #expect(training.bestArrow?.from == .g1 && training.bestArrow?.to == .f3)
     #expect(engine.requests == [AnalysisRequest(startFen: startFen, moves: [], depth: 16, multiPV: 1)])
 
     let silentEngine = FakeEngine()
     let silent = makeSession(silentEngine, mode: .silent)
     silent.start()
-    await silent.hint()
+    #expect(await silent.hint() == false)
     #expect(silent.bestArrow == nil)
     #expect(silentEngine.requests.isEmpty)
+}
+
+@MainActor @Test func hintReportsEngineFailure() async {
+    let engine = FakeEngine()
+    engine.failNextAnalyze()
+    let session = makeSession(engine, mode: .training)
+    session.start()
+    #expect(await session.hint() == false)
+    #expect(session.bestArrow == nil)
+    #expect(session.phase == .userTurn)
+    #expect(session.hasEngineError == false)
+    #expect(engine.requests.count == 1)
 }
 
 // MARK: - Bot pacing
@@ -387,4 +399,100 @@ func noBotRequestAfterCheckmate(mode: PlayMode) async {
     #expect(session.moves == ["d2d4"])
     #expect(session.sans == ["d4"])
     #expect(engine.opponentCalls == [OpponentCall(startFen: startFen, moves: [], elo: 600)])
+}
+
+// MARK: - Final snapshot and late engine errors
+
+@MainActor private final class SnapshotBox {
+    var snapshot: GameSnapshot?
+}
+
+/// Qa1-b1 Kh8-g8 Qb1-b8#: two user plies (1 and 3), the game ends on the user's move.
+private let mateInTwoFen = "7k/8/6K1/8/8/8/8/Q7 w - - 0 1"
+
+@MainActor @Test func finalSnapshotWaitsForQueuedGrades() async {
+    let engine = FakeEngine(botMoves: ["h8g8"])
+    engine.analysisGate.close()
+    let session = makeSession(engine, mode: .silent, startFen: mateInTwoFen)
+    session.start()
+    #expect(session.userMove("a1b1"))
+    #expect(await eventually { session.phase == .userTurn && session.moves.count == 2 })
+    #expect(session.userMove("b1b8"))
+    #expect(session.phase == .over(.whiteWins, reason: .checkmate(winner: .white)))
+    #expect(session.pendingGradeCount == 2)
+    #expect(session.snapshot().verdicts.isEmpty)
+
+    let box = SnapshotBox()
+    let waiter = Task { @MainActor in box.snapshot = await session.finalSnapshot() }
+    await settle()
+    #expect(box.snapshot == nil)  // still waiting: grades are held
+
+    engine.analysisGate.open()
+    await waiter.value
+    #expect(box.snapshot?.verdicts.map(\.ply) == [1, 3])
+    #expect(box.snapshot?.result == .whiteWins)
+    #expect(session.pendingGradeCount == 0)
+}
+
+@MainActor @Test func gradeFailingAfterGameOverIsRetryable() async {
+    let engine = FakeEngine()
+    engine.failNextAnalyze()
+    let session = makeSession(engine, mode: .silent, startFen: "7k/8/6K1/8/8/8/8/Q7 w - - 0 1")
+    session.start()
+    #expect(session.userMove("a1g7"))
+    #expect(await eventually { session.hasEngineError })
+    #expect(session.phase == .over(.whiteWins, reason: .checkmate(winner: .white)))
+    #expect(session.verdicts.isEmpty)
+    #expect(session.pendingGradeCount == 1)
+    // With the queue stopped by an error, the final snapshot returns what exists instead of hanging.
+    #expect(await session.finalSnapshot().verdicts.isEmpty)
+
+    session.retry()
+    #expect(session.hasEngineError == false)
+    let snap = await session.finalSnapshot()
+    #expect(snap.verdicts.map(\.ply) == [1])
+    #expect(session.verdicts[1]?.uci == "a1g7")
+    #expect(session.phase == .over(.whiteWins, reason: .checkmate(winner: .white)))
+}
+
+@MainActor @Test func retryAfterFailedGradeMidGame() async {
+    let engine = FakeEngine(botMoves: ["e7e5"])
+    engine.failNextAnalyze()
+    let session = makeSession(engine, mode: .training)
+    session.start()
+    #expect(session.userMove("e2e4"))
+    #expect(await eventually { session.phase == .engineError })
+    #expect(session.hasEngineError)
+    #expect(session.verdicts.isEmpty)
+    #expect(engine.opponentCalls.isEmpty)
+
+    session.retry()
+    #expect(await eventually { session.moves.count == 2 && session.phase == .userTurn })
+    #expect(session.verdicts[1]?.uci == "e2e4")
+    #expect(session.hasEngineError == false)
+    #expect(engine.opponentCalls.map(\.moves) == [["e2e4"]])
+}
+
+// MARK: - Take back after the end
+
+@MainActor @Test func takeBackIsNoOpAfterResignButAllowedAfterMate() async {
+    let engine = FakeEngine(botMoves: ["e7e5"])
+    let resigned = makeSession(engine, mode: .silent)
+    resigned.start()
+    #expect(resigned.userMove("e2e4"))
+    #expect(await eventually { resigned.phase == .userTurn && resigned.moves.count == 2 })
+    resigned.resign()
+    resigned.takeBack()
+    #expect(resigned.moves == ["e2e4", "e7e5"])
+    #expect(resigned.phase == .over(.blackWins, reason: nil))
+    #expect(resigned.snapshot().result == .blackWins)
+
+    let mated = makeSession(FakeEngine(), mode: .silent, startFen: "7k/8/6K1/8/8/8/8/Q7 w - - 0 1")
+    mated.start()
+    #expect(mated.userMove("a1g7"))
+    #expect(mated.phase == .over(.whiteWins, reason: .checkmate(winner: .white)))
+    mated.takeBack()
+    #expect(mated.moves.isEmpty)
+    #expect(mated.phase == .userTurn)
+    #expect(mated.snapshot().result == .ongoing)
 }
