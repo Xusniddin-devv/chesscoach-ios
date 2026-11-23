@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import OSLog
 import ChessCore
 
 /// Full-screen game against a bot: opponent row, board with eval bar, user row, and under
@@ -14,6 +15,9 @@ struct PlayView: View {
     @State private var model: PlayModel?
     @State private var confirmingResign = false
     @State private var showingResult = false
+    @State private var saveFailed = false
+
+    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "uz.xq.chessc", category: "persistence")
 
     var body: some View {
         NavigationStack {
@@ -71,7 +75,8 @@ struct PlayView: View {
             }
         }
         .sheet(isPresented: $showingResult) {
-            GameOverSheet(model: model, onPlayAgain: playAgain, onDone: done)
+            GameOverSheet(model: model, saveFailed: saveFailed, onPlayAgain: playAgain, onDone: done,
+                          onCloseWithoutSaving: closeWithoutSaving)
                 .presentationDetents([.medium, .large])
                 .presentationBackgroundInteraction(.enabled(upThrough: .medium))
                 .interactiveDismissDisabled()
@@ -94,8 +99,10 @@ struct PlayView: View {
             onMove: model.move)
         .padding(.horizontal, DS.Spacing.s)
         .overlay(alignment: .leading) {
-            EvalBar(whiteCp: model.whiteCp, orientation: model.orientation)
-                .padding(.leading, 1)
+            if model.session.mode == .training {  // Silent means no coaching during play
+                EvalBar(whiteCp: model.whiteCp, orientation: model.orientation)
+                    .padding(.leading, 1)
+            }
         }
     }
 
@@ -110,7 +117,7 @@ struct PlayView: View {
                 onContinue: session.continueAfterInterrupt)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         } else if session.hasEngineError && !model.isOver {
-            EngineErrorRow(message: "The engine stopped.") { session.retry() }
+            InlineErrorRow(message: "The engine stopped.", actionTitle: "Retry") { session.retry() }
         } else {
             Text(statusLine(model))
                 .font(DS.Font.subheadline)
@@ -153,27 +160,43 @@ struct PlayView: View {
 
     // MARK: Leaving
 
-    /// Saves in the background (the save waits for the last grades) and goes on at once.
-    private func save(_ model: PlayModel) {
-        guard model.hasUserMoves || model.isOver else { return }
-        let context = context
-        Task { try? await model.save(in: context) }
+    private func leave(_ model: PlayModel) {
+        if model.isOver { done() } else { dismiss() }
     }
 
-    private func leave(_ model: PlayModel) {
-        if model.isOver { save(model) }
-        dismiss()
+    /// Saves the finished game, then moves on. The save waits for the last grades; if it
+    /// fails, the sheet stays with an inline error and the next Done / Play again retries.
+    private func saveThen(_ next: @escaping () -> Void) {
+        guard let model else { return }
+        Task {
+            do {
+                try await model.save(in: context)
+                saveFailed = false
+                next()
+            } catch {
+                Self.log.error("Saving the game failed: \(error.localizedDescription, privacy: .public)")
+                saveFailed = true
+            }
+        }
     }
 
     private func done() {
-        showingResult = false
-        if let model { leave(model) }
+        saveThen {
+            showingResult = false
+            dismiss()
+        }
     }
 
     private func playAgain() {
-        if let model { save(model) }
+        saveThen {
+            showingResult = false
+            begin()
+        }
+    }
+
+    private func closeWithoutSaving() {
         showingResult = false
-        begin()
+        dismiss()
     }
 }
 
@@ -242,10 +265,11 @@ private struct CapturedTray: View {
     }
 }
 
-/// An inline engine failure with a retry; no alerts.
-struct EngineErrorRow: View {
+/// An inline failure with one action (engine retry, close without saving); no alerts.
+struct InlineErrorRow: View {
     let message: String
-    let retry: () -> Void
+    let actionTitle: String
+    let action: () -> Void
 
     var body: some View {
         HStack {
@@ -253,7 +277,7 @@ struct EngineErrorRow: View {
                 .font(DS.Font.subheadline)
                 .foregroundStyle(DS.Color.text)
             Spacer()
-            Button("Retry", action: retry)
+            Button(actionTitle, action: action)
                 .font(DS.Font.headline)
                 .foregroundStyle(DS.Color.accent)
         }

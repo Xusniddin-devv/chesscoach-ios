@@ -36,7 +36,10 @@ final class PlayModel {
     var orientation: Piece.Color
     private(set) var hintUnavailable = false
     private(set) var isHinting = false
-    @ObservationIgnored private var saved = false
+    private(set) var isSaved = false
+    private(set) var isSaving = false
+    /// Writes a snapshot to the store; replaceable in tests.
+    @ObservationIgnored var persist: @MainActor (GameSnapshot, ModelContext) throws -> Void = PlayModel.insertRecord
 
     init(session: GameSession) {
         self.session = session
@@ -185,11 +188,35 @@ final class PlayModel {
     // MARK: Saving
 
     /// Stores the game once, after its last grades are in (`finalSnapshot`, never `snapshot()`).
+    /// A grade halted by an engine error is retried up to `maxGradeRetries` times; after that the
+    /// partial game is stored (Plan 2 re-analyses it). A failed write leaves the game unsaved,
+    /// so the next Done / Play again tries again.
     func save(in context: ModelContext) async throws {
-        guard !saved else { return }
-        saved = true
-        let snapshot = await session.finalSnapshot()
-        context.insert(try GameRecord(snapshot: snapshot))
-        try context.save()
+        guard !isSaved, !isSaving else { return }
+        isSaving = true
+        defer { isSaving = false }
+        var snapshot = await session.finalSnapshot()
+        var retries = 0
+        while session.hasEngineError, session.pendingGradeCount > 0, retries < Self.maxGradeRetries {
+            retries += 1
+            session.retry()
+            snapshot = await session.finalSnapshot()
+        }
+        try persist(snapshot, context)
+        isSaved = true
+    }
+
+    static let maxGradeRetries = 2
+
+    /// Inserts and saves the record; a failed save removes the insert so a retry stores one copy.
+    static func insertRecord(_ snapshot: GameSnapshot, into context: ModelContext) throws {
+        let record = try GameRecord(snapshot: snapshot)
+        context.insert(record)
+        do {
+            try context.save()
+        } catch {
+            context.delete(record)
+            throw error
+        }
     }
 }

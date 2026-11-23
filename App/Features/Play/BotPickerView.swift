@@ -18,48 +18,52 @@ struct BotPickerView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: DS.Spacing.l) {
-                botList
-                VStack(alignment: .leading, spacing: DS.Spacing.s) {
-                    SectionLabel("Mode")
-                    Picker("Mode", selection: $mode) {
-                        Text("Training").tag(PlayMode.training)
-                        Text("Silent").tag(PlayMode.silent)
-                    }
-                    .pickerStyle(.segmented)
-                    Text(modeExplanation)
-                        .font(DS.Font.subheadline)
-                        .foregroundStyle(DS.Color.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                VStack(alignment: .leading, spacing: DS.Spacing.s) {
-                    SectionLabel("Play as")
-                    Picker("Play as", selection: $color) {
-                        ForEach(PlaySetup.ColorChoice.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                }
-            }
-            .padding(.horizontal, DS.Spacing.m)
-            .padding(.bottom, DS.Spacing.l)
+            botList
+                .padding(.horizontal, DS.Spacing.m)
+                .padding(.bottom, DS.Spacing.m)
         }
         .background(DS.Color.background)
         .navigationTitle("Choose a bot")
         .navigationBarTitleDisplayMode(.large)
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaBar(edge: .bottom) {
+        .scrollEdgeEffectStyle(.hard, for: .bottom)
+        .safeAreaBar(edge: .bottom) { setup }
+    }
+
+    /// Mode, colour and Play stay pinned, so all three are always visible over the list.
+    private var setup: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+            VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                SettingRow(label: "Mode") {
+                    Picker("Mode", selection: $mode) {
+                        Text("Training").tag(PlayMode.training)
+                        Text("Silent").tag(PlayMode.silent)
+                    }
+                }
+                Text(modeExplanation)
+                    .font(DS.Font.subheadline)
+                    .foregroundStyle(DS.Color.textSecondary)
+                    .padding(.leading, settingLabelWidth)
+            }
+            SettingRow(label: "Play as") {
+                Picker("Play as", selection: $color) {
+                    ForEach(PlaySetup.ColorChoice.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+            }
             PrimaryButton(title: "Play \(selected.name)") {
                 onStart(PlaySetup(bot: selected, mode: mode, color: color))
             }
-            .padding(.horizontal, DS.Spacing.m)
-            .padding(.bottom, DS.Spacing.s)
+            .padding(.top, DS.Spacing.xs)
         }
+        .padding(.horizontal, DS.Spacing.m)
+        .padding(.top, DS.Spacing.sm)
+        .padding(.bottom, DS.Spacing.s)
     }
 
     private var modeExplanation: String {
         switch mode {
-        case .training: "The coach stops you after a mistake and shows a better move."
-        case .silent: "No interruptions. Your moves are still graded."
+        case .training: "The coach stops you after a mistake."
+        case .silent: "No interruptions. Moves are still graded."
         }
     }
 
@@ -112,5 +116,20 @@ private struct BotRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+private let settingLabelWidth: CGFloat = 72
+
+/// "MODE  [ segmented ]": an uppercase label in a fixed column, then a segmented control.
+private struct SettingRow<Control: View>: View {
+    let label: String
+    @ViewBuilder var control: () -> Control
+
+    var body: some View {
+        HStack(spacing: 0) {
+            SectionLabel(label).frame(width: settingLabelWidth, alignment: .leading)
+            control().pickerStyle(.segmented)
+        }
     }
 }

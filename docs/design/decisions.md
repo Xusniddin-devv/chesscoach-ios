@@ -87,7 +87,7 @@ Other uses of the class colour: destination `squareTint` = class fill at 45 % op
 
 ## Bot avatars (`App/Resources/Assets.xcassets/Bots/<id>`)
 
-Piece-derived figures in the same matte material, no faces. Transparent square canvas 128 pt (@3x 384 px), figure fitted into the centre 80 %. Shown on a `surface2` rounded tile (`Radius.medium` at 64 pt, `Radius.small` at 32–40 pt).
+Piece-derived figures in the same matte material, no faces. Transparent square canvas 128 pt (@3x 384 px), figure fitted into the centre 80 %. Shown on a **board dark `#7D8483`** rounded tile (`Radius.medium` at 64 pt, `Radius.small` at 32–40 pt). Task 14 changed this from `surface2`: the slate figures (Wall, Vera, Apex) were dark-on-dark there, while on the board's dark-square colour all eight read (cream bright, orange vivid, slate separated) — each avatar is a piece on a dark square. The accent Play card on Home shows its avatar without a tile.
 
 | id | Figure | Why |
 |---|---|---|
@@ -115,7 +115,7 @@ Ladder reads cream → slate as strength rises. Review: `references/bots-final-s
 ## Play (refs: `references/play/`)
 
 - Full screen, tab bar hidden; navigation bar with glass toolbar buttons: close / resign (`xmark` → confirm resign), flip (`arrow.up.arrow.down`), hint (`lightbulb`, Training mode only).
-- **Opponent row** (top) and **user row** (bottom), each 44 pt: 32 pt avatar tile (`surface2`, `Radius.small`; user = accent tile with initial), name `headline`, Elo `numeral` secondary, captured pieces on the right as a tight row of 16 pt piece images + material diff "+2" in mono (NICKELFOX rows, Duolingo clock rows).
+- **Opponent row** (top) and **user row** (bottom), each 44 pt: 32 pt avatar tile (`surface2`, `Radius.small`; user = accent tile with initial), name `headline`, Elo `numeral` secondary, captured pieces on the right as a tight row of 22 pt piece images (same-kind pieces overlap) + material diff "+2" in mono (NICKELFOX rows, Duolingo clock rows).
 - **Board**: full width minus 8 pt each side, `Radius.small` outer corners, no frame or shadow (think. shot, Duolingo edge-to-edge). Eval bar: 6 pt vertical bar at the board's left edge, white/ink split, inside the 8 pt margin budget. Coordinates inside edge squares in `label` size, colour = the opposite square colour. Legal-move dots: ink at 22 % opacity, 30 % of square; captures: 4 pt ring. Last move: accent at 30 % on from/to. Verdict: class `squareTint` on the destination + `MoveBadge` overlapping the destination's top-right corner by 6 pt (Duolingo ring-on-square). Best-move arrow: accent at 85 %.
 - **Coach card** on a training interrupt: opaque `surface` card under the board, `Radius.large`, never covering the board (Duolingo feedback panel). Top: class pill (class fill, ink text, `label` style "?? BLUNDER"). Body: explanation in `body`, max 3 lines. Buttons: Take back (`SecondaryButton`) + Show best (`PrimaryButton`) side by side, Continue as a plain text button under them.
 - Danger red appears only in the blunder pill/badge/tint — never as a screen background.
@@ -125,8 +125,8 @@ Ladder reads cream → slate as strength rises. Review: `references/bots-final-s
 - Pushed from Home, large title "Choose a bot".
 - **List**: one `surface` container (`Radius.large`) with 8 rows and hairline separators (Meta AI voice list, Character AI). Row: 40 pt avatar tile, name `headline` + Elo in `numeral` secondary on the same line, blurb in `subheadline` secondary, max 2 lines. Selected row: `surface2` background + 2 pt accent ring around the avatar tile; no checkmark icon. All 8 visible by scrolling — no carousel (rejects the Dribbble 3D carousel).
 - Default selection: the bot whose Elo is closest to `PlayerProfile.defaultRating` (800 → Rookie Ron).
-- **Settings** under the list (Apple Games setup rows): `label` "MODE" + system segmented picker Training / Silent with one secondary sentence explaining the selected mode (Runna); `label` "PLAY AS" + segmented White / Black / Random.
-- **Start**: `PrimaryButton` "Play Ron" pinned to the bottom safe-area inset, always visible.
+- **Settings** pinned in the bottom bar above the Play button, so they are always visible while the list scrolls (Apple Games setup rows): `label` "MODE" + system segmented picker Training / Silent with one one-line secondary sentence for the selected mode (Runna); `label` "PLAY AS" + segmented White / Black / Random.
+- **Start**: `PrimaryButton` "Play Rookie Ron" at the bottom of that pinned bar.
 
 ## Game over (refs: `references/game-over/`)
 
@@ -148,4 +148,6 @@ Look at these first, in this order:
 3. **`references/bots-final-sheet.png`** — avatar personas; the slate figures (Wall, Vera, Apex) are dark-on-dark on the `surface2` tile; Pip's sage leaf is the only colour outside the core palette.
 4. Mistake orange `#F59A2E` vs brand accent `#FF6A1A` (ΔE 28.5) — distinct, but both orange.
 5. Home in Plan 1 shows no Daily puzzle / Review tiles and no streak (those ship in Plan 3; no placeholders); when the streak arrives, the pill drops the mockup's 🔥 emoji for a numeral.
-6. Credits: pieces 17.25 (13 images × 1.25 + one background-removal trial 1.0), avatars 8.0 (8 × 1.0) — within the 20 / 10 budgets.
+6. **Avatar tile colour** is board dark `#7D8483` (Task 14), not `surface2`: slate figures are legible; the cost is a mid-grey tile in every list row. See `screens/plan1-botpicker.png`, `screens/plan1-home.png`.
+7. **Captured-piece size** in the Play rows is 22 pt (was 16 pt), so the matte pieces stay recognisable. See `screens/plan1-gameover.png` (opponent row).
+8. Credits: pieces 17.25 (13 images × 1.25 + one background-removal trial 1.0), avatars 8.0 (8 × 1.0) — within the 20 / 10 budgets.

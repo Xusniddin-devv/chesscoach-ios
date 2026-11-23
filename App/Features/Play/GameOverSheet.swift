@@ -5,8 +5,10 @@ import ChessCore
 /// in an accent arc, move counts, and Play again / Done. Confetti on a win only.
 struct GameOverSheet: View {
     let model: PlayModel
+    let saveFailed: Bool
     let onPlayAgain: () -> Void
     let onDone: () -> Void
+    let onCloseWithoutSaving: () -> Void
 
     private var session: GameSession { model.session }
 
@@ -19,7 +21,11 @@ struct GameOverSheet: View {
                     AccuracyArc(accuracy: model.accuracy, pending: session.pendingGradeCount)
                 }
                 if session.hasEngineError && session.pendingGradeCount > 0 {
-                    EngineErrorRow(message: "Analysis stopped.") { session.retry() }
+                    InlineErrorRow(message: "Analysis stopped.", actionTitle: "Retry") { session.retry() }
+                }
+                if saveFailed {
+                    InlineErrorRow(message: "Couldn't save this game.", actionTitle: "Close anyway",
+                                   action: onCloseWithoutSaving)
                 }
                 stats
             }
@@ -32,6 +38,7 @@ struct GameOverSheet: View {
                 PrimaryButton(title: "Play again", action: onPlayAgain)
                 SecondaryButton(title: "Done", action: onDone)
             }
+            .disabled(model.isSaving)
             .padding(.horizontal, DS.Spacing.m)
             .padding(.bottom, DS.Spacing.s)
         }

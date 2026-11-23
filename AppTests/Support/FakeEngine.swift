@@ -1,12 +1,15 @@
 import Foundation
 import ChessCore
 
+struct FakeEngineError: Error {}
+
 /// Scripted engine for app tests: bot replies come from `botMoves` in order, every analysis
 /// returns `result` (an even position with no best move by default).
 final class FakeEngine: ChessEngine, @unchecked Sendable {
     private let lock = NSLock()
     private var botMoves: [String]
     private let result: AnalysisResult
+    private var analysisFailures = 0
 
     init(botMoves: [String],
          result: AnalysisResult = AnalysisResult(
@@ -15,7 +18,17 @@ final class FakeEngine: ChessEngine, @unchecked Sendable {
         self.result = result
     }
 
-    func analyze(_ request: AnalysisRequest) async throws -> AnalysisResult { result }
+    /// The next `count` analyses throw (each failure stops one grade attempt).
+    func failNextAnalyses(_ count: Int) { lock.withLock { analysisFailures = count } }
+
+    func analyze(_ request: AnalysisRequest) async throws -> AnalysisResult {
+        let fail = lock.withLock { () -> Bool in
+            defer { analysisFailures = max(0, analysisFailures - 1) }
+            return analysisFailures > 0
+        }
+        if fail { throw FakeEngineError() }
+        return result
+    }
 
     func opponentMove(startFen: String, moves: [String], elo: Int) async throws -> String {
         lock.withLock { botMoves.isEmpty ? "" : botMoves.removeFirst() }

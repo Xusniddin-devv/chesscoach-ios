@@ -15,8 +15,6 @@ struct CoachCard: View {
             Text(explain(verdict, wording: .words))
                 .font(DS.Font.body)
                 .foregroundStyle(DS.Color.text)
-                .lineLimit(3)
-                .minimumScaleFactor(0.85)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: DS.Spacing.sm) {
                 SecondaryButton(title: "Take back", action: onTakeBack)
