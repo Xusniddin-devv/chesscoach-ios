@@ -173,6 +173,9 @@ struct CoachText: View {
     /// Marks up engine-written prose for `CoachText`: bare square names ("on g5") become
     /// chips, and `san` (the move being talked about) is set in bold. Square names inside a
     /// move ("Nf3", "exd5") and text already marked are left alone.
+    private nonisolated(unsafe) static let squareRegex =
+        try! NSRegularExpression(pattern: "(?<![A-Za-z0-9\\[*])([a-h][1-8])(?![A-Za-z0-9\\]*])")
+
     static func marked(_ plain: String, san: String? = nil) -> String {
         var s = plain
         if let san, !san.isEmpty, !s.contains("**") {
@@ -180,8 +183,7 @@ struct CoachText: View {
         }
         let range = NSRange(s.startIndex..., in: s)
         // Not after a letter, digit, "[" or "*" (bold SAN) and not before a letter, digit or "]".
-        let regex = try! NSRegularExpression(pattern: "(?<![A-Za-z0-9\\[*])([a-h][1-8])(?![A-Za-z0-9\\]*])")
-        return regex.stringByReplacingMatches(in: s, range: range, withTemplate: "[$1]")
+        return squareRegex.stringByReplacingMatches(in: s, range: range, withTemplate: "[$1]")
     }
 
     /// The text without chip brackets, for VoiceOver.

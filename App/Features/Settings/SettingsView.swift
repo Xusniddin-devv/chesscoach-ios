@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(Entitlements.self) private var entitlements
     @Environment(\.modelContext) private var context
     @Environment(EngineHub.self) private var hub
+    @Environment(BackgroundAnalysis.self) private var analysis: BackgroundAnalysis?
 
     @AppStorage(Pref.sound) private var sound = Pref.Default.sound
     @AppStorage(Pref.haptics) private var haptics = Pref.Default.haptics
@@ -178,6 +179,8 @@ struct SettingsView: View {
     }
 
     private func reset() {
+        // Queued background analyses would only search games that are about to go.
+        analysis?.stopAll()
         do {
             try DataReset.run(in: context)
             resetFailed = false
