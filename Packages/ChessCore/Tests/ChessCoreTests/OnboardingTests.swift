@@ -151,6 +151,18 @@ private func analysed(_ verdicts: [Verdict], user: Piece.Color = .white, acc: Do
         #expect(plan.days[0].tasks.contains { $0.lessonId == LessonLibrary.lessons(in: .checkmates).first?.id })
     }
 
+    @Test func playFrequencySizesTheWeek() {
+        let daily = TrainingPlan.make(weaknesses: [.hangingPiece], rating: 900, ownMistakes: 10, frequency: .daily)
+        let weekends = TrainingPlan.make(weaknesses: [.hangingPiece], rating: 900, ownMistakes: 10, frequency: .weekends)
+        let usual = TrainingPlan.make(weaknesses: [.hangingPiece], rating: 900, ownMistakes: 10)
+        func puzzles(_ p: TrainingPlan) -> [Int] { p.days.flatMap(\.tasks).filter { $0.kind == .puzzles }.map(\.count) }
+        #expect(puzzles(daily).allSatisfy { $0 == 8 })
+        #expect(puzzles(weekends).allSatisfy { $0 == 3 })
+        #expect(puzzles(usual).allSatisfy { $0 == 5 })  // few times a week: the old size
+        #expect(daily.days[0].tasks.first?.count == 8)  // own mistakes too
+        #expect(PlayFrequency.allCases.map(\.title) == ["Daily", "Few times a week", "Weekends"])
+    }
+
     @Test func planRoundTripsAsJSON() throws {
         let plan = TrainingPlan.make(weaknesses: [.missedCapture], rating: 1300, ownMistakes: 2)
         let data = try JSONEncoder().encode(plan)

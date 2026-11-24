@@ -18,9 +18,11 @@ public struct AnalysisPlan: Sendable {
 
     /// Bulk review depth (global constraints).
     public static let fullDepth = 14
-    /// Quick pass node limit: measured on the iPhone 17 Pro simulator at ~10-20 ms a position
-    /// (see the onboarding speed report). Tier, weaknesses and plan only need the big swings.
-    public static let quickNodes = 30_000
+    /// Quick pass node limit. iPhone 17 Pro simulator, 4 threads (onboarding): 30k nodes
+    /// 10.7 ms, 50k 19.1 ms a position, so 40k lands mid-way in the 10-20 ms target; with the
+    /// app's 1 thread (background, after onboarding) ~45 ms. Tier, weaknesses and plan only
+    /// need the big swings.
+    public static let quickNodes = 40_000
     /// Quick pass stops here: long endgames add time, rarely a new habit.
     public static let quickMaxPly = 120
 
