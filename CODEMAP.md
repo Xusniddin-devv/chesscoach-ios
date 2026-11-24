@@ -11,15 +11,17 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | App entry, engine configure, Entitlements injection | `App/ChessCoachApp.swift` |
-| SwiftData container (CloudKit or local, `-debugEmptyStore`), the one model list | `App/Services/ModelStore.swift` (`ModelStore.models`; `DataReset.models` = same) |
-| Onboarding gate, tabs (Home, Puzzles, Learn, Profile); player rating sync from saved games | `App/AppShell/RootTabView.swift` |
+| SwiftData container (CloudKit-mirrored `cloud.store` when the build syncs, else `local.store`; legacy `default.store` moved once; `-debugEmptyStore`), the one model list | `App/Services/ModelStore.swift` (`ModelStore.models`; `DataReset.models` = same) |
+| Failed saves: `ModelContext.saveReporting`, `SaveIssues`, inline `SaveNotice` (Retry) | `App/Persistence/SaveReporting.swift`, overlay in `RootTabView` |
+| Privacy manifest (required-reason APIs, no tracking) | `App/PrivacyInfo.xcprivacy`; TestFlight owner checklist `docs/TESTFLIGHT.md` |
+| Onboarding gate (local flag or a synced `UserProfile`), tabs (Home, Puzzles, Learn, Profile); player rating sync from saved games; sync-duplicate merge on launch / remote change | `App/AppShell/RootTabView.swift` |
 | Shared engine access, sessions, review models, player rating + wording | `App/EngineHub.swift` |
 | Design tokens (colours, type, spacing, radii) | `App/DesignSystem/Tokens.swift` |
 | Buttons, labels, avatar tiles (bots, user tier piece), move badge, pill | `App/DesignSystem/Components/*` |
 | Coach character (poses), speech bubble, chip-aware text (`[e4]`, `**bold**`, `CoachText.marked`) | `App/DesignSystem/Components/CoachBubble.swift`, assets `Coach/*` |
 | Streak pill, done ring, mini board, chips, flow layout | `App/DesignSystem/Components/TrainingComponents.swift` |
 | Icons (Icons8 iOS Filled, potrace SVG templates; brand logos the only exception) | `App/Resources/Assets.xcassets/Icons/`, lock `icons8.json` |
-| Saved game record (SwiftData), in-place update | `App/Persistence/GameRecord.swift` |
+| Saved game record (SwiftData), in-place update (`revision`), decode cache (`GameCache`: snapshot, `finalFen`, `blunderPuzzles`), sync duplicates (`unique`, `mergeDuplicates`, rule `ChessCore/Persistence/GameDedupe.swift`) | `App/Persistence/GameRecord.swift` |
 | Puzzle / lesson progress, streak rows, `TrainingStore` | `App/Persistence/TrainingModels.swift` |
 | User profile (platform, rating, goal), training plan, imported games | `App/Persistence/ProfileModels.swift` (`ProfileStore`) |
 | Sounds, haptics (`.gameFeedback`), voice input | `App/Services/Sound.swift`, `Haptics.swift`, `Voice.swift` |
@@ -131,7 +133,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Settings (pushed from Profile's gear): play defaults, feedback, Pro, about, re-import (Pro), reset | `App/Features/Settings/SettingsView.swift`, `SettingsRows.swift`, `Preferences.swift` (`Pref`, `AppInfo`) |
-| Paywall, `ProFeature`, `ProGate`, `UpgradeButton`, puzzle / lesson allowances | `App/Features/Paywall/PaywallView.swift`, `ProGate.swift` |
+| Paywall, `ProFeature`, `ProGate`, `UpgradeButton`, puzzle / lesson / habit allowances (`WeaknessAllowance`) | `App/Features/Paywall/PaywallView.swift`, `ProGate.swift` |
 | Licenses (GPLv3, Stockfish, chesskit, RevenueCat, Lichess CC0, Icons8) | `App/Features/Licenses/LicensesView.swift`, `App/Resources/Licenses/*.txt` |
 | Build config (RevenueCat key from gitignored `Config/Secrets.xcconfig`), StoreKit test file, entitlements | `Config/App.xcconfig`, `Config/ChessCoach.storekit`, `App/ChessCoach.entitlements`, `App/Info.plist` |
 | Rating estimate, tiers (pieces), milestones, weaknesses, motif wording | `ChessCore/Profile/ProfileStats.swift` |
@@ -165,4 +167,4 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 |---|---|
 | ChessCore (Swift Testing, `swift test`) | `Packages/ChessCore/Tests/ChessCoreTests/*` (fake engine: `Support/FakeEngine.swift`) |
 | StockfishKit | `Packages/StockfishKit/Tests/StockfishKitTests/*` |
-| App (simulator) | `AppTests/*` — Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), settings / paywall, training store, onboarding, launch, merge invariants (`MergeIntegrationTests.swift`), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
+| App (simulator) | `AppTests/*` — Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), settings / paywall, training store, onboarding, launch, merge invariants (`MergeIntegrationTests.swift`), decode cache / sync duplicates / store files / privacy manifest (`SyncAndStoreTests.swift`), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
