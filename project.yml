@@ -75,7 +75,7 @@ targets:
         # Owner's individual Apple Developer team (App ID uz.xq.chessc, container iCloud.uz.xq.chessc).
         DEVELOPMENT_TEAM: 6V8WGQWXMT
         CODE_SIGN_STYLE: Automatic
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "2"
         # Only HTTPS (Apple's exempt encryption): no export-compliance question per build.
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
       configs:
