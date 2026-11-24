@@ -60,7 +60,7 @@ struct GameOverSheet: View {
                 }
             }
             .padding(.horizontal, DS.Spacing.m)
-            .padding(.top, DS.Spacing.l)
+            .padding(.top, 44)  // the close button sits above the avatars, not beside them
             .padding(.bottom, DS.Spacing.l)
             .animation(.smooth(duration: 0.35), value: model.summaryAnalysis != nil)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
@@ -102,7 +102,7 @@ struct GameOverSheet: View {
             if model.outcome == .won {
                 ConfettiBurst()
                     .padding(.horizontal, -DS.Spacing.m)
-                    .padding(.top, -DS.Spacing.l)
+                    .padding(.top, -44)
                     .clipped()
             }
         }

@@ -33,8 +33,10 @@ struct PlayerAvatarTile: View {
     }
 }
 
-/// An avatar asset on the board-dark tile. Piece art (`Pieces/…`) fills its canvas, so it
-/// gets a margin to sit like the bot figures, which are already fitted into 80 %.
+/// An avatar asset on the board-dark tile. Bot figures are already fitted into 80 % of
+/// their canvas; piece art (`Pieces/…`) stands on a shared baseline at its board size (a pawn
+/// is 61 % of the canvas, a king 92 %), so a piece is scaled to one figure height and lifted
+/// off the tile's bottom edge, and every tier reads as large as a bot.
 struct AvatarImage: View {
     let asset: String
     var size: CGFloat = 32
@@ -44,10 +46,29 @@ struct AvatarImage: View {
             .resizable()
             .interpolation(.high)
             .aspectRatio(contentMode: .fit)
-            .padding(asset.hasPrefix("Pieces/") ? size * 0.12 : 0)
             .frame(width: size, height: size)
-            .background(DS.Color.boardDark, in: RoundedRectangle(cornerRadius: AvatarTile.radius(size)))
+            .scaleEffect(pieceScale, anchor: .bottom)
+            .offset(y: isPiece ? -size * 0.08 : 0)
+            .frame(width: size, height: size)
+            .background(DS.Color.boardDark)
+            .clipShape(RoundedRectangle(cornerRadius: AvatarTile.radius(size)))
             .accessibilityHidden(true)
+    }
+
+    private var isPiece: Bool { asset.hasPrefix("Pieces/") }
+
+    /// Figure height ≈ 74 % of the tile; piece heights as share of the canvas (decisions.md).
+    private var pieceScale: CGFloat {
+        guard isPiece else { return 1 }
+        let height: CGFloat = switch asset.last {
+        case "p": 0.61
+        case "n": 0.75
+        case "b": 0.77
+        case "r": 0.66
+        case "q": 0.83
+        default: 0.92
+        }
+        return 0.74 / height
     }
 }
 
