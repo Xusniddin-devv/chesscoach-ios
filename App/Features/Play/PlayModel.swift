@@ -65,7 +65,7 @@ final class PlayModel {
     /// the live position (an earlier position is read-only).
     var interactive: Bool {
         viewedPly == nil && session.phase == .userTurn
-            && Position(fen: session.fen)?.sideToMove == session.userColor
+            && FreeplayModel.sideToMove(fen: session.fen) == session.userColor  // no FEN parse per render
     }
 
     /// Called from the board's gesture, inside its animation transaction, so the session's

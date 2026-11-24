@@ -85,7 +85,7 @@ enum TrainingStore {
         } else {
             context.insert(StreakState(count: next.count, lastDay: next.lastDay))
         }
-        try? context.save()
+        context.saveReporting("your streak")
     }
 
     // MARK: Puzzles
@@ -110,7 +110,7 @@ enum TrainingStore {
         row.due = review.due
         row.lastAttempt = now
         if solved { row.solvedCount += 1; row.lastSolved = now } else { row.failedCount += 1 }
-        try? context.save()
+        context.saveReporting("your puzzle progress")
     }
 
     /// Marks a later solve in the same attempt (after a retry): counts it, SRS unchanged.
@@ -118,7 +118,7 @@ enum TrainingStore {
         guard let row = progress(puzzleId, in: context) else { return }
         row.solvedCount += 1
         row.lastSolved = now
-        try? context.save()
+        context.saveReporting("your puzzle progress")
     }
 
     // MARK: Lessons
@@ -126,6 +126,6 @@ enum TrainingStore {
     static func completeLesson(_ id: String, in context: ModelContext, now: Date = .now) {
         let existing = (try? context.fetch(FetchDescriptor<LessonProgress>(predicate: #Predicate { $0.lessonId == id }))) ?? []
         if existing.isEmpty { context.insert(LessonProgress(lessonId: id, completed: now)) }
-        try? context.save()
+        context.saveReporting("your lesson progress")
     }
 }

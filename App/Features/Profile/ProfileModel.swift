@@ -19,15 +19,8 @@ struct ProfileModel {
         var botName: String { bot?.name ?? snapshot.opponentName ?? snapshot.botId }
         var outcome: RatedGame.Outcome? { ProfileModel.outcome(of: snapshot) }
 
-        /// The final position.
-        var finalFen: String {
-            var fen = snapshot.startFen
-            for uci in snapshot.moves {
-                guard let applied = Rules.apply(uci: uci, to: fen) else { break }
-                fen = applied.fenAfter
-            }
-            return fen
-        }
+        /// The final position (memoised on the record).
+        var finalFen: String { record.finalFen }
     }
 
     /// How the user's moves in one game split into good-or-better and the three bad classes.
@@ -71,8 +64,9 @@ struct ProfileModel {
     /// Games in the "How you move" window (and the one before it, for the delta).
     static let window = 10
 
+    /// `records` in any order; copies of one game left by sync count once (`GameRecord.unique`).
     init(records: [GameRecord]) {
-        games = records
+        games = GameRecord.unique(records)
             .compactMap { record in record.snapshot.map { (record, $0) } }
             .filter { !$0.1.isFreeplay }
             .sorted { $0.1.date > $1.1.date }

@@ -33,7 +33,7 @@ struct HomeView: View {
     /// The newest readable games against the bots, at most `recentCount`; analysis-board lines
     /// and unreadable records are left out. `records` newest first.
     static func recentGames(_ records: [GameRecord]) -> [(record: GameRecord, snapshot: GameSnapshot)] {
-        Array(records.lazy
+        Array(GameRecord.unique(records).lazy
             .compactMap { record in record.snapshot.map { (record: record, snapshot: $0) } }
             .filter { !$0.snapshot.isFreeplay }
             .prefix(recentCount))
@@ -41,14 +41,14 @@ struct HomeView: View {
 
     /// The latest analysis-board line, to continue from Home.
     static func latestFreeplay(_ records: [GameRecord]) -> (record: GameRecord, snapshot: GameSnapshot)? {
-        records.lazy
+        GameRecord.unique(records).lazy
             .compactMap { record in record.snapshot.map { (record: record, snapshot: $0) } }
             .first { $0.snapshot.isFreeplay }
     }
 
     var body: some View {
         let profile = ProfileModel(records: allRecords)
-        let nextBot = BotLadder(records: allRecords, hub: hub).next ?? .suggested
+        let nextBot = BotLadder(records: allRecords, profile: profile).next ?? .suggested
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {

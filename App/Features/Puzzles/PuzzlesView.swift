@@ -42,7 +42,7 @@ struct PuzzlesView: View {
             .navigationTitle("Puzzles")
         }
         .fullScreenCover(item: $session) { PuzzleSessionView(setup: $0) }
-        .task(id: games.count) { blunders = Self.blunderPuzzles(from: games) }
+        .task(id: GameRecord.fingerprint(games)) { blunders = Self.blunderPuzzles(from: games) }
         #if DEBUG
         .task {
             guard let target = UserDefaults.standard.string(forKey: "debugScroll") else { return }
@@ -81,7 +81,8 @@ struct PuzzlesView: View {
     }
 
     static func blunderPuzzles(from games: [GameRecord]) -> [Puzzle] {
-        games.compactMap(\.snapshot).filter { !$0.isFreeplay }.flatMap(BlunderPuzzles.from(snapshot:))
+        // Memoised per record; sync copies of a game count once.
+        GameRecord.unique(games).filter { $0.snapshot?.isFreeplay == false }.flatMap(\.blunderPuzzles)
     }
 
     /// Own mistakes not yet seen or due, then bank puzzles once failed and due again.

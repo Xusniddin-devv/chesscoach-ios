@@ -2,11 +2,13 @@ import Foundation
 import SwiftData
 import OSLog
 
-/// The SwiftData container. Syncs through the CloudKit private database
-/// (`iCloud.uz.xq.chessc`) when the build has `CLOUDKIT_SYNC` (Config/App.xcconfig) and the
-/// device is signed in to iCloud; otherwise — no account, Simulator without one, missing
-/// entitlement — the same store file stays local. Models must stay CloudKit-compatible
-/// (every property defaulted, no unique constraints).
+/// The SwiftData container. With `CLOUDKIT_SYNC` (Config/App.xcconfig) the store always
+/// opens with CloudKit mirroring to the private database (`iCloud.uz.xq.chessc`): it works
+/// without an iCloud account and starts syncing once one exists. It is never toggled on the
+/// account state, because a mirrored store reopened without mirroring can open read-only or
+/// be purged. The CloudKit and local configurations use separate files (`cloud.store`,
+/// `local.store`), so the fallback never opens the mirrored file. Models must stay
+/// CloudKit-compatible (every property defaulted, no unique constraints).
 ///
 /// Every @Model type lives in `models` (DataReset clears the same list).
 enum ModelStore {
@@ -19,8 +21,38 @@ enum ModelStore {
 
     private static let log = Logger(subsystem: "uz.xq.chessc", category: "persistence")
 
-    /// Whether this launch syncs with iCloud.
+    /// Whether this launch opened the CloudKit-mirrored store.
     nonisolated(unsafe) private(set) static var isSyncing = false
+
+    enum Mode: String { case cloud, local }
+
+    /// The store file of a mode, in `directory` (Application Support).
+    static func storeURL(_ mode: Mode, in directory: URL = .applicationSupportDirectory) -> URL {
+        directory.appending(path: "\(mode.rawValue).store")
+    }
+
+    /// Builds before separate files kept everything in SwiftData's `default.store`. Moves it
+    /// (with its -wal / -shm files) to `target` once, when `target` doesn't exist yet.
+    /// Returns whether it moved.
+    @discardableResult
+    static func migrateLegacyStore(to target: URL, in directory: URL = .applicationSupportDirectory) -> Bool {
+        let fm = FileManager.default
+        let legacy = directory.appending(path: "default.store")
+        guard fm.fileExists(atPath: legacy.path(percentEncoded: false)),
+              !fm.fileExists(atPath: target.path(percentEncoded: false)) else { return false }
+        do {
+            for suffix in ["", "-wal", "-shm"] {
+                let from = URL(filePath: legacy.path(percentEncoded: false) + suffix)
+                guard fm.fileExists(atPath: from.path(percentEncoded: false)) else { continue }
+                try fm.moveItem(at: from, to: URL(filePath: target.path(percentEncoded: false) + suffix))
+            }
+            log.info("Moved the legacy store to \(target.lastPathComponent, privacy: .public)")
+            return true
+        } catch {
+            log.error("Moving the legacy store failed: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
 
     static func makeContainer() -> ModelContainer {
         #if DEBUG
@@ -31,21 +63,28 @@ enum ModelStore {
             return try! ModelContainer(for: schema, configurations: memory)
         }
         #endif
+        try? FileManager.default.createDirectory(at: .applicationSupportDirectory, withIntermediateDirectories: true)
         #if CLOUDKIT_SYNC
         let inTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        if !inTests, FileManager.default.ubiquityIdentityToken != nil {
+        if !inTests {
+            let url = storeURL(.cloud)
+            migrateLegacyStore(to: url)
             do {
-                let config = ModelConfiguration(schema: schema, cloudKitDatabase: .private(containerID))
+                let config = ModelConfiguration("cloud", schema: schema, url: url, cloudKitDatabase: .private(containerID))
                 let container = try ModelContainer(for: schema, configurations: config)
                 isSyncing = true
                 return container
             } catch {
+                // The cloud file stays untouched for the next launch; this session is local.
                 log.error("CloudKit store unavailable, using the local store: \(error.localizedDescription, privacy: .public)")
             }
         }
         #endif
         do {
-            let config = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
+            let url = storeURL(.local)
+            // The XCTest host shares the app's container: it never adopts the user's store.
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil { migrateLegacyStore(to: url) }
+            let config = ModelConfiguration("local", schema: schema, url: url, cloudKitDatabase: .none)
             return try ModelContainer(for: schema, configurations: config)
         } catch {
             // Last resort: keep the app usable this session rather than crash.

@@ -161,10 +161,10 @@ struct FreeplayTests {
         // The freeplay line is a White win with userColor White: it must not beat anyone.
         try saveFreeplay()
         let hub = EngineHub()
-        let ladder = BotLadder(records: records, hub: hub)
+        let ladder = BotLadder(records: records)
         #expect(ladder.rungs.allSatisfy { !$0.isBeaten })
         try saveBotGame(bot: "pip")
-        let after = BotLadder(records: records, hub: hub)
+        let after = BotLadder(records: records)
         #expect(after.rung(for: Bot.all[0]) == .beaten(wins: 1))
     }
 

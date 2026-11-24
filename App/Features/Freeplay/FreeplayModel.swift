@@ -64,7 +64,7 @@ final class FreeplayModel {
                 sans.append(applied.san)
                 fen = applied.fenAfter
             }
-            grader.restore(snapshot.verdicts.filter { $0.ply <= moves.count && $0.uci == moves[$0.ply - 1] })
+            grader.restore(snapshot.verdicts.filter { moves.indices.contains($0.ply - 1) && $0.uci == moves[$0.ply - 1] })
             // Plies saved before their grade landed are graded again.
             for index in moves.indices where grader.verdicts[index + 1] == nil {
                 grader.enqueue(history: Array(moves.prefix(index)), uci: moves[index])
@@ -370,7 +370,7 @@ final class FreeplayModel {
                 context.insert(new)
                 record = new
             }
-            try context.save()
+            context.saveReporting("the analysis board")
         } catch {
             Self.log.error("Saving the analysis board failed: \(String(describing: error), privacy: .public)")
         }

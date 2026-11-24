@@ -22,7 +22,7 @@ struct BotPickerView: View {
     @State private var mode = Pref.defaultModeValue
     @State private var color = PlaySetup.ColorChoice.white
 
-    private var ladder: BotLadder { BotLadder(records: records, hub: hub) }
+    private var ladder: BotLadder { BotLadder(records: records) }
     private var bot: Bot { selected ?? ladder.next ?? Bot.suggested }
 
     var body: some View {
@@ -96,13 +96,12 @@ struct BotPickerView: View {
 extension BotLadder {
     /// The ladder from the saved games' wins and the player's estimate (analysis-board games
     /// never count).
-    @MainActor init(records: [GameRecord], hub: EngineHub) {
+    @MainActor init(records: [GameRecord], profile: ProfileModel? = nil) {
+        let profile = profile ?? ProfileModel(records: records)
         var wins: [String: Int] = [:]
-        for snapshot in records.compactMap(\.snapshot)
-        where !snapshot.isFreeplay && ProfileModel.outcome(of: snapshot) == .win {
-            wins[snapshot.botId, default: 0] += 1
+        for game in profile.games where ProfileModel.outcome(of: game.snapshot) == .win {
+            wins[game.snapshot.botId, default: 0] += 1
         }
-        let profile = ProfileModel(records: records)
         self.init(wins: wins, rating: profile.estimate)
     }
 }

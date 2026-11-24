@@ -72,7 +72,7 @@ enum ProfileStore {
         row.avatarURL = avatarURL?.absoluteString
         row.currentRating = rating
         row.updated = .now
-        try? context.save()
+        context.saveReporting("your profile")
         return row
     }
 
@@ -81,24 +81,42 @@ enum ProfileStore {
         row.goalRating = rating
         row.goalDate = Calendar.current.date(byAdding: .month, value: months, to: now)
         row.updated = now
-        try? context.save()
+        context.saveReporting("your goal")
     }
 
     /// Replaces any previous plan.
     static func savePlan(_ plan: TrainingPlan, in context: ModelContext) {
         for row in (try? context.fetch(FetchDescriptor<TrainingPlanRecord>())) ?? [] { context.delete(row) }
         if let record = try? TrainingPlanRecord(plan: plan) { context.insert(record) }
-        try? context.save()
+        context.saveReporting("your plan")
     }
 
-    /// Inserts imported games; a game already stored (same stable id) is replaced.
+    /// Stores imported games. A game already stored (same stable id) is updated in place,
+    /// keeping its analysis when that is a full one (or the import brings none), so a
+    /// re-import doesn't throw away minutes of engine work or churn CloudKit with
+    /// delete-plus-insert. Extra copies of a game left by sync are removed.
     static func saveGames(_ games: [GameSnapshot], in context: ModelContext) {
         let ids = Set(games.map(\.id))
-        let existing = (try? context.fetch(FetchDescriptor<GameRecord>(predicate: #Predicate { ids.contains($0.id) }))) ?? []
-        for row in existing { context.delete(row) }
+        let rows = (try? context.fetch(FetchDescriptor<GameRecord>(predicate: #Predicate { ids.contains($0.id) },
+                                                                  sortBy: [SortDescriptor(\.date, order: .reverse)]))) ?? []
+        let kept = GameRecord.unique(rows)
+        let keptIDs = Set(kept.map(ObjectIdentifier.init))
+        for extra in rows where !keptIDs.contains(ObjectIdentifier(extra)) { context.delete(extra) }
+        let existing = Dictionary(kept.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         for game in games {
-            if let record = try? GameRecord(snapshot: game) { context.insert(record) }
+            guard let row = existing[game.id] else {
+                if let record = try? GameRecord(snapshot: game) { context.insert(record) }
+                continue
+            }
+            var merged = game
+            if let stored = row.snapshot {
+                if let analysis = stored.analysis, analysis.isFull || merged.analysis == nil {
+                    merged.analysis = analysis
+                }
+                merged.openingName = merged.openingName ?? stored.openingName
+            }
+            try? row.update(merged)
         }
-        try? context.save()
+        context.saveReporting("your imported games")
     }
 }

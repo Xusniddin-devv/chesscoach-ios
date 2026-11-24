@@ -3,6 +3,7 @@ import SwiftData
 import Observation
 import ChessCore
 import StockfishKit
+import OSLog
 
 /// The app's low-priority analysis: onboarding hands it the imported games it hasn't read,
 /// it quick-analyses them (one engine request per position) while the user sets a goal, then
@@ -24,6 +25,8 @@ final class BackgroundAnalysis {
     private(set) var currentProgress: (done: Int, total: Int) = (0, 0)
     /// Positions searched since launch (the onboarding counter reads it).
     private(set) var positionsRead = 0
+
+    private static let log = Logger(subsystem: "uz.xq.chessc", category: "analysis")
 
     @ObservationIgnored let queue: AnalysisQueue
     @ObservationIgnored private var context: ModelContext?
@@ -72,6 +75,8 @@ final class BackgroundAnalysis {
 
     /// Onboarding saved games that are still being read: replan when they are done.
     func replanWhenQuickDone() {
+        // Lichess games can arrive analysed (no quick pass): they still need a full one.
+        fullPassDue = true
         if pendingQuick == 0 {
             refreshPlan()
             scheduleFullPass()
@@ -156,9 +161,11 @@ final class BackgroundAnalysis {
         // Never replace a full analysis with a quick one.
         if stored.analysis?.isFull == true && !analysis.isFull { return }
         stored.analysis = analysis
-        if let data = try? encodeSnapshot(stored) {
-            record.snapshotData = data
-            try? context.save()
+        do {
+            try record.update(stored)
+            context.saveReporting("a game's analysis")
+        } catch {
+            Self.log.error("Encoding an analysed game failed: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -167,10 +174,10 @@ final class BackgroundAnalysis {
     func refreshPlan() {
         guard let context, let plan = ProfileStore.plan(in: context),
               let profile = ProfileStore.profile(in: context) else { return }
-        let games = imported(in: context)
-        let report = WeaknessReport(games)
+        let records = importedRecords(in: context)
+        let report = WeaknessReport(records.compactMap(\.snapshot))
         guard report.gamesAnalysed > 0 else { return }
-        let ownMistakes = games.flatMap(BlunderPuzzles.from(snapshot:)).count
+        let ownMistakes = records.flatMap(\.blunderPuzzles).count
         let lessons = Set(((try? context.fetch(FetchDescriptor<LessonProgress>())) ?? []).map(\.lessonId))
         let rebuilt = TrainingPlan.make(weaknesses: report.top, rating: profile.currentRating,
                                         ownMistakes: ownMistakes, completedLessons: lessons, now: plan.created)
@@ -178,8 +185,14 @@ final class BackgroundAnalysis {
         ProfileStore.savePlan(rebuilt, in: context)
     }
 
+    /// Imported games, one record per game (sync duplicates merged), newest first.
+    private func importedRecords(in context: ModelContext) -> [GameRecord] {
+        let records = (try? context.fetch(FetchDescriptor<GameRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)]))) ?? []
+        return GameRecord.unique(records).filter { $0.snapshot?.isImported == true }
+    }
+
     private func imported(in context: ModelContext) -> [GameSnapshot] {
-        ((try? context.fetch(FetchDescriptor<GameRecord>())) ?? []).compactMap(\.snapshot).filter(\.isImported)
+        importedRecords(in: context).compactMap(\.snapshot)
     }
 }
 
