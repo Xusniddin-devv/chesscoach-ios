@@ -19,6 +19,10 @@ final class EngineHub {
     /// estimate from saved games once there is one, else `PlayerProfile.defaultRating`.
     var playerRating = PlayerProfile.defaultRating
 
+    /// The player's piece (rating tier from saved games; the Pawn until there is an estimate):
+    /// their avatar in the player bars and on the game-over panel.
+    var playerTier: RatingTier = .pawn
+
     /// Explanations in words below 1200, notation from there.
     var wording: MoveWording { playerRating < 1200 ? .words : .notation }
 
@@ -34,6 +38,9 @@ final class EngineHub {
     }
 
     func makeReview(record: GameRecord, wording: MoveWording = .words) -> ReviewModel {
-        ReviewModel(record: record, engine: StockfishEngine.shared, analysisAllowed: !isGameLive, wording: wording)
+        let review = ReviewModel(record: record, engine: StockfishEngine.shared, analysisAllowed: !isGameLive,
+                                 wording: wording)
+        review.userAvatar = playerTier.avatarAsset
+        return review
     }
 }

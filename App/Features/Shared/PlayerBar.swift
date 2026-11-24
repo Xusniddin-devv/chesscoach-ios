@@ -1,7 +1,7 @@
 import SwiftUI
 import ChessCore
 
-/// What a player bar shows. `avatarAsset` nil means the user (accent tile with an initial).
+/// What a player bar shows: a bot's figure or the user's tier piece (`avatarAsset`).
 /// `captured` holds piece codes as in the asset names ("bp", "wn"), cheapest first.
 struct PlayerBarModel: Equatable {
     var name: String
@@ -9,8 +9,6 @@ struct PlayerBarModel: Equatable {
     var avatarAsset: String?
     var captured: [String]
     var materialLead: Int
-    /// Review: the player's accuracy for the game, shown at the trailing edge.
-    var accuracy: Double? = nil
 }
 
 /// One player above or below the board: avatar, name and Elo on the left; what they have
@@ -36,9 +34,6 @@ struct PlayerBar: View {
             .lineLimit(1)
             Spacer(minLength: DS.Spacing.s)
             CapturedTray(codes: model.captured, lead: model.materialLead)
-            if let accuracy = model.accuracy {
-                AccuracyChip(value: accuracy)
-            }
         }
         .frame(height: Self.height)
         .padding(.horizontal, DS.Spacing.m)
@@ -47,31 +42,10 @@ struct PlayerBar: View {
 
     @ViewBuilder private var avatar: some View {
         if let asset = model.avatarAsset {
-            Image(asset)
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 32, height: 32)
-                .background(DS.Color.boardDark, in: RoundedRectangle(cornerRadius: AvatarTile.radius(32)))
-                .accessibilityHidden(true)
+            AvatarImage(asset: asset, size: 32)
         } else {
-            UserTile(size: 32)
+            PlayerAvatarTile(tier: .pawn, size: 32)
         }
-    }
-}
-
-/// "87.4" in mono on a quiet tile: the player's accuracy in Review.
-private struct AccuracyChip: View {
-    let value: Double
-
-    var body: some View {
-        Text(value, format: .number.precision(.fractionLength(1)))
-            .font(DS.Font.subheadline.monospacedDigit().weight(.semibold))
-            .foregroundStyle(DS.Color.text)
-            .padding(.horizontal, DS.Spacing.s)
-            .frame(minWidth: 52, minHeight: 28)
-            .background(DS.Color.surface2, in: RoundedRectangle(cornerRadius: DS.Radius.small))
-            .accessibilityLabel("Accuracy \(value.formatted(.number.precision(.fractionLength(1))))")
     }
 }
 

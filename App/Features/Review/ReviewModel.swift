@@ -49,6 +49,8 @@ final class ReviewModel {
     /// The game ply the branch starts after.
     private(set) var branchBase = 0
     var orientation: Piece.Color
+    /// The user's avatar in the bar (their tier's piece).
+    var userAvatar = RatingTier.pawn.avatarAsset
     /// The best-move arrow for a negative move.
     var showsBest = false
 
@@ -412,14 +414,14 @@ final class ReviewModel {
         let color = snapshot.userColor.opposite
         let tray = BoardMaterial.tray(for: color, fen: displayedFen)
         return PlayerBarModel(name: botName, elo: bot?.elo, avatarAsset: bot?.avatarAsset,
-                              captured: tray.captured, materialLead: tray.lead, accuracy: accuracy(for: color))
+                              captured: tray.captured, materialLead: tray.lead)
     }
 
     var userBar: PlayerBarModel {
         let color = snapshot.userColor
         let tray = BoardMaterial.tray(for: color, fen: displayedFen)
-        return PlayerBarModel(name: "You", elo: nil, avatarAsset: nil,
-                              captured: tray.captured, materialLead: tray.lead, accuracy: accuracy(for: color))
+        return PlayerBarModel(name: "You", elo: nil, avatarAsset: userAvatar,
+                              captured: tray.captured, materialLead: tray.lead)
     }
 
     func flip() { orientation = orientation.opposite }

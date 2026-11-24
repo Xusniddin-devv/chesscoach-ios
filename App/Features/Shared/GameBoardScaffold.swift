@@ -2,7 +2,7 @@ import SwiftUI
 import ChessCore
 
 /// The board screen shared by Play and Review, top to bottom: move strip, opponent bar,
-/// board, user bar, status line; the action bar (system glass) at the bottom.
+/// board, user bar, status line; the flat action bar (`GameActionBar`) at the bottom.
 ///
 /// The board is as wide as the screen allows (minus `DS.Spacing.s` on each side, where the
 /// eval bar lives) and the whole stack is centred between the top safe area and the action
@@ -91,8 +91,6 @@ struct GameBoardScaffold<Board: View, Actions: View, Card: View>: View {
         .safeAreaBar(edge: .bottom) {
             actions
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, DS.Spacing.m)
-                .padding(.bottom, Self.barBottomInset)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = $0 }
                 .opacity(hidesBar ? 0 : 1)
                 .allowsHitTesting(!hidesBar)
@@ -288,35 +286,71 @@ private struct StatusLine: View {
 
 // MARK: Action bar
 
-/// The bottom bar's buttons: SF Symbol only, system glass. Groups of adjacent buttons share
-/// one glass capsule (`ActionBarGroup`).
-struct ActionBarButton: View {
-    let title: String
-    let systemImage: String
-    let action: () -> Void
-
-    @Environment(\.isEnabled) private var isEnabled
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(isEnabled ? DS.Color.text : DS.Color.text.opacity(0.3))
-                .frame(width: 48, height: 48)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-    }
-}
-
-/// Buttons sharing one glass capsule.
-struct ActionBarGroup<Content: View>: View {
+/// The game screens' bottom bar: flat on `surface` (no glass: there is nothing behind it to
+/// refract), equal cells of icon over a small label, chess.com / Lichess style. It runs to
+/// the screen's bottom edge; a hairline separates it from the board area.
+struct GameActionBar<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        HStack(spacing: 0) { content }
-            .padding(.horizontal, 2)
-            .glassEffect(.regular.interactive(), in: Capsule())
+        HStack(spacing: DS.Spacing.xs) { content }
+            .padding(.horizontal, DS.Spacing.s)
+            .padding(.top, 6)
+            .padding(.bottom, 2)
+            .frame(maxWidth: .infinity)
+            .background {
+                DS.Color.surface
+                    .overlay(alignment: .top) { Rectangle().fill(DS.Color.surface2).frame(height: 1) }
+                    .ignoresSafeArea(edges: .bottom)
+            }
+    }
+}
+
+/// One action in `GameActionBar`: an Icons8 template icon (`Icons/<name>`) over a label.
+/// Pressed: a `surface2` cell and a slight press-in; disabled: 30 % in place; `isOn`
+/// (a toggle that is on, e.g. Review's best move): accent icon and label.
+struct GameAction: View {
+    let title: String
+    let icon: String
+    var isOn = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image("Icons/\(icon)")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 24, height: 24)
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(GameActionStyle(isOn: isOn))
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
+private struct GameActionStyle: ButtonStyle {
+    let isOn: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isOn ? DS.Color.accent : DS.Color.text)
+            .opacity(isEnabled ? 1 : 0.3)
+            .background {
+                RoundedRectangle(cornerRadius: DS.Radius.medium)
+                    .fill(configuration.isPressed ? DS.Color.surface2 : .clear)
+            }
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }
 }

@@ -34,6 +34,8 @@ final class PlayModel {
 
     let session: GameSession
     var orientation: Piece.Color
+    /// The user's avatar in the bar (their tier's piece).
+    var userAvatar = RatingTier.pawn.avatarAsset
     private(set) var hintUnavailable = false
     private(set) var isHinting = false
     private(set) var isSaved = false
@@ -48,6 +50,7 @@ final class PlayModel {
 
     convenience init(setup: PlaySetup, hub: EngineHub) {
         self.init(session: hub.makeSession(bot: setup.bot, userColor: setup.color.resolve(), mode: setup.mode))
+        userAvatar = hub.playerTier.avatarAsset
     }
 
     var bot: Bot { session.bot }
@@ -206,7 +209,7 @@ final class PlayModel {
 
     var userBar: PlayerBarModel {
         let color = session.userColor
-        return PlayerBarModel(name: "You", elo: nil, avatarAsset: nil,
+        return PlayerBarModel(name: "You", elo: nil, avatarAsset: userAvatar,
                               captured: captured(by: color).map(BoardMaterial.code), materialLead: materialLead(for: color))
     }
 

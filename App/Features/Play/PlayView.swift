@@ -5,7 +5,7 @@ import ChessCore
 
 /// Full-screen game against a bot on the shared board scaffold: move strip, opponent bar,
 /// board with eval bar (Training), user bar and a status line, centred between the top and
-/// the glass action bar (resign · hint · ‹ › · flip). A Training interrupt slides the coach
+/// the flat action bar (resign · hint · back · forward · flip). A Training interrupt slides the coach
 /// card up in place of the action bar. ‹ › and the strip show earlier positions read-only.
 struct PlayView: View {
     let setup: PlaySetup
@@ -123,40 +123,21 @@ struct PlayView: View {
     // MARK: Action bar
 
     private func actionBar(_ model: PlayModel) -> some View {
-        GlassEffectContainer {
-            HStack(spacing: 0) {
-                ActionBarGroup {
-                    if model.hasUserMoves && !model.isOver {
-                        ActionBarButton(title: "Resign", systemImage: "flag") { confirmingResign = true }
-                    } else {
-                        ActionBarButton(title: "Close", systemImage: "xmark") { leave(model) }
-                    }
-                }
-                Spacer(minLength: DS.Spacing.s)
-                if model.session.mode == .training {
-                    ActionBarGroup {
-                        ActionBarButton(title: "Hint", systemImage: "lightbulb") { Task { await model.hint() } }
-                            .disabled(!model.interactive || model.isHinting)
-                    }
-                    Spacer(minLength: DS.Spacing.s)
-                }
-                ActionBarGroup {
-                    ActionBarButton(title: "Previous move", systemImage: "chevron.left") {
-                        withAnimation(.snappy) { model.step(-1) }
-                    }
-                    .disabled(!model.canStepBack)
-                    ActionBarButton(title: "Next move", systemImage: "chevron.right") {
-                        withAnimation(.snappy) { model.step(1) }
-                    }
-                    .disabled(!model.canStepForward)
-                }
-                Spacer(minLength: DS.Spacing.s)
-                ActionBarGroup {
-                    ActionBarButton(title: "Flip board", systemImage: "arrow.up.arrow.down") {
-                        withAnimation(.snappy) { model.flip() }
-                    }
-                }
+        GameActionBar {
+            if model.hasUserMoves && !model.isOver {
+                GameAction(title: "Resign", icon: "resign") { confirmingResign = true }
+            } else {
+                GameAction(title: "Close", icon: "close") { leave(model) }
             }
+            if model.session.mode == .training {
+                GameAction(title: "Hint", icon: "hint") { Task { await model.hint() } }
+                    .disabled(!model.interactive || model.isHinting)
+            }
+            GameAction(title: "Back", icon: "back") { withAnimation(.snappy) { model.step(-1) } }
+                .disabled(!model.canStepBack)
+            GameAction(title: "Forward", icon: "forward") { withAnimation(.snappy) { model.step(1) } }
+                .disabled(!model.canStepForward)
+            GameAction(title: "Flip", icon: "flip") { withAnimation(.snappy) { model.flip() } }
         }
     }
 

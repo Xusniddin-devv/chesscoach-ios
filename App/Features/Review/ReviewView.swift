@@ -2,7 +2,7 @@ import SwiftUI
 import ChessCore
 
 /// A saved game on the shared board scaffold: the classified move strip, both players'
-/// accuracy in their bars, the selected move's class on the board, the eval bar, and the
+/// accuracy in the header, the selected move's class on the board, the eval bar, and the
 /// coach's comment on the selected move in a card above the action bar (the full
 /// explanation for the user's negative moves). The action bar: move list
 /// (back to the game inside a branch) · best move · ‹ › · flip. Moves played on the board
@@ -40,8 +40,15 @@ struct ReviewView: View {
         return "vs \(model.botName)"
     }
 
+    /// "You 50.6 · Rookie Ron 91.6" once the game is analysed (accuracy in the header, plain
+    /// text); before that the opening's name or the date.
     private var subtitle: String {
         guard let model, model.isReadable else { return "" }
+        let user = model.snapshot.userColor
+        if let mine = model.accuracy(for: user), let theirs = model.accuracy(for: user.opposite) {
+            let format = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(1))
+            return "You \(mine.formatted(format)) · \(model.botName) \(theirs.formatted(format))"
+        }
         return model.openingName ?? model.snapshot.date.formatted(date: .abbreviated, time: .omitted)
     }
 
@@ -109,46 +116,25 @@ struct ReviewView: View {
     // MARK: Action bar
 
     private func actionBar(_ model: ReviewModel) -> some View {
-        GlassEffectContainer {
-            HStack(spacing: 0) {
-                ActionBarGroup {
-                    // Inside a tried line the first button leads back to the game; the
-                    // explanation card may cover the status line, never the bar.
-                    if model.isInBranch {
-                        ActionBarButton(title: "Back to game", systemImage: "arrow.uturn.backward") {
-                            withAnimation(.snappy) { model.exitBranch() }
-                        }
-                    } else {
-                        ActionBarButton(title: "All moves", systemImage: "list.bullet") { showingMoves = true }
-                            .disabled(model.snapshot.moves.isEmpty)
-                    }
-                }
-                Spacer(minLength: DS.Spacing.s)
-                ActionBarGroup {
-                    ActionBarButton(title: model.showsBest ? "Hide best move" : "Show best move",
-                                    systemImage: model.showsBest && model.canShowBest ? "lightbulb.fill" : "lightbulb") {
-                        withAnimation(.snappy) { model.showsBest.toggle() }
-                    }
-                    .disabled(!model.canShowBest)
-                }
-                Spacer(minLength: DS.Spacing.s)
-                ActionBarGroup {
-                    ActionBarButton(title: "Previous move", systemImage: "chevron.left") {
-                        withAnimation(.snappy) { model.step(-1) }
-                    }
-                    .disabled(!model.canStepBack)
-                    ActionBarButton(title: "Next move", systemImage: "chevron.right") {
-                        withAnimation(.snappy) { model.step(1) }
-                    }
-                    .disabled(!model.canStepForward)
-                }
-                Spacer(minLength: DS.Spacing.s)
-                ActionBarGroup {
-                    ActionBarButton(title: "Flip board", systemImage: "arrow.up.arrow.down") {
-                        withAnimation(.snappy) { model.flip() }
-                    }
-                }
+        GameActionBar {
+            // Inside a tried line the first action leads back to the game.
+            if model.isInBranch {
+                GameAction(title: "Game", icon: "return") { withAnimation(.snappy) { model.exitBranch() } }
+                    .accessibilityLabel("Back to game")
+            } else {
+                GameAction(title: "Moves", icon: "moves") { showingMoves = true }
+                    .disabled(model.snapshot.moves.isEmpty)
             }
+            GameAction(title: "Best", icon: "hint", isOn: model.showsBest && model.canShowBest) {
+                withAnimation(.snappy) { model.showsBest.toggle() }
+            }
+            .disabled(!model.canShowBest)
+            .accessibilityLabel(model.showsBest ? "Hide best move" : "Show best move")
+            GameAction(title: "Back", icon: "back") { withAnimation(.snappy) { model.step(-1) } }
+                .disabled(!model.canStepBack)
+            GameAction(title: "Forward", icon: "forward") { withAnimation(.snappy) { model.step(1) } }
+                .disabled(!model.canStepForward)
+            GameAction(title: "Flip", icon: "flip") { withAnimation(.snappy) { model.flip() } }
         }
     }
 }

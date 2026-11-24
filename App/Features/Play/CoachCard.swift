@@ -40,18 +40,19 @@ struct CoachCard: View {
     }
 }
 
-/// "?? BLUNDER": class fill, ink text, label style.
+/// The verdict's header in the coach's cards (Training interrupt, Review comment): the real
+/// badge disc and the class name in its colour, sentence case ("?? Blunder").
 struct ClassPill: View {
     let moveClass: MoveClass
 
     var body: some View {
-        Text("\(moveClass.glyph) \(moveClass.label.uppercased())")
-            .font(DS.Font.label)
-            .tracking(DS.Font.labelTracking)
-            .foregroundStyle(DS.Color.moveClassGlyph(moveClass))
-            .padding(.horizontal, DS.Spacing.s)
-            .padding(.vertical, DS.Spacing.xs)
-            .background(DS.Color.moveClass(moveClass), in: RoundedRectangle(cornerRadius: DS.Radius.small))
-            .accessibilityLabel(moveClass.label)
+        HStack(spacing: DS.Spacing.s) {
+            MoveBadge(moveClass: moveClass)
+            Text(moveClass.label)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(DS.Color.moveClass(moveClass))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(moveClass.label)
     }
 }
