@@ -4,13 +4,18 @@ import SwiftData
 @main
 struct ChessCoachApp: App {
     @State private var hub = EngineHub()
+    // Pro status + CloudKit-or-local store
+    @State private var entitlements = Entitlements()
+    private let container = ModelStore.makeContainer()
 
     var body: some Scene {
         WindowGroup {
             RootTabView()
                 .environment(hub)
+                .environment(entitlements)
                 .task {
                     await hub.configure()
+                    await entitlements.start()
 #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("-engineBenchmark") {
                         await EngineBenchmark.runHeadless()
@@ -18,16 +23,6 @@ struct ChessCoachApp: App {
 #endif
                 }
         }
-        .modelContainer(for: GameRecord.self, inMemory: Self.inMemoryStore)
-    }
-
-    /// DEBUG `-debugEmptyStore 1`: an empty in-memory store (first-launch screenshots without
-    /// wiping the saved games).
-    private static var inMemoryStore: Bool {
-        #if DEBUG
-        UserDefaults.standard.string(forKey: "debugEmptyStore") != nil
-        #else
-        false
-        #endif
+        .modelContainer(container)
     }
 }

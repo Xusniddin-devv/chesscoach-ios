@@ -14,10 +14,15 @@ struct CoachCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.sm) {
             ClassPill(moveClass: verdict.classification)
-            Text(explain(verdict, wording: wording))
-                .font(DS.Font.body)
-                .foregroundStyle(DS.Color.text)
-                .fixedSize(horizontal: false, vertical: true)
+            // The explanation is Pro; free users keep the verdict pill.
+            ProGate(.trainingExplanations) {
+                Text(explain(verdict, wording: wording))
+                    .font(DS.Font.body)
+                    .foregroundStyle(DS.Color.text)
+                    .fixedSize(horizontal: false, vertical: true)
+            } locked: {
+                LockedExplanation()
+            }
             HStack(spacing: DS.Spacing.sm) {
                 SecondaryButton(title: "Take back", action: onTakeBack)
                 PrimaryButton(title: "Show best", action: onShowBest)

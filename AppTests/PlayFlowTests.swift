@@ -266,7 +266,7 @@ struct PlayFlowTests {
 
     private func inMemoryContext() throws -> ModelContext {
         ModelContext(try ModelContainer(
-            for: GameRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+            for: GameRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)))
     }
 
     private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {

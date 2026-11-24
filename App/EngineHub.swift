@@ -23,8 +23,12 @@ final class EngineHub {
     /// their avatar in the player bars and on the game-over panel.
     var playerTier: RatingTier = .pawn
 
-    /// Explanations in words below 1200, notation from there.
-    var wording: MoveWording { playerRating < 1200 ? .words : .notation }
+    /// Settings' "Show moves as" when the player picked one; otherwise words below 1200,
+    /// notation from there.
+    var wording: MoveWording {
+        if let explicit = Pref.explicitWording { return explicit.moveWording }
+        return playerRating < 1200 ? .words : .notation
+    }
 
     init() {}
 

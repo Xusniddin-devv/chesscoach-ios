@@ -19,7 +19,7 @@ struct BotPickerView: View {
     @Environment(EngineHub.self) private var hub
     @Query private var records: [GameRecord]
     @State private var selected: Bot?
-    @State private var mode = PlayMode.training
+    @State private var mode = Pref.defaultModeValue
     @State private var color = PlaySetup.ColorChoice.white
 
     private var ladder: BotLadder { BotLadder(records: records, hub: hub) }

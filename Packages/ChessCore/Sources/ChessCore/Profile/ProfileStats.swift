@@ -107,6 +107,11 @@ public enum RatingTier: Int, CaseIterable, Sendable, Comparable {
         next.map { max(0, $0.lowerBound - rating) }
     }
 
+    /// Points from `rating` to the next tier above the one it is in; nil at King.
+    public static func pointsToNext(from rating: Int) -> Int? {
+        RatingTier(rating: rating).pointsToNext(from: rating)
+    }
+
     /// How far `rating` is through this tier towards the next, 0…1 (1 for the King).
     public func progress(of rating: Int) -> Double {
         guard let next else { return 1 }

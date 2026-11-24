@@ -14,11 +14,15 @@ let package = Package(
         .target(
             name: "ChessCore",
             dependencies: [.product(name: "ChessKit", package: "chesskit-swift")],
-            resources: [.copy("Resources/openings.json")]
+            resources: [
+                .copy("Resources/openings.json"),
+                .copy("Resources/puzzles.json"),
+                .copy("Resources/lessons.json"),
+            ]
         ),
         // Dev-time tool: scripts/gen-openings.sh regenerates Resources/openings.json.
         .executableTarget(name: "GenOpenings", dependencies: ["ChessCore"]),
-        .testTarget(name: "ChessCoreTests", dependencies: ["ChessCore"]),
+        .testTarget(name: "ChessCoreTests", dependencies: ["ChessCore"], resources: [.copy("Fixtures")]),
     ],
     swiftLanguageModes: [.v6]
 )

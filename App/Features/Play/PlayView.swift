@@ -26,6 +26,9 @@ struct PlayView: View {
     @State private var showingResult = false
     @State private var saveFailed = false
     @State private var openingReview = false
+    // Hold-to-talk voice moves
+    @State private var voice = VoiceInput()
+    @AppStorage(Pref.voice) private var voiceEnabled = Pref.Default.voice
 
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "uz.xq.chessc", category: "persistence")
 
@@ -77,6 +80,7 @@ struct PlayView: View {
                 }
             })
         .animation(.snappy(duration: 0.25), value: model.interruption)
+        .gameFeedback(sans: session.sans, interrupted: model.interruption != nil, outcome: feedbackOutcome(model))
         .onChange(of: model.interruption) { _, verdict in
             if verdict != nil { model.returnToLive() }  // the coach talks about the live position
         }
@@ -126,6 +130,7 @@ struct PlayView: View {
     }
 
     private func status(_ model: PlayModel) -> String? {
+        if let line = voiceStatus { return line }
         if model.session.hasEngineError && !model.isOver { return "The engine stopped." }
         return model.statusText
     }
@@ -149,11 +154,43 @@ struct PlayView: View {
                 GameAction(title: "Hint", icon: "hint") { Task { await model.hint() } }
                     .disabled(!model.interactive || model.isHinting)
             }
+            if voiceEnabled {
+                VoiceMicButton(voice: voice) { text in playSpoken(text, model) }
+                    .disabled(!model.interactive)
+            }
             GameAction(title: "Back", icon: "back") { withAnimation(.snappy) { model.step(-1) } }
                 .disabled(!model.canStepBack)
             GameAction(title: "Forward", icon: "forward") { withAnimation(.snappy) { model.step(1) } }
                 .disabled(!model.canStepForward)
             GameAction(title: "Flip", icon: "flip") { withAnimation(.snappy) { model.flip() } }
+        }
+    }
+
+    // MARK: Voice and feedback
+
+    /// While the mic is held: what has been heard; after a miss: why.
+    private var voiceStatus: String? {
+        switch voice.phase {
+        case .listening: return voice.transcript.isEmpty ? "Listening…" : "“\(voice.transcript)”"
+        case .finishing: return voice.transcript.isEmpty ? "Listening…" : "“\(voice.transcript)”"
+        case .idle: return voice.message
+        }
+    }
+
+    private func playSpoken(_ text: String, _ model: PlayModel) {
+        guard model.interactive, let uci = VoiceMove.parse(text, fen: model.session.fen) else {
+            voice.didNotUnderstand(text)
+            return
+        }
+        withAnimation(.snappy(duration: 0.22)) { _ = model.move(uci) }
+    }
+
+    private func feedbackOutcome(_ model: PlayModel) -> GameFeedback.Outcome? {
+        switch model.outcome {
+        case .won: .won
+        case .lost: .lost
+        case .draw: .draw
+        case nil: nil
         }
     }
 

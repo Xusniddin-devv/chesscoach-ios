@@ -49,6 +49,9 @@ struct HomeView: View {
                     let line = Self.latestFreeplay(allRecords)
                     NavigationLink(value: Route.freeplay(line?.record)) { AnalysisBoardCard(line: line?.snapshot) }
                         .buttonStyle(.plain)
+                    TodayPlanCard { bot in
+                        game = PlaySetup(bot: bot, mode: .training, color: .random)
+                    }
                     recent
                 }
                 .padding(.horizontal, DS.Spacing.m)
@@ -108,7 +111,10 @@ struct HomeView: View {
     @ViewBuilder
     private var recent: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s) {
-            SectionLabel("Recent games")
+            Text("Recent games")
+                .font(DS.Font.title)
+                .foregroundStyle(DS.Color.text)
+                .accessibilityAddTraits(.isHeader)
             // An unreadable record is skipped here; `GameRecord.snapshot` logs it.
             let games = Self.recentGames(allRecords).map { ($0.record, $0.snapshot) }
             if games.isEmpty {

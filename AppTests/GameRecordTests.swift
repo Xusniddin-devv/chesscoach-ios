@@ -13,7 +13,7 @@ struct GameRecordTests {
             moves: ["e2e4", "e7e5"], sans: ["e4", "e5"], result: .ongoing,
             verdicts: [], analysisVersion: 1, playerRatingUsed: 800)
         let container = try ModelContainer(
-            for: GameRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            for: GameRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let context = ModelContext(container)
         context.insert(try GameRecord(snapshot: original))
         try context.save()

@@ -1,0 +1,1008 @@
+[
+ {
+  "id": "opening-italian",
+  "track": "openings",
+  "title": "Italian Game",
+  "summary": "Classical and principled: control the centre and target f7.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "w",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "e4",
+    "note": "Stake a claim in the centre and free your bishop and queen."
+   },
+   {
+    "san": "e5",
+    "note": ""
+   },
+   {
+    "san": "Nf3",
+    "note": "Develop a knight and attack the e5 pawn."
+   },
+   {
+    "san": "Nc6",
+    "note": ""
+   },
+   {
+    "san": "Bc4",
+    "note": "The Italian bishop, eyeing the weak f7 square."
+   },
+   {
+    "san": "Bc5",
+    "note": ""
+   },
+   {
+    "san": "c3",
+    "note": "Prepare d4 to build a big centre."
+   },
+   {
+    "san": "Nf6",
+    "note": ""
+   },
+   {
+    "san": "d4",
+    "note": "Strike in the centre while ahead in development."
+   },
+   {
+    "san": "exd4",
+    "note": ""
+   },
+   {
+    "san": "cxd4",
+    "note": "Recapture and enjoy your strong pawn centre."
+   },
+   {
+    "san": "Bb4+",
+    "note": ""
+   },
+   {
+    "san": "Nc3",
+    "note": "Block the check with a developing move."
+   }
+  ]
+ },
+ {
+  "id": "opening-ruy-lopez",
+  "track": "openings",
+  "title": "Ruy López (Spanish)",
+  "summary": "The most respected 1.e4 e5 opening — long-term pressure on Black.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "w",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "e4",
+    "note": "Control the centre."
+   },
+   {
+    "san": "e5",
+    "note": ""
+   },
+   {
+    "san": "Nf3",
+    "note": "Attack e5 and develop."
+   },
+   {
+    "san": "Nc6",
+    "note": ""
+   },
+   {
+    "san": "Bb5",
+    "note": "Pin the knight that defends e5 — the Spanish bishop."
+   },
+   {
+    "san": "a6",
+    "note": ""
+   },
+   {
+    "san": "Ba4",
+    "note": "Keep the bishop and the pressure."
+   },
+   {
+    "san": "Nf6",
+    "note": ""
+   },
+   {
+    "san": "O-O",
+    "note": "King safety first; you can afford it."
+   },
+   {
+    "san": "Be7",
+    "note": ""
+   },
+   {
+    "san": "Re1",
+    "note": "Reinforce e4 and prepare c3-d4."
+   },
+   {
+    "san": "b5",
+    "note": ""
+   },
+   {
+    "san": "Bb3",
+    "note": "Retreat to the strong a2-g8 diagonal."
+   }
+  ]
+ },
+ {
+  "id": "opening-scotch",
+  "track": "openings",
+  "title": "Scotch Game",
+  "summary": "Open the centre early for fast, active piece play.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "w",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "e4",
+    "note": "Centre."
+   },
+   {
+    "san": "e5",
+    "note": ""
+   },
+   {
+    "san": "Nf3",
+    "note": "Attack e5."
+   },
+   {
+    "san": "Nc6",
+    "note": ""
+   },
+   {
+    "san": "d4",
+    "note": "Strike immediately in the centre."
+   },
+   {
+    "san": "exd4",
+    "note": ""
+   },
+   {
+    "san": "Nxd4",
+    "note": "Recapture with active piece play."
+   },
+   {
+    "san": "Nf6",
+    "note": ""
+   },
+   {
+    "san": "Nc3",
+    "note": "Develop and defend e4."
+   },
+   {
+    "san": "Bb4",
+    "note": ""
+   },
+   {
+    "san": "Nxc6",
+    "note": "Resolve the centre on your terms."
+   },
+   {
+    "san": "bxc6",
+    "note": ""
+   },
+   {
+    "san": "Bd3",
+    "note": "Develop toward the kingside."
+   }
+  ]
+ },
+ {
+  "id": "opening-vienna",
+  "track": "openings",
+  "title": "Vienna Game",
+  "summary": "A flexible, aggressive setup with an early f-pawn push idea.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "w",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "e4",
+    "note": "Centre."
+   },
+   {
+    "san": "e5",
+    "note": ""
+   },
+   {
+    "san": "Nc3",
+    "note": "Develop and overprotect e4 before committing the king's knight."
+   },
+   {
+    "san": "Nf6",
+    "note": ""
+   },
+   {
+    "san": "g3",
+    "note": "Fianchetto plan: the bishop will hit the centre from g2."
+   },
+   {
+    "san": "d5",
+    "note": ""
+   },
+   {
+    "san": "exd5",
+    "note": "Open the position."
+   },
+   {
+    "san": "Nxd5",
+    "note": ""
+   },
+   {
+    "san": "Bg2",
+    "note": "Develop the bishop to its best diagonal."
+   },
+   {
+    "san": "Nxc3",
+    "note": ""
+   },
+   {
+    "san": "bxc3",
+    "note": "Strengthen the centre with the recapture."
+   },
+   {
+    "san": "Bd6",
+    "note": ""
+   },
+   {
+    "san": "Nf3",
+    "note": "Complete development."
+   }
+  ]
+ },
+ {
+  "id": "opening-queens-gambit",
+  "track": "openings",
+  "title": "Queen's Gambit",
+  "summary": "Pressure Black's centre with a classical, hard-to-refute gambit.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "w",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "d4",
+    "note": "Claim the centre."
+   },
+   {
+    "san": "d5",
+    "note": ""
+   },
+   {
+    "san": "c4",
+    "note": "Offer the gambit — you'll get the pawn back or a strong centre."
+   },
+   {
+    "san": "e6",
+    "note": ""
+   },
+   {
+    "san": "Nc3",
+    "note": "Develop and pressure d5."
+   },
+   {
+    "san": "Nf6",
+    "note": ""
+   },
+   {
+    "san": "Bg5",
+    "note": "Pin the knight to increase pressure on d5."
+   },
+   {
+    "san": "Be7",
+    "note": ""
+   },
+   {
+    "san": "e3",
+    "note": "Open the f1 bishop and solidify."
+   },
+   {
+    "san": "O-O",
+    "note": ""
+   },
+   {
+    "san": "Nf3",
+    "note": "Develop the last minor piece."
+   },
+   {
+    "san": "h6",
+    "note": ""
+   },
+   {
+    "san": "Bh4",
+    "note": "Maintain the pin."
+   }
+  ]
+ },
+ {
+  "id": "opening-london",
+  "track": "openings",
+  "title": "London System",
+  "summary": "A solid, easy-to-learn setup you can play against almost anything.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "w",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "d4",
+    "note": "Claim the centre."
+   },
+   {
+    "san": "d5",
+    "note": ""
+   },
+   {
+    "san": "Bf4",
+    "note": "The London bishop — out before locking it behind e3."
+   },
+   {
+    "san": "Nf6",
+    "note": ""
+   },
+   {
+    "san": "e3",
+    "note": "Support d4 and open the f1 bishop."
+   },
+   {
+    "san": "e6",
+    "note": ""
+   },
+   {
+    "san": "Nf3",
+    "note": "Develop toward the centre."
+   },
+   {
+    "san": "Bd6",
+    "note": ""
+   },
+   {
+    "san": "Bg3",
+    "note": "Sidestep the trade and keep the strong bishop."
+   },
+   {
+    "san": "O-O",
+    "note": ""
+   },
+   {
+    "san": "Bd3",
+    "note": "Aim the bishop at Black's kingside."
+   },
+   {
+    "san": "c5",
+    "note": ""
+   },
+   {
+    "san": "c3",
+    "note": "Hold a harmonious, solid centre."
+   }
+  ]
+ },
+ {
+  "id": "opening-catalan",
+  "track": "openings",
+  "title": "Catalan Opening",
+  "summary": "Fianchetto the bishop and squeeze with long-term central pressure.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "w",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "d4",
+    "note": "Centre."
+   },
+   {
+    "san": "Nf6",
+    "note": ""
+   },
+   {
+    "san": "c4",
+    "note": "Gain space on the queenside."
+   },
+   {
+    "san": "e6",
+    "note": ""
+   },
+   {
+    "san": "g3",
+    "note": "Prepare the Catalan fianchetto."
+   },
+   {
+    "san": "d5",
+    "note": ""
+   },
+   {
+    "san": "Bg2",
+    "note": "The bishop eyes the long diagonal and Black's queenside."
+   },
+   {
+    "san": "Be7",
+    "note": ""
+   },
+   {
+    "san": "Nf3",
+    "note": "Develop."
+   },
+   {
+    "san": "O-O",
+    "note": ""
+   },
+   {
+    "san": "O-O",
+    "note": "Castle into a comfortable, pressure-filled middlegame."
+   },
+   {
+    "san": "dxc4",
+    "note": ""
+   },
+   {
+    "san": "Qc2",
+    "note": "Plan to regain the pawn with a great position."
+   }
+  ]
+ },
+ {
+  "id": "opening-caro-kann",
+  "track": "openings",
+  "title": "Caro-Kann",
+  "summary": "A rock-solid answer to 1.e4 with a sound structure.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "b",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "e4",
+    "note": ""
+   },
+   {
+    "san": "c6",
+    "note": "Prepare ...d5 without blocking your light bishop."
+   },
+   {
+    "san": "d4",
+    "note": ""
+   },
+   {
+    "san": "d5",
+    "note": "Strike at the centre immediately."
+   },
+   {
+    "san": "Nc3",
+    "note": ""
+   },
+   {
+    "san": "dxe4",
+    "note": "Take the pawn; comfortable development follows."
+   },
+   {
+    "san": "Nxe4",
+    "note": ""
+   },
+   {
+    "san": "Bf5",
+    "note": "Develop the bishop OUTSIDE the pawn chain — the point of the Caro."
+   },
+   {
+    "san": "Ng3",
+    "note": ""
+   },
+   {
+    "san": "Bg6",
+    "note": "Keep the good bishop."
+   },
+   {
+    "san": "h4",
+    "note": ""
+   },
+   {
+    "san": "h6",
+    "note": "Make luft so the bishop can't be trapped by h5."
+   }
+  ]
+ },
+ {
+  "id": "opening-qgd",
+  "track": "openings",
+  "title": "Queen's Gambit Declined",
+  "summary": "A classical, reliable defence to 1.d4 built on solid pawns.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "b",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "d4",
+    "note": ""
+   },
+   {
+    "san": "d5",
+    "note": "Meet the centre head-on."
+   },
+   {
+    "san": "c4",
+    "note": ""
+   },
+   {
+    "san": "e6",
+    "note": "Decline the gambit and support d5 — solidity first."
+   },
+   {
+    "san": "Nc3",
+    "note": ""
+   },
+   {
+    "san": "Nf6",
+    "note": "Develop and reinforce d5."
+   },
+   {
+    "san": "Bg5",
+    "note": ""
+   },
+   {
+    "san": "Be7",
+    "note": "Break the pin calmly."
+   },
+   {
+    "san": "e3",
+    "note": ""
+   },
+   {
+    "san": "O-O",
+    "note": "Get your king safe."
+   },
+   {
+    "san": "Nf3",
+    "note": ""
+   },
+   {
+    "san": "h6",
+    "note": "Question the bishop and gain a tempo."
+   }
+  ]
+ },
+ {
+  "id": "opening-scandinavian",
+  "track": "openings",
+  "title": "Scandinavian Defence",
+  "summary": "Challenge 1.e4 at once — simple, clear plans for Black.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "b",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "e4",
+    "note": ""
+   },
+   {
+    "san": "d5",
+    "note": "Immediately strike at e4."
+   },
+   {
+    "san": "exd5",
+    "note": ""
+   },
+   {
+    "san": "Qxd5",
+    "note": "Recapture; you'll reroute the queen safely."
+   },
+   {
+    "san": "Nc3",
+    "note": ""
+   },
+   {
+    "san": "Qa5",
+    "note": "Step aside from the tempo while staying active."
+   },
+   {
+    "san": "d4",
+    "note": ""
+   },
+   {
+    "san": "Nf6",
+    "note": "Develop and prepare ...c6 and ...Bf5."
+   },
+   {
+    "san": "Nf3",
+    "note": ""
+   },
+   {
+    "san": "c6",
+    "note": "Make a safe home for the queen and support d5 ideas."
+   },
+   {
+    "san": "Bc4",
+    "note": ""
+   },
+   {
+    "san": "Bf5",
+    "note": "Develop the bishop outside the chain."
+   }
+  ]
+ },
+ {
+  "id": "opening-french",
+  "track": "openings",
+  "title": "French Defence",
+  "summary": "A sturdy counter-attacking defence with a clear pawn-break plan.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "b",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "e4",
+    "note": ""
+   },
+   {
+    "san": "e6",
+    "note": "Prepare ...d5, accepting a slightly cramped but solid game."
+   },
+   {
+    "san": "d4",
+    "note": ""
+   },
+   {
+    "san": "d5",
+    "note": "Challenge the centre."
+   },
+   {
+    "san": "Nc3",
+    "note": ""
+   },
+   {
+    "san": "Nf6",
+    "note": "Pressure e4."
+   },
+   {
+    "san": "e5",
+    "note": ""
+   },
+   {
+    "san": "Nfd7",
+    "note": "Retreat and prepare the ...c5 break."
+   },
+   {
+    "san": "f4",
+    "note": ""
+   },
+   {
+    "san": "c5",
+    "note": "Strike at the base of White's pawn chain."
+   },
+   {
+    "san": "Nf3",
+    "note": ""
+   },
+   {
+    "san": "Nc6",
+    "note": "Pile up on d4."
+   }
+  ]
+ },
+ {
+  "id": "opening-kings-indian",
+  "track": "openings",
+  "title": "King's Indian Defence",
+  "summary": "Let White build a centre, then counterattack with pieces and pawns.",
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "userColor": "b",
+  "goal": "line",
+  "steps": [
+   {
+    "san": "d4",
+    "note": ""
+   },
+   {
+    "san": "Nf6",
+    "note": "Develop flexibly."
+   },
+   {
+    "san": "c4",
+    "note": ""
+   },
+   {
+    "san": "g6",
+    "note": "Prepare the fianchetto — the KID's signature."
+   },
+   {
+    "san": "Nc3",
+    "note": ""
+   },
+   {
+    "san": "Bg7",
+    "note": "The bishop rakes the long diagonal."
+   },
+   {
+    "san": "e4",
+    "note": ""
+   },
+   {
+    "san": "d6",
+    "note": "Restrain e5 and prepare ...e5 or ...c5 breaks."
+   },
+   {
+    "san": "Nf3",
+    "note": ""
+   },
+   {
+    "san": "O-O",
+    "note": "King safety, then counterattack."
+   },
+   {
+    "san": "Be2",
+    "note": ""
+   },
+   {
+    "san": "e5",
+    "note": "Strike at the centre and open lines for the attack."
+   }
+  ]
+ },
+ {
+  "id": "endgame-kq-vs-k",
+  "track": "endgames",
+  "title": "Queen checkmate (K+Q vs K)",
+  "summary": "Box the king toward an edge with the queen a knight's-move away, then bring your king up. Avoid stalemate!",
+  "startFen": "4k3/8/8/8/8/8/2Q5/4K3 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-kr-vs-k",
+  "track": "endgames",
+  "title": "Rook checkmate (K+R vs K)",
+  "summary": "Use the rook to cut off a rank, march your king up to oppose, then deliver the ladder mate.",
+  "startFen": "4k3/8/8/8/8/8/R7/4K3 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-kp-vs-k-opposition",
+  "track": "endgames",
+  "title": "Pawn promotion with opposition",
+  "summary": "Get your king in front of the pawn and take the opposition — your king leads, the pawn follows.",
+  "startFen": "8/8/8/4k3/8/4P3/8/4K3 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-two-rooks-mate",
+  "track": "endgames",
+  "title": "Two-rook ladder mate",
+  "summary": "Drive the king up the board one rank at a time, swinging a rook to safety whenever it's attacked.",
+  "startFen": "4k3/8/8/8/8/8/R7/R3K3 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-kp-defense-opposition",
+  "track": "endgames",
+  "title": "Hold the draw: K vs K+P with opposition",
+  "summary": "Keep your king directly in front of the enemy pawn and take the opposition. Don't let the enemy king march around you — it's a draw.",
+  "startFen": "8/8/8/8/4k3/4p3/8/4K3 w - - 0 1",
+  "userColor": "w",
+  "goal": "draw",
+  "steps": []
+ },
+ {
+  "id": "endgame-lucena-bridge",
+  "track": "endgames",
+  "title": "Lucena position (R+P vs R)",
+  "summary": "Build a 'bridge': bring your rook to the 4th rank to shield your king from checks as it escapes the pawn's file.",
+  "startFen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-two-bishops-mate",
+  "track": "endgames",
+  "title": "Two-bishop checkmate (K+B+B vs K)",
+  "summary": "Two bishops mate by driving the king into a corner. Keep the bishops side by side controlling adjacent diagonals, and bring your king to help.",
+  "startFen": "8/8/8/3k4/8/2K5/8/2BB4 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-back-rank-mate",
+  "track": "endgames",
+  "title": "Back-rank mate pattern",
+  "summary": "The enemy king is trapped behind its own pawns. Deliver mate on the back rank in one move — find it!",
+  "startFen": "6k1/5ppp/8/8/8/8/6PP/3R2K1 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-kp-king-in-front",
+  "track": "endgames",
+  "title": "Winning K+P: king in front",
+  "summary": "Your king is in front of the pawn on the 6th rank — this always wins. Use your king to clear a path and shepherd the pawn home.",
+  "startFen": "4k3/8/4K3/4P3/8/8/8/8 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-connected-passers",
+  "track": "endgames",
+  "title": "Connected passed pawns",
+  "summary": "Two connected passers beat a lone king. Advance them side by side so they defend each other — never let one be captured for free.",
+  "startFen": "4k3/8/8/1PP5/8/8/8/4K3 w - - 0 1",
+  "userColor": "w",
+  "goal": "win",
+  "steps": []
+ },
+ {
+  "id": "endgame-wrong-bishop-draw",
+  "track": "endgames",
+  "title": "Hold the draw: wrong-bishop rook pawn",
+  "summary": "The h8 promotion square is the wrong colour for this bishop, so it can never be controlled. Sit your king in the corner (Kg8–Kh8) and it's a draw.",
+  "startFen": "6k1/8/5K1P/8/8/8/8/1B6 b - - 0 1",
+  "userColor": "b",
+  "goal": "draw",
+  "steps": []
+ },
+ {
+  "id": "endgame-rook-pawn-draw",
+  "track": "endgames",
+  "title": "Hold the draw: K vs K + rook pawn",
+  "summary": "With your king in the corner the pawn promotes to, the enemy king can never make progress without stalemating you. Shuffle Kg8–Kh8.",
+  "startFen": "7k/8/6KP/8/8/8/8/8 b - - 0 1",
+  "userColor": "b",
+  "goal": "draw",
+  "steps": []
+ },
+ {
+  "id": "mate-back-rank",
+  "track": "checkmates",
+  "title": "Back-rank mate",
+  "summary": "A king trapped behind its own pawns is mated along the back rank by a rook or queen.",
+  "startFen": "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "a1a8",
+    "note": "A king trapped behind its own pawns is mated along the back rank by a rook or queen."
+   }
+  ]
+ },
+ {
+  "id": "mate-smothered",
+  "track": "checkmates",
+  "title": "Smothered mate",
+  "summary": "A king hemmed in by its own pieces is mated by a knight — nothing can block a knight check.",
+  "startFen": "6rk/5ppp/8/6N1/8/8/8/6K1 w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "g5f7",
+    "note": "A king hemmed in by its own pieces is mated by a knight — nothing can block a knight check."
+   }
+  ]
+ },
+ {
+  "id": "mate-two-rook-ladder",
+  "track": "checkmates",
+  "title": "Two-rook (ladder) mate",
+  "summary": "One rook cuts off a rank while the other delivers mate on the next — the staircase mate.",
+  "startFen": "7k/R7/8/8/8/8/8/1R5K w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "b1b8",
+    "note": "One rook cuts off a rank while the other delivers mate on the next — the staircase mate."
+   }
+  ]
+ },
+ {
+  "id": "mate-queen-king-box",
+  "track": "checkmates",
+  "title": "Queen + king mate",
+  "summary": "The queen, supported by its king, boxes the enemy king against the edge.",
+  "startFen": "7k/3Q4/6K1/8/8/8/8/8 w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "d7g7",
+    "note": "The queen, supported by its king, boxes the enemy king against the edge."
+   }
+  ]
+ },
+ {
+  "id": "mate-scholars",
+  "track": "checkmates",
+  "title": "Scholar's mate",
+  "summary": "The classic four-move attack: the queen takes f7, defended by the bishop on c4.",
+  "startFen": "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "h5f7",
+    "note": "The classic four-move attack: the queen takes f7, defended by the bishop on c4."
+   }
+  ]
+ },
+ {
+  "id": "mate-arabian",
+  "track": "checkmates",
+  "title": "Arabian mate",
+  "summary": "Knight and rook combine to trap a king in the corner — one of the oldest known mates.",
+  "startFen": "7k/R7/5N2/8/8/8/8/K7 w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "a7h7",
+    "note": "Knight and rook combine to trap a king in the corner — one of the oldest known mates."
+   }
+  ]
+ },
+ {
+  "id": "mate-dovetail",
+  "track": "checkmates",
+  "title": "Dovetail mate",
+  "summary": "The queen mates a king whose only flight squares are blocked by its own pieces.",
+  "startFen": "6k1/5ppp/8/8/8/8/5PPP/4Q1K1 w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "e1e8",
+    "note": "The queen mates a king whose only flight squares are blocked by its own pieces."
+   }
+  ]
+ },
+ {
+  "id": "mate-corner-queen",
+  "track": "checkmates",
+  "title": "Queen corner mate",
+  "summary": "With the king supporting from g6, the queen delivers mate on the back rank corner.",
+  "startFen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "f7f8",
+    "note": "With the king supporting from g6, the queen delivers mate on the back rank corner."
+   }
+  ]
+ },
+ {
+  "id": "mate-epaulette",
+  "track": "checkmates",
+  "title": "Epaulette mate",
+  "summary": "The king's own rooks sit on its shoulders like epaulettes, blocking every escape.",
+  "startFen": "3rkr2/8/1Q6/8/8/8/8/6K1 w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "b6e6",
+    "note": "The king's own rooks sit on its shoulders like epaulettes, blocking every escape."
+   }
+  ]
+ },
+ {
+  "id": "mate-pillsbury",
+  "track": "checkmates",
+  "title": "Bishop + rook mate",
+  "summary": "A long-range bishop covers escape squares while the rook mates on the back rank.",
+  "startFen": "6k1/5ppp/8/8/8/8/6B1/R5K1 w - - 0 1",
+  "userColor": "w",
+  "goal": "mate",
+  "steps": [
+   {
+    "uci": "a1a8",
+    "note": "A long-range bishop covers escape squares while the rook mates on the back rank."
+   }
+  ]
+ }
+]

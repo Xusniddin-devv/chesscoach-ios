@@ -47,6 +47,7 @@ struct BoardView: View {
     @State private var drag: Drag?
     @State private var promotion: PendingPromotion?
     @State private var movesPlayed = 0
+    @AppStorage(Pref.coordinates) private var showsCoordinates = Pref.Default.coordinates  // Settings
 
     private struct Drag: Equatable {
         let from: Square
@@ -127,7 +128,7 @@ struct BoardView: View {
                 } else if highlighted.contains(square) {
                     context.fill(Path(rect), with: .color(DS.Color.accent.opacity(Style.highlightOpacity)))
                 }
-                drawCoordinates(for: square, in: rect, light: light, context: context)
+                if showsCoordinates { drawCoordinates(for: square, in: rect, light: light, context: context) }
             }
 
             let hint = GraphicsContext.Shading.color(DS.Color.ink.opacity(Style.hintOpacity))
