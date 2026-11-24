@@ -143,6 +143,18 @@
       "piece-pawn": {
         "id": "10290",
         "commonName": "pawn"
+      },
+      "unlock": {
+        "id": "3721",
+        "commonName": "unlock"
+      },
+      "reminder": {
+        "id": "11668",
+        "commonName": "appointment-reminders"
+      },
+      "calendar": {
+        "id": "10053",
+        "commonName": "calendar"
       }
     },
     "brandExceptions": {

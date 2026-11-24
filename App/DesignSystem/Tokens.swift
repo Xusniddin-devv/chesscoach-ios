@@ -70,6 +70,7 @@ enum DS {
         static let headline = SwiftUI.Font.system(.headline)
         static let body = SwiftUI.Font.system(.body)
         static let subheadline = SwiftUI.Font.system(.subheadline)
+        static let footnote = SwiftUI.Font.system(.footnote)
         static let caption = SwiftUI.Font.system(.caption)
         /// Section labels: caption2 semibold, used uppercased with `labelTracking`.
         static let label = SwiftUI.Font.system(.caption2, weight: .semibold)
