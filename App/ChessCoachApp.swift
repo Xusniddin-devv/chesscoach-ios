@@ -18,6 +18,16 @@ struct ChessCoachApp: App {
 #endif
                 }
         }
-        .modelContainer(for: GameRecord.self)
+        .modelContainer(for: GameRecord.self, inMemory: Self.inMemoryStore)
+    }
+
+    /// DEBUG `-debugEmptyStore 1`: an empty in-memory store (first-launch screenshots without
+    /// wiping the saved games).
+    private static var inMemoryStore: Bool {
+        #if DEBUG
+        UserDefaults.standard.string(forKey: "debugEmptyStore") != nil
+        #else
+        false
+        #endif
     }
 }

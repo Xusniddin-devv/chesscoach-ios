@@ -6,6 +6,7 @@ import ChessCore
 /// board. Opaque `surface` with a hairline edge; its bottom corners follow the screen's.
 struct CoachCard: View {
     let verdict: Verdict
+    var wording: MoveWording = .words
     let onTakeBack: () -> Void
     let onShowBest: () -> Void
     let onContinue: () -> Void
@@ -13,7 +14,7 @@ struct CoachCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.sm) {
             ClassPill(moveClass: verdict.classification)
-            Text(explain(verdict, wording: .words))
+            Text(explain(verdict, wording: wording))
                 .font(DS.Font.body)
                 .foregroundStyle(DS.Color.text)
                 .fixedSize(horizontal: false, vertical: true)

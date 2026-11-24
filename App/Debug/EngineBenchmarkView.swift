@@ -163,17 +163,4 @@ struct EngineBenchmarkView: View {
     }
 }
 
-/// The Profile tab's placeholder plus the debug-only way into the benchmark.
-struct DebugProfilePlaceholder: View {
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: DS.Spacing.m) {
-                ComingSoonView(title: "Profile")
-                NavigationLink("Engine benchmark (debug)") { EngineBenchmarkView() }
-                    .padding(DS.Spacing.m)
-            }
-            .background(DS.Color.background)
-        }
-    }
-}
 #endif

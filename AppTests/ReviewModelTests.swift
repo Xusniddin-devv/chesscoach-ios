@@ -245,6 +245,44 @@ struct ReviewModelTests {
         #expect(model.stripItems.allSatisfy { !$0.isBranch })
     }
 
+    // MARK: Edge games
+
+    /// A game that ends in checkmate: the last position is terminal (mate 0); no move can be
+    /// tried there, and every ply still has a grade.
+    @Test func gameEndingInMateAnalysesAndStaysReadOnlyAtTheEnd() async throws {
+        let mate = ["f2f3", "e7e5", "g2g4", "d8h4"]
+        let (record, container) = try stored(snapshot(moves: mate))
+        _ = container
+        let model = ReviewModel(record: record, engine: FakeEngine(botMoves: []))
+        await model.start()
+        #expect(model.analysis?.verdicts.count == 4)
+        model.select(ply: 4)
+        #expect(model.selectedVerdict?.san == "Qh4#")
+        #expect(model.explanation != nil)
+        #expect(!model.playBranchMove("e1f2"))
+        #expect(model.branch == nil)
+    }
+
+    @Test func customStartWithBlackToMove() async throws {
+        let fen = "4k3/8/8/8/8/8/4P3/4K3 b - - 0 1"
+        let snap = GameSnapshot(
+            id: UUID(), date: .now, botId: "pip", userColor: .black, mode: .silent, startFen: fen,
+            moves: ["e8d7", "e2e4"], sans: ["Kd7", "e4"], result: .draw, verdicts: [],
+            analysisVersion: 1, playerRatingUsed: 800)
+        let (record, container) = try stored(snap)
+        _ = container
+        let engine = FakeEngine(botMoves: [])
+        let model = ReviewModel(record: record, engine: engine)
+        await model.start()
+        #expect(model.analysis?.verdicts.map(\.mover) == [.black, .white])
+        #expect(engine.requests.allSatisfy { $0.startFen == fen })
+        #expect(model.orientation == .black)
+        model.select(ply: 1)
+        #expect(model.playBranchMove("e2e3"))
+        #expect(await eventually { model.grader.verdicts[2] != nil })
+        #expect(model.stripItems.map(\.san) == ["Kd7", "e3"])
+    }
+
     // MARK: Display
 
     @Test func commentsSpeakToTheUserAndNameTheBot() async throws {

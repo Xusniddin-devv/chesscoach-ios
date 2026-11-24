@@ -29,7 +29,8 @@ final class EngineHub {
     }
 
     func makeSession(bot: Bot, userColor: Piece.Color, mode: PlayMode) -> GameSession {
-        GameSession(bot: bot, userColor: userColor, mode: mode, engine: StockfishEngine.shared)
+        GameSession(bot: bot, userColor: userColor, mode: mode, engine: StockfishEngine.shared,
+                    playerRating: playerRating)
     }
 
     func makeReview(record: GameRecord, wording: MoveWording = .words) -> ReviewModel {

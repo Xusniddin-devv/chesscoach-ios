@@ -60,6 +60,7 @@ struct PlayView: View {
                 if let verdict = model.interruption {
                     CoachCard(
                         verdict: verdict,
+                        wording: hub.wording,
                         onTakeBack: session.takeBack,
                         onShowBest: session.showBest,
                         onContinue: session.continueAfterInterrupt)
