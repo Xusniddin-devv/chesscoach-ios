@@ -320,7 +320,7 @@ struct AnswerPills: View {
             ForEach(answers, id: \.uci) { answer in
                 Button { onPick(answer.uci) } label: {
                     HStack(spacing: 6) {
-                        IconImage("piece-\(answer.piece)", size: 18)
+                        IconImage("piece-\(answer.piece)", size: 26)  // large enough to tell a bishop's mitre from a pawn
                         Text(verbatim: answer.san)
                             .font(.system(size: 18, weight: .bold, design: .monospaced))
                     }

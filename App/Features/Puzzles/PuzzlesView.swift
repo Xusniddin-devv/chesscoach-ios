@@ -2,8 +2,10 @@ import SwiftUI
 import SwiftData
 import ChessCore
 
-/// Puzzles tab: the daily puzzle, the user's own mistakes due for review, and practice by
-/// rating and theme. The streak sits in the navigation bar.
+/// Puzzles tab in the coach's voice: the coach with the streak and today's hook, the daily
+/// puzzle as the hero, own mistakes as a filmstrip, and practice — the level on a scrubbable
+/// rating ruler (the onboarding goal picker's bars) and the themes as rows of chunky piece
+/// tokens with solved ticks. No pills, no stepper, no card grid.
 struct PuzzlesView: View {
     @Environment(\.modelContext) private var context
     @Environment(Entitlements.self) private var entitlements
@@ -15,6 +17,7 @@ struct PuzzlesView: View {
     @AppStorage("puzzles.theme") private var theme = ""
     @State private var session: PuzzleSessionSetup?
     @State private var blunders: [Puzzle] = []
+    @State private var scroll = ScrollPosition(edge: .top)
 
     private static let sessionLength = 10
     static let margin: CGFloat = 20
@@ -23,6 +26,7 @@ struct PuzzlesView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    coach
                     daily
                     mistakes
                     practice
@@ -31,20 +35,20 @@ struct PuzzlesView: View {
                 .padding(.bottom, DS.Spacing.xl)
             }
             // Clear the floating tab bar.
-            .contentMargins(.bottom, DS.Spacing.xl, for: .scrollContent)
+            .contentMargins(.bottom, 96, for: .scrollContent)
+            .scrollPosition($scroll)
             .scrollIndicators(.hidden)
             .background(DS.Color.background)
             .navigationTitle("Puzzles")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    StreakPill(count: streak.current(now: .now))
-                }
-                .sharedBackgroundVisibility(.hidden)
-            }
         }
         .fullScreenCover(item: $session) { PuzzleSessionView(setup: $0) }
         .task(id: games.count) { blunders = Self.blunderPuzzles(from: games) }
         #if DEBUG
+        .task {
+            guard let target = UserDefaults.standard.string(forKey: "debugScroll") else { return }
+            try? await Task.sleep(for: .seconds(1))
+            if target == "practice" { scroll.scrollTo(y: 560) } else { scroll.scrollTo(edge: .bottom) }
+        }
         // `-debugPuzzle daily|practice|mistakes` opens a solver session (screenshots).
         .task {
             switch UserDefaults.standard.string(forKey: "debugPuzzle") {
@@ -105,6 +109,66 @@ struct PuzzlesView: View {
         let ids = Set(blunders.map(\.id))
         return progress.filter { ids.contains($0.puzzleId) || ($0.source == "bank" && $0.lapses > 0) }
             .map(\.due).filter { $0 > .now }.min()
+    }
+
+    // MARK: Coach
+
+    /// The coach carries the streak and today's hook ("Day 3 of your streak. Today's puzzle
+    /// is a knight fork."), from the real streak and the daily puzzle's solution.
+    private var coach: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            CoachAvatar(pose: dailyDone ? .pleased : .neutral, size: 92)
+                .padding(.leading, -12)
+            CoachText(coachLine)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(DS.Color.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, DS.Spacing.m)
+                .padding(.vertical, DS.Spacing.sm)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(BubbleShape(tailY: 20).fill(DS.Color.surface))
+                .padding(.bottom, 18)
+        }
+        .padding(.top, DS.Spacing.xs)
+        .padding(.bottom, DS.Spacing.m)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Coach: \(CoachText.plain(coachLine))")
+    }
+
+    private var dailyDone: Bool {
+        guard let id = PuzzleBank.daily(for: .now)?.id else { return false }
+        return progressById[id]?.lastSolved.map { Calendar.current.isDateInToday($0) } ?? false
+    }
+
+    private var coachLine: String {
+        let days = streak.current(now: .now)
+        let lead = days > 0 ? "**Day \(days)** of your streak." : "No streak yet. One puzzle starts it."
+        guard let puzzle = PuzzleBank.daily(for: .now) else { return lead }
+        if dailyDone { return lead + " Today's puzzle is done. Practice keeps the board warm." }
+        return lead + " Today's puzzle is **\(Self.hook(for: puzzle))**."
+    }
+
+    /// "a knight fork", "mate in two", "a bishop pin": the solution's piece and theme.
+    static func hook(for puzzle: Puzzle) -> String {
+        let theme = PuzzleBank.practiceThemes.first { puzzle.themes.contains($0) }
+        var piece = "move"
+        if let fen = puzzle.solvingFen, puzzle.moves.indices.contains(puzzle.firstSolverIndex),
+           let kind = Rules.piece(at: Square(String(puzzle.moves[puzzle.firstSolverIndex].prefix(2))), fen: fen)?.kind {
+            piece = LessonQuestion.glyph(kind)
+        }
+        switch theme {
+        case "mateIn1": return "mate in one"
+        case "mateIn2": return "mate in two"
+        case "mateIn3": return "mate in three"
+        case "backRankMate": return "a back-rank mate"
+        case "fork": return "a \(piece) fork"
+        case "pin": return "a \(piece) pin"
+        case "skewer": return "a \(piece) skewer"
+        case "hangingPiece": return "a free piece to take"
+        case "discoveredAttack": return "a discovered attack"
+        case "endgame": return "an endgame win"
+        default: return "a \(piece) move to find"
+        }
     }
 
     // MARK: Daily
@@ -219,76 +283,92 @@ struct PuzzlesView: View {
 
     // MARK: Practice
 
-    /// Level as a big mono number with Icons8 − / +, theme chips, one primary button.
+    /// The level on a ruler, then one row per theme: tap a row to start ten puzzles there.
     @ViewBuilder
     private var practice: some View {
         ScreenSectionTitle("Practice")
             .padding(.top, 30)
-            .padding(.bottom, DS.Spacing.sm)
-        HStack(alignment: .center, spacing: DS.Spacing.m) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: String(rating))
-                    .font(.system(size: 44, weight: .heavy))
-                    .tracking(-1.5)
-                    .monospacedDigit()
-                    .foregroundStyle(DS.Color.text)
-                    .contentTransition(.numericText(value: Double(rating)))
-                Text(available == 1 ? "1 puzzle left at this level" : "\(available) puzzles left at this level")
-                    .font(DS.Font.subheadline.monospacedDigit())
-                    .foregroundStyle(DS.Color.textSecondary)
-            }
-            Spacer()
-            stepButton("minus", label: "Easier", enabled: rating > PuzzleBank.ratingRange.lowerBound) { rating -= 100 }
-            stepButton("plus", label: "Harder", enabled: rating < PuzzleBank.ratingRange.upperBound - 100) { rating += 100 }
-        }
-        .accessibilityElement(children: .contain)
-        FlowLayout {
-            Chip(title: "Mixed", selected: theme.isEmpty) { theme = "" }
-            ForEach(PuzzleBank.practiceThemes, id: \.self) { key in
-                Chip(title: PuzzleBank.title(forTheme: key), selected: theme == key) { theme = key }
-            }
-        }
-        .padding(.top, DS.Spacing.m)
+            .padding(.bottom, DS.Spacing.xs)
+            .id("practice")
+        Text("Around **\(rating)** · \(available) you haven't seen")
+            .font(DS.Font.subheadline.monospacedDigit())
+            .foregroundStyle(DS.Color.textSecondary)
+            .contentTransition(.numericText(value: Double(rating)))
+        RatingRuler(value: $rating, range: PuzzleBank.ratingRange.lowerBound...(PuzzleBank.ratingRange.upperBound - 100))
+            .padding(.top, DS.Spacing.s)
         if remainingToday == 0 {
             FreeLimitNote()
-                .padding(.top, DS.Spacing.l)
-        } else {
-            PrimaryButton(title: "Start practice", action: startPractice)
-                .padding(.top, DS.Spacing.l)
-            if let left = remainingToday {
-                Text(left == 1 ? "1 free puzzle left today" : "\(left) free puzzles left today")
-                    .font(DS.Font.caption)
-                    .foregroundStyle(DS.Color.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, DS.Spacing.xs)
+                .padding(.vertical, DS.Spacing.l)
+        } else if let left = remainingToday {
+            Text(left == 1 ? "1 free puzzle left today" : "\(left) free puzzles left today")
+                .font(DS.Font.caption)
+                .foregroundStyle(DS.Color.textSecondary)
+                .padding(.top, DS.Spacing.s)
+        }
+        VStack(spacing: 0) {
+            ThemeRow(glyph: "tab-puzzle", title: "Mixed", detail: "Every theme at your level", solved: solvedCount(nil)) {
+                startPractice(nil)
             }
+            ForEach(PuzzleBank.practiceThemes, id: \.self) { key in
+                ThemeRow(glyph: Self.glyph(forTheme: key), title: PuzzleBank.title(forTheme: key),
+                         detail: Self.blurb(forTheme: key), solved: solvedCount(key)) {
+                    startPractice(key)
+                }
+            }
+        }
+        .padding(.top, DS.Spacing.sm)
+    }
+
+    /// Bank puzzles solved, overall or in one theme.
+    private func solvedCount(_ theme: String?) -> Int {
+        progress.filter { $0.source == "bank" && $0.lastSolved != nil }
+            .compactMap { PuzzleBank.puzzle(id: $0.puzzleId) }
+            .filter { theme == nil || $0.themes.contains(theme!) }
+            .count
+    }
+
+    static func glyph(forTheme theme: String) -> String {
+        switch theme {
+        case "mateIn1", "mateIn2", "mateIn3": "piece-king"
+        case "fork": "piece-knight"
+        case "pin": "piece-bishop"
+        case "skewer", "backRankMate": "piece-rook"
+        case "discoveredAttack": "piece-queen"
+        case "hangingPiece", "opening": "piece-pawn"
+        case "endgame": "piece-king"
+        default: "tab-puzzle"
         }
     }
 
-    private func stepButton(_ icon: String, label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button { withAnimation(.snappy) { action() } } label: {
-            IconImage(icon, size: 18)
-                .foregroundStyle(DS.Color.text)
-                .frame(width: 44, height: 44)
-                .background(DS.Color.surface2, in: Circle())
+    static func blurb(forTheme theme: String) -> String {
+        switch theme {
+        case "mateIn1": "Finish the game in one move"
+        case "mateIn2": "A check, then mate"
+        case "mateIn3": "Three moves to the king"
+        case "fork": "One piece, two targets"
+        case "pin": "Pinned to a bigger piece"
+        case "skewer": "The piece behind falls"
+        case "hangingPiece": "Take what nobody guards"
+        case "discoveredAttack": "One moves, another attacks"
+        case "backRankMate": "King trapped by its own pawns"
+        case "endgame": "Few pieces, exact moves"
+        case "opening": "Punish early mistakes"
+        default: ""
         }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.3)
-        .accessibilityLabel(label)
     }
 
     private var available: Int {
-        PuzzleBank.puzzles(band: practiceBand, theme: theme.isEmpty ? nil : theme, excluding: attempted).count
+        PuzzleBank.puzzles(band: practiceBand, theme: nil, excluding: attempted).count
     }
 
-    /// The stepper value is the band's centre: 800 → 700…899.
+    /// The ruler's value is the band's centre: 800 → 700…899.
     private var practiceBand: Range<Int> { PuzzleBank.band(around: rating) }
 
     private var attempted: Set<String> { Set(progress.map(\.puzzleId)) }
 
-    private func startPractice() {
-        let chosen = theme.isEmpty ? nil : theme
+    private func startPractice(_ chosen: String?) {
+        if remainingToday == 0 { return }
+        theme = chosen ?? ""
         var pool = PuzzleBank.puzzles(band: practiceBand, theme: chosen, excluding: attempted)
         if pool.isEmpty { pool = PuzzleBank.puzzles(band: practiceBand, theme: chosen) }
         guard !pool.isEmpty else { return }
@@ -297,7 +377,132 @@ struct PuzzlesView: View {
     }
 }
 
-/// Replaces Start practice once the free puzzles for today are used (flat, no card).
+/// One practice theme: a chunky round token with the theme's Icons8 piece glyph (the Learn
+/// path's tokens), name and one line, and the puzzles solved there as small ticks.
+private struct ThemeRow: View {
+    let glyph: String
+    let title: String
+    let detail: String
+    let solved: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: DS.Spacing.sm) {
+                IconImage(glyph, size: 24)
+                    .foregroundStyle(DS.Color.text)
+                    .frame(width: 52, height: 48)
+                    .background(DS.Color.surface2, in: Ellipse())
+                    .background(alignment: .bottom) {
+                        Ellipse().fill(Color(hex: 0x0E1011)).frame(height: 48).offset(y: 4)
+                    }
+                    .padding(.bottom, 4)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(DS.Font.headline)
+                        .foregroundStyle(DS.Color.text)
+                    Text(detail)
+                        .font(DS.Font.subheadline)
+                        .foregroundStyle(DS.Color.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: DS.Spacing.s)
+                SolvedTicks(solved: solved)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(solved) solved")
+        .accessibilityHint("Starts practice")
+    }
+}
+
+/// Puzzles solved in a theme as ten small ticks (accent), the count in mono past ten.
+private struct SolvedTicks: View {
+    let solved: Int
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            HStack(spacing: 2) {
+                ForEach(0..<10, id: \.self) { i in
+                    Capsule()
+                        .fill(i < solved % 10 || (solved >= 10 && solved % 10 == 0) ? DS.Color.accent : DS.Color.surface2)
+                        .frame(width: 3, height: 12)
+                }
+            }
+            Text(verbatim: "\(solved)")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(DS.Color.textSecondary)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// The practice level on a ruler (the onboarding goal picker's language): one bar per
+/// 50 points, height from the share of players at that rating, accent up to the chosen
+/// level; drag to scrub, a haptic tick every 50, the value on the handle.
+struct RatingRuler: View {
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+
+    private var bars: [Int] { Array(stride(from: range.lowerBound, through: range.upperBound, by: 50)) }
+
+    var body: some View {
+        let distribution = RatingDistribution.lichess
+        let shares = Dictionary(distribution.buckets.map { ($0.rating, $0.share) }, uniquingKeysWith: { a, _ in a })
+        let peak = bars.compactMap { shares[$0] }.max() ?? 1
+        GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height - 26
+            let pitch = w / CGFloat(bars.count)
+            let x = CGFloat(value - range.lowerBound) / CGFloat(range.upperBound - range.lowerBound) * (w - pitch) + pitch / 2
+            ZStack(alignment: .topLeading) {
+                HStack(alignment: .bottom, spacing: 0) {
+                    ForEach(bars, id: \.self) { rating in
+                        let share = shares[rating] ?? peak * 0.1
+                        Capsule()
+                            .fill(rating <= value ? DS.Color.accent : DS.Color.surface2)
+                            .frame(width: max(2, pitch * 0.5), height: max(6, h * CGFloat(share / peak) * 0.9 + 6))
+                            .frame(width: pitch, height: h, alignment: .bottom)
+                    }
+                }
+                .padding(.top, 26)
+                // The handle: the value over a thin line.
+                VStack(spacing: 2) {
+                    Text(verbatim: String(value))
+                        .font(.system(size: 15, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(DS.Color.onAccent)
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(DS.Color.accent, in: Capsule())
+                    Rectangle().fill(DS.Color.accent).frame(width: 2, height: h)
+                }
+                .fixedSize()
+                .position(x: min(max(x, 28), w - 28), y: (h + 26) / 2 + 1)
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
+                let raw = range.lowerBound + Int((drag.location.x - pitch / 2) / (w - pitch) * CGFloat(range.upperBound - range.lowerBound))
+                value = min(max((raw + 25) / 50 * 50, range.lowerBound), range.upperBound)
+            })
+        }
+        .frame(height: 104)
+        .sensoryFeedback(.selection, trigger: value)
+        .accessibilityElement()
+        .accessibilityLabel("Practice level")
+        .accessibilityValue("\(value)")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: value = min(value + 50, range.upperBound)
+            case .decrement: value = max(value - 50, range.lowerBound)
+            @unknown default: break
+            }
+        }
+    }
+}
+
+/// Replaces the free practice once today's puzzles are used (flat, no card).
 private struct FreeLimitNote: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s) {

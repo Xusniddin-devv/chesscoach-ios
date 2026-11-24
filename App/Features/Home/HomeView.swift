@@ -2,8 +2,10 @@ import SwiftUI
 import SwiftData
 import ChessCore
 
-/// Greeting, the one accent "Play a bot" card, the analysis board, and the last five games
-/// against the bots (analysis-board lines are not games: they stay out of the list).
+/// Home in the coach's voice: a compact header (streak, rating → goal), the coach saying
+/// what today is about from real data (last game, top habit, the plan), today's plan as a
+/// three-token path ending in the bot to play, and "Continue": the analysis board and the
+/// recent games as a filmstrip of final positions. The ladder stays one tap away.
 struct HomeView: View {
     private enum Route: Hashable {
         case botPicker
@@ -17,6 +19,10 @@ struct HomeView: View {
     @Query(sort: \GameRecord.date, order: .reverse) private var allRecords: [GameRecord]
     @Environment(\.modelContext) private var context
     @Environment(EngineHub.self) private var hub
+    @Query private var streaks: [StreakState]
+    @Query(sort: \UserProfile.updated, order: .reverse) private var profiles: [UserProfile]
+    @Query(sort: \TrainingPlanRecord.created, order: .reverse) private var plans: [TrainingPlanRecord]
+    @Query private var lessons: [LessonProgress]
     @State private var path: [Route] = []
     @State private var game: PlaySetup?
     /// Where the result panel sends the player once the game's cover has closed.
@@ -41,24 +47,49 @@ struct HomeView: View {
     }
 
     var body: some View {
+        let profile = ProfileModel(records: allRecords)
+        let nextBot = BotLadder(records: allRecords, hub: hub).next ?? .suggested
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: DS.Spacing.l) {
-                    NavigationLink(value: Route.botPicker) { PlayCard(next: BotLadder(records: allRecords, hub: hub).next ?? .suggested) }
-                        .buttonStyle(.plain)
-                    let line = Self.latestFreeplay(allRecords)
-                    NavigationLink(value: Route.freeplay(line?.record)) { AnalysisBoardCard(line: line?.snapshot) }
-                        .buttonStyle(.plain)
-                    TodayPlanCard { bot in
+                VStack(alignment: .leading, spacing: 0) {
+                    HomeHeader(streak: streak, rating: profile.estimate ?? profiles.first.map(\.currentRating),
+                               hasEstimate: profile.estimate != nil || profiles.first != nil,
+                               goal: profiles.first?.goalRating, goalDate: profiles.first?.goalDate,
+                               played: profile.finishedCount)
+                    coach(profile, nextBot: nextBot)
+                        .padding(.top, DS.Spacing.m)
+                    TodayPlanCard(nextBot: nextBot) { bot in
                         game = PlaySetup(bot: bot, mode: .training, color: .random)
                     }
-                    recent
+                    .padding(.top, DS.Spacing.l)
+                    NavigationLink(value: Route.botPicker) {
+                        HStack(spacing: DS.Spacing.s) {
+                            Image(nextBot.avatarAsset)
+                                .resizable()
+                                .interpolation(.high)
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 28, height: 28)
+                                .background(DS.Color.boardDark, in: RoundedRectangle(cornerRadius: 7))
+                            Text("Sparring ladder · next up \(nextBot.name)")
+                                .font(DS.Font.subheadline.weight(.semibold))
+                                .foregroundStyle(DS.Color.text)
+                            Spacer()
+                            IconImage("forward", size: 13).foregroundStyle(DS.Color.textSecondary)
+                        }
+                        .padding(.vertical, DS.Spacing.sm)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, DS.Spacing.s)
+                    continueSection(profile)
+                        .padding(.top, 26)
                 }
-                .padding(.horizontal, DS.Spacing.m)
-                .padding(.bottom, DS.Spacing.l)
+                .padding(.horizontal, 20)
             }
+            .contentMargins(.bottom, 96, for: .scrollContent)
+            .scrollIndicators(.hidden)
             .background(DS.Color.background)
-            .navigationTitle(Self.greeting(for: .now))
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .botPicker: BotPickerView { game = $0 }
@@ -71,7 +102,7 @@ struct HomeView: View {
             PlayView(setup: setup) { exit = $0 }
         }
         .onChange(of: game) { _, started in
-            // Under the cover, go back to Home so "Done" lands on the new game in the list.
+            // Under the cover, go back to Home so "Done" lands on Home with the new game.
             if started != nil { var t = Transaction(); t.disablesAnimations = true; withTransaction(t) { path = [] } }
         }
         #if DEBUG
@@ -83,6 +114,90 @@ struct HomeView: View {
             if DebugFreeplay.requested { path = [.freeplay(UserDefaults.standard.string(forKey: "debugFreeplay") == "resume" ? Self.latestFreeplay(allRecords)?.record : nil)] }
         }
         #endif
+    }
+
+    private var streak: Int {
+        let best = streaks.map(\.streak).max { ($0.lastDay ?? .distantPast, $0.count) < ($1.lastDay ?? .distantPast, $1.count) }
+        return (best ?? Streak()).current(now: .now)
+    }
+
+    // MARK: Coach
+
+    private func coach(_ profile: ProfileModel, nextBot: Bot) -> some View {
+        let steps = TodayPlanCard.steps(plans.first?.plan, defaults: [], boss: nextBot)
+        let line = Self.coachLine(profile: profile, hook: TodayPlanCard.hook(steps), nextBot: nextBot)
+        return HStack(alignment: .bottom, spacing: 0) {
+            CoachAvatar(pose: line.pose, size: 118)
+                .padding(.leading, -16)
+            CoachText(line.text)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(DS.Color.text)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, DS.Spacing.m)
+                .padding(.vertical, DS.Spacing.sm)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(BubbleShape(tailY: 22).fill(DS.Color.surface))
+                .padding(.bottom, 26)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Coach: \(CoachText.plain(line.text))")
+    }
+
+    /// The coach's line from real data: the last game, the habit that keeps costing points,
+    /// and what today is ("five puzzles from your games, then **Cadet**").
+    static func coachLine(profile: ProfileModel, hook: String?, nextBot: Bot) -> (text: String, pose: CoachPose) {
+        guard let last = profile.games.first else {
+            return ("I'm your coach. Today: the daily puzzle, a first lesson, then a game with **\(nextBot.name)**. I'll learn how you play.", .neutral)
+        }
+        var parts: [String] = []
+        var pose = CoachPose.neutral
+        let when = Calendar.current.isDateInToday(last.snapshot.date) ? "earlier today"
+            : Calendar.current.isDateInYesterday(last.snapshot.date) ? "yesterday" : "last time"
+        switch last.outcome {
+        case .win?: parts.append("You beat **\(last.botName)** \(when)."); pose = .pleased
+        case .loss?: parts.append("**\(last.botName)** got you \(when).")
+        case .draw?: parts.append("A draw with **\(last.botName)** \(when).")
+        case nil: parts.append("Your game with **\(last.botName)** is still open.")
+        }
+        if let habit = profile.weaknesses.first {
+            let recent = profile.games.prefix(5).filter { game in
+                ProfileModel.userVerdicts(game.snapshot).contains { $0.motifs.contains(habit.motif) }
+            }.count
+            if recent > 1 {
+                parts.append("\(habit.motif.headline) — in \(recent) of your last \(min(5, profile.games.count)) games.")
+                pose = .concerned
+            }
+        }
+        if let hook { parts.append("Now: \(hook).") }
+        return (parts.joined(separator: " "), pose)
+    }
+
+    // MARK: Continue
+
+    @ViewBuilder
+    private func continueSection(_ profile: ProfileModel) -> some View {
+        let line = Self.latestFreeplay(allRecords)
+        ScreenSectionTitle("Continue")
+            .padding(.bottom, DS.Spacing.sm)
+        ScrollView(.horizontal) {
+            LazyHStack(alignment: .top, spacing: 10) {
+                NavigationLink(value: Route.freeplay(line?.record)) { AnalysisThumb(line: line?.snapshot) }
+                    .buttonStyle(.plain)
+                ForEach(profile.games.prefix(12)) { game in
+                    NavigationLink(value: Route.review(game.record)) { GameThumb(game: game) }
+                        .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .scrollIndicators(.hidden)
+        .padding(.horizontal, -20)
+        if profile.games.isEmpty {
+            Text("Your games show up here, ready to review.")
+                .font(DS.Font.subheadline)
+                .foregroundStyle(DS.Color.textSecondary)
+                .padding(.top, DS.Spacing.s)
+        }
     }
 
     /// Review game → the saved game in Review; New bot → the bot ladder.
@@ -99,49 +214,66 @@ struct HomeView: View {
             break
         }
     }
+}
 
-    static func greeting(for date: Date) -> String {
-        switch Calendar.current.component(.hour, from: date) {
-        case 5..<12: "Good morning"
-        case 12..<18: "Good afternoon"
-        default: "Good evening"
-        }
-    }
+/// Streak on the left; rating → goal with a thin progress line on the right. One line each,
+/// no tiles.
+private struct HomeHeader: View {
+    let streak: Int
+    let rating: Int?
+    let hasEstimate: Bool
+    let goal: Int?
+    let goalDate: Date?
+    let played: Int
 
-    @ViewBuilder
-    private var recent: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s) {
-            Text("Recent games")
-                .font(DS.Font.title)
-                .foregroundStyle(DS.Color.text)
-                .accessibilityAddTraits(.isHeader)
-            // An unreadable record is skipped here; `GameRecord.snapshot` logs it.
-            let games = Self.recentGames(allRecords).map { ($0.record, $0.snapshot) }
-            if games.isEmpty {
-                Text("Your games will show up here.")
-                    .font(DS.Font.subheadline)
-                    .foregroundStyle(DS.Color.textSecondary)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(games.enumerated()), id: \.element.0.id) { index, game in
-                        if index > 0 {
-                            Divider().overlay(DS.Color.surface2).padding(.leading, DS.Spacing.m + 32 + DS.Spacing.sm)
-                        }
-                        NavigationLink(value: Route.review(game.0)) {
-                            GameRow(snapshot: game.1)
-                        }
-                        .buttonStyle(.plain)
+            HStack(alignment: .firstTextBaseline) {
+                HStack(spacing: 0) {
+                    if streak > 0 {
+                        Text(verbatim: "\(streak)").monospacedDigit().foregroundStyle(DS.Color.accent)
+                        Text(" day streak").foregroundStyle(DS.Color.text)
+                    } else {
+                        Text("No streak yet").foregroundStyle(DS.Color.textSecondary)
                     }
                 }
-                .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
+                .font(.system(size: 17, weight: .bold))
+                Spacer()
+                Group {
+                    if let rating, let goal {
+                        HStack(spacing: 0) {
+                            Text(verbatim: "\(rating) → \(goal)").monospacedDigit().foregroundStyle(DS.Color.text)
+                            if let goalDate { Text(" by \(goalDate.formatted(.dateTime.month(.wide)))").foregroundStyle(DS.Color.textSecondary) }
+                        }
+                    } else if let rating, hasEstimate {
+                        Text(verbatim: "\(rating) · \(RatingTier(rating: rating).name)").monospacedDigit().foregroundStyle(DS.Color.text)
+                    } else {
+                        Text("\(played) of 3 games to your rating").foregroundStyle(DS.Color.textSecondary)
+                    }
+                }
+                .font(.system(size: 15, weight: .semibold))
+            }
+            if let rating, let goal {
+                GeometryReader { geo in
+                    let start = Double(max(0, goal - 700))
+                    let value = min(max((Double(rating) - start) / max(1, Double(goal) - start), 0), 1)
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(DS.Color.surface2)
+                        Capsule().fill(DS.Color.accent).frame(width: max(4, geo.size.width * value))
+                    }
+                }
+                .frame(height: 4)
+                .accessibilityHidden(true)
             }
         }
+        .padding(.top, DS.Spacing.s)
+        .accessibilityElement(children: .combine)
     }
 }
 
-/// The analysis board's entry: a quiet `surface` card (the Play card stays the one accent),
-/// the current line's position on a mini board, and what continuing means.
-private struct AnalysisBoardCard: View {
+/// The analysis board as the first frame of the Continue strip: its position on a mini
+/// board, like the game frames next to it.
+private struct AnalysisThumb: View {
     let line: GameSnapshot?
 
     private var fen: String {
@@ -149,66 +281,31 @@ private struct AnalysisBoardCard: View {
         return Rules.fen(startFen: line.startFen, moves: line.moves) ?? line.startFen
     }
 
-    private var subline: String {
-        guard let line, !line.moves.isEmpty else { return "Move both sides. Every move gets a grade." }
-        let moves = (line.moves.count + 1) / 2
-        let count = "\(moves) \(moves == 1 ? "move" : "moves")"
-        return "Continue · " + (line.openingName.map { "\($0) · \(count)" } ?? count)
-    }
-
     var body: some View {
-        HStack(spacing: DS.Spacing.m) {
-            VStack(alignment: .leading, spacing: DS.Spacing.xs) {
-                Text("Analysis board")
-                    .font(DS.Font.headline)
-                    .foregroundStyle(DS.Color.text)
-                Text(subline)
-                    .font(DS.Font.subheadline)
-                    .foregroundStyle(DS.Color.textSecondary)
-                    .lineLimit(2)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: DS.Spacing.s) {
             MiniBoardView(fen: fen)
-                .frame(width: 64, height: 64)
-        }
-        .padding(DS.Spacing.m)
-        .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
-        .contentShape(RoundedRectangle(cornerRadius: DS.Radius.large))
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-    }
-}
-
-/// The single accent surface on Home.
-private struct PlayCard: View {
-    let next: Bot
-
-    var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            VStack(alignment: .leading, spacing: DS.Spacing.xs) {
-                Text("Play a bot")
-                    .font(DS.Font.title)
-                HStack(spacing: 0) {
-                    Text("Next up: \(next.name) · ")
-                    Text(next.elo, format: .number.grouping(.never)).monospaced()
+                .frame(width: GameThumb.side, height: GameThumb.side)
+                .overlay(alignment: .topLeading) {
+                    Text(line?.moves.isEmpty == false ? "Board" : "New")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(DS.Color.text)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(DS.Color.background, in: RoundedRectangle(cornerRadius: 5))
+                        .padding(6)
                 }
-                .font(DS.Font.subheadline)
-                .opacity(0.85)
+            HStack(spacing: 6) {
+                IconImage("edit", size: 14).foregroundStyle(DS.Color.textSecondary)
+                Text("Analysis board")
+                    .font(.system(size: 13))
+                    .foregroundStyle(DS.Color.text)
+                    .lineLimit(1)
             }
-            .foregroundStyle(DS.Color.onAccent)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            Image(next.avatarAsset)
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 64, height: 64)
-                .accessibilityHidden(true)
+            .frame(width: GameThumb.side, alignment: .leading)
         }
-        .padding(DS.Spacing.m)
-        .frame(height: 132)
-        .background(DS.Color.accent, in: RoundedRectangle(cornerRadius: DS.Radius.large))
-        .contentShape(RoundedRectangle(cornerRadius: DS.Radius.large))
-        .accessibilityElement(children: .combine)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Analysis board")
         .accessibilityAddTraits(.isButton)
     }
 }

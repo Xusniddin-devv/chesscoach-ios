@@ -42,15 +42,14 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Centred stack: strip, bars, board, status line, flat action bar (`GameActionBar`, `GameAction`), bottom card | `App/Features/Shared/GameBoardScaffold.swift` (`BoardStackGeometry`) |
 | Move strip (SAN, class glyphs, branch tiles) | `App/Features/Shared/MoveStrip.swift` |
 | Player bars (avatar, Elo, captured, lead, accuracy) | `App/Features/Shared/PlayerBar.swift`, `App/Features/Shared/BoardMaterial.swift` |
-| Saved-game row (Home) | `App/Features/Shared/GameRow.swift` |
 | Small static board (filmstrip, weakness card) | `App/Features/Shared/MiniBoardView.swift` |
 
 ## Home
 
 | Feature | Files |
 |---|---|
-| Greeting, Play card, Analysis board card, recent games → Review (bots + imports; freeplay excluded: `recentGames`) | `App/Features/Home/HomeView.swift` |
-| Today's plan (day, tasks → puzzles / own mistakes / lesson / bot, goal line, next week) | `App/Features/Home/TodayPlanCard.swift`, `ChessCore/Onboarding/TrainingPlan.swift` |
+| Header (streak, rating → goal), coach line from real data, sparring link, Continue strip (analysis board + recent games → Review; freeplay excluded: `recentGames`) | `App/Features/Home/HomeView.swift` (thumbs: `GameThumb` in `ProfileView.swift`) |
+| Today's plan as a 3-token path (practice steps, bot as boss), Start, next week | `App/Features/Home/TodayPlanCard.swift`, `ChessCore/Onboarding/TrainingPlan.swift` |
 
 ## Analysis board (Freeplay) and position editor
 
@@ -103,7 +102,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Puzzles tab (daily, own mistakes, practice, streak, free allowance) | `App/Features/Puzzles/PuzzlesView.swift` |
+| Puzzles tab (coach + streak hook, daily, own mistakes, rating ruler, theme rows, free allowance) | `App/Features/Puzzles/PuzzlesView.swift` (`RatingRuler`) |
 | Solver screen + model (setup move, replies, verdict band, badges, SRS + streak + puzzle rating) | `App/Features/Puzzles/PuzzleSessionView.swift`, `PuzzleSessionModel.swift` |
 | Shared training frame (progress segments, coach narration, chunky buttons, verdict band, "Which move?" pills) | `App/Features/Shared/TrainingFrame.swift` |
 | Solution explanation (chips), puzzle rating (Elo, first outcomes) | `ChessCore/Puzzles/PuzzleExplainer.swift`, `ChessCore/Puzzles/PuzzleRating.swift` |

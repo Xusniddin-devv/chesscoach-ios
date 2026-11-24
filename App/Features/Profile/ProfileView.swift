@@ -343,7 +343,7 @@ private struct TierTrack: View {
 
 /// One saved game: its final position, the result on the board's corner, and the bot and
 /// your accuracy under it.
-private struct GameThumb: View {
+struct GameThumb: View {
     let game: ProfileModel.Game
 
     static let side: CGFloat = 112
