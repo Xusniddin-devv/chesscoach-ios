@@ -13,6 +13,7 @@ enum ModelStore {
     static let containerID = "iCloud.uz.xq.chessc"
     static let models: [any PersistentModel.Type] = [
         GameRecord.self, PuzzleProgress.self, LessonProgress.self, StreakState.self,
+        UserProfile.self, TrainingPlanRecord.self,
     ]
     static let schema = Schema(models)
 

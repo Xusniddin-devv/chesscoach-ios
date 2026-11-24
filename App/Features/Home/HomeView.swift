@@ -23,6 +23,9 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: DS.Spacing.l) {
                     NavigationLink(value: Route.botPicker) { PlayCard(next: .suggested) }
                         .buttonStyle(.plain)
+                    TodayPlanCard { bot in
+                        game = PlaySetup(bot: bot, mode: .training, color: .random)
+                    }
                     recent
                 }
                 .padding(.horizontal, DS.Spacing.m)
@@ -65,7 +68,10 @@ struct HomeView: View {
     @ViewBuilder
     private var recent: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s) {
-            SectionLabel("Recent games")
+            Text("Recent games")
+                .font(DS.Font.title)
+                .foregroundStyle(DS.Color.text)
+                .accessibilityAddTraits(.isHeader)
             // An unreadable record is skipped here; `GameRecord.snapshot` logs it.
             let games = records.compactMap { record in record.snapshot.map { (record.id, $0) } }
             if games.isEmpty {
@@ -125,13 +131,20 @@ private struct PlayCard: View {
 private struct RecentGameRow: View {
     let snapshot: GameSnapshot
 
-    private var bot: Bot? { Bot.all.first { $0.id == snapshot.botId } }
+    private var bot: Bot? { snapshot.isImported ? nil : Bot.all.first { $0.id == snapshot.botId } }
 
     var body: some View {
         HStack(spacing: DS.Spacing.sm) {
-            if let bot { AvatarTile(bot: bot, size: 32) }
+            if let bot {
+                AvatarTile(bot: bot, size: 32)
+            } else if snapshot.isImported {
+                Glyph(name: snapshot.source == ImportPlatform.lichess.rawValue ? "lichess" : "chesscom", size: 18)
+                    .foregroundStyle(DS.Color.text)
+                    .frame(width: 32, height: 32)
+                    .background(DS.Color.surface2, in: RoundedRectangle(cornerRadius: AvatarTile.radius(32)))
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text("vs \(bot?.name ?? snapshot.botId)")
+                Text("vs \(bot?.name ?? snapshot.opponentName ?? snapshot.botId)")
                     .font(DS.Font.headline)
                     .foregroundStyle(DS.Color.text)
                 Text(when)
@@ -151,7 +164,8 @@ private struct RecentGameRow: View {
 
     private var when: String {
         let date = snapshot.date
-        let mode = snapshot.mode == .training ? "Training" : "Silent"
+        let mode = snapshot.source.flatMap(ImportPlatform.init(rawValue:))?.title
+            ?? (snapshot.mode == .training ? "Training" : "Silent")
         let day: String
         if Calendar.current.isDateInToday(date) {
             day = date.formatted(date: .omitted, time: .shortened)

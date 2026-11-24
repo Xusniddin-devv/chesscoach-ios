@@ -32,6 +32,12 @@ struct LicensesView: View {
               url: URL(string: "https://database.lichess.org/#puzzles")),
     ]
 
+    static let art: [Entry] = [
+        Entry(name: "Icons by Icons8", license: "Icons8",
+              file: nil, note: "Interface icons by Icons8 (icons8.com), used under the Icons8 licence with attribution.",
+              url: URL(string: "https://icons8.com")),
+    ]
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DS.Spacing.l) {
@@ -48,6 +54,14 @@ struct LicensesView: View {
                     ForEach(Self.data) { entry in
                         NavigationLink { LicenseTextView(entry: entry) } label: {
                             SettingsLinkLabel(title: entry.name, value: entry.license)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                SettingsGroup("Art") {
+                    ForEach(Self.art) { entry in
+                        NavigationLink { LicenseTextView(entry: entry) } label: {
+                            SettingsLinkLabel(title: entry.name)
                         }
                         .buttonStyle(.plain)
                     }

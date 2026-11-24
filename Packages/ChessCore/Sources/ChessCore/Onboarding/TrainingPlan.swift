@@ -109,7 +109,7 @@ public struct TrainingPlan: Codable, Sendable, Equatable {
         }
         func review(day: Int) -> PlanTask {
             PlanTask(id: "d\(day)-own", kind: .ownMistakes, title: "\(min(puzzlesPerTask, ownMistakes)) of your own mistakes",
-                     detail: "Positions from your games. Find what you missed.", count: min(puzzlesPerTask, ownMistakes))
+                     detail: "Find the move you missed", count: min(puzzlesPerTask, ownMistakes))
         }
 
         let (a, b, c) = (focus[0], focus[1], focus[2])

@@ -23,10 +23,12 @@ struct SettingsView: View {
     @State private var restoreNote: String?
     @State private var confirmingReset = false
     @State private var resetFailed = false
+    @State private var importing = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DS.Spacing.l) {
+                games
                 play
                 feedback
                 pro
@@ -44,6 +46,9 @@ struct SettingsView: View {
         .task { if UserDefaults.standard.string(forKey: "debugOpen") == "paywall" { showingPaywall = true } }
         #endif
         .manageSubscriptionsSheet(isPresented: $showingManage)
+        .fullScreenCover(isPresented: $importing) {
+            OnboardingFlow(reimport: true) { importing = false }
+        }
         .confirmationDialog("Delete all games and settings?", isPresented: $confirmingReset, titleVisibility: .visible) {
             Button("Delete everything", role: .destructive, action: reset)
         } message: {
@@ -52,6 +57,13 @@ struct SettingsView: View {
     }
 
     // MARK: Sections
+
+    private var games: some View {
+        SettingsGroup("Your games", footer: "Reads your latest 20 chess.com or Lichess games and builds a new week of training.") {
+            Button { importing = true } label: { SettingsLinkLabel(title: "Import games") }
+                .buttonStyle(.plain)
+        }
+    }
 
     private var play: some View {
         SettingsGroup("Play") {
