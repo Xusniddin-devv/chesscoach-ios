@@ -169,6 +169,31 @@ struct OnboardingTests {
         UserDefaults.standard.removeObject(forKey: Pref.hasOnboarded)
     }
 
+    /// Cancelling an import and then choosing "I'm new to chess" must not keep the abandoned
+    /// account's games.
+    @Test func cancelledImportThenNewPlayerSavesNoGames() async throws {
+        let ctx = try context()
+        let background = BackgroundAnalysis(engine: FakeEngine(botMoves: []), idleDelay: .zero)
+        let model = OnboardingModel()
+        model.makeClient = { FakeClient(platform: $0) }
+        model.setFastEngine = { _ in }
+        model.background = background
+        model.go(.find)
+        model.pick(PlatformProfile(platform: .chesscom, username: "hikaru", ratings: ["rapid": 1234]))
+        try await waitUntil(seconds: 3) { !model.games.isEmpty }
+        model.cancelImport()
+        #expect(model.games.isEmpty)
+        model.startQuestions()
+        model.answer(0, 1)
+        model.answer(1, 2)
+        model.answer(2, 2)
+        model.buildPlan(completedLessons: [])
+        model.save(in: ctx)
+        defer { UserDefaults.standard.removeObject(forKey: Pref.hasOnboarded) }
+        #expect(try ctx.fetchCount(FetchDescriptor<GameRecord>()) == 0)
+        #expect(model.plan?.focus.first == .missedMate)  // the new-player answers, not the games
+    }
+
     @Test func coachTextChipsParse() {
         #expect(CoachText.segments("on [c4] and [f7].") == [.words("on "), .square("c4"), .words(" and "), .square("f7"), .words(".")])
         #expect(CoachText.segments("[x9] stays text") == [.words("[x9] stays text")])

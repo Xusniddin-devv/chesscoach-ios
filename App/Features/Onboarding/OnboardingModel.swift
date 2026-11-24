@@ -470,6 +470,8 @@ final class OnboardingModel {
         listener = nil
         background?.stopAll()
         restoreEngine()
+        // The abandoned account's games must not be saved later as the user's.
+        resetImport()
         back()
     }
 
@@ -514,6 +516,7 @@ final class OnboardingModel {
 
     /// New to chess from the `find` step.
     func startQuestions() {
+        resetImport()
         platform = nil
         pickedProfile = nil
         answers = [nil, nil, nil]
@@ -554,7 +557,8 @@ final class OnboardingModel {
         ProfileStore.saveProfile(platform: platform, username: profile?.username ?? "",
                                  avatarURL: profile?.avatarURL, rating: rating, in: context)
         ProfileStore.saveGoal(rating: target, months: months, in: context)
-        if !games.isEmpty { ProfileStore.saveGames(games, in: context) }
+        // Games only come from the account the user picked (a new player has none).
+        if platform != nil, !games.isEmpty { ProfileStore.saveGames(games, in: context) }
         if let plan { ProfileStore.savePlan(plan, in: context) }
         let band = PuzzleBank.ratingRange
         let puzzleRating = min(max((rating / 100) * 100, band.lowerBound), band.upperBound - 100)
@@ -563,7 +567,7 @@ final class OnboardingModel {
         UserDefaults.standard.set(true, forKey: Pref.hasOnboarded)
         if let listener { background?.stopListening(listener) }
         listener = nil
-        if !games.isEmpty { background?.replanWhenQuickDone() }
+        if platform != nil, !games.isEmpty { background?.replanWhenQuickDone() }
         restoreEngine()
     }
 }

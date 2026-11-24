@@ -53,6 +53,28 @@ struct ReviewModelTests {
         for _ in 0..<300 { await Task.yield() }
     }
 
+    // MARK: Imported games
+
+    @Test func importedGameNamesThePlatformOpponent() throws {
+        var game = snapshot()
+        game.botId = "chesscom"
+        game.source = "chesscom"
+        game.opponentName = "magnus_fan"
+        game.opponentRating = 1420
+        let (record, container) = try stored(game)
+        _ = container
+        let model = ReviewModel(record: record, engine: FakeEngine(botMoves: []))
+        #expect(model.botName == "magnus_fan")
+        #expect(model.opponentBar.name == "magnus_fan")
+        #expect(model.opponentBar.elo == 1420)
+
+        // No name on the platform record: a neutral word, never the platform's raw value.
+        game.opponentName = nil
+        let (unnamed, container2) = try stored(game)
+        _ = container2
+        #expect(ReviewModel(record: unnamed, engine: FakeEngine(botMoves: [])).botName == "Opponent")
+    }
+
     // MARK: Analysis
 
     @Test func analysisRunsOnceAndIsStored() async throws {

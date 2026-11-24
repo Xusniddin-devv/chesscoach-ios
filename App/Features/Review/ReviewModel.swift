@@ -85,7 +85,10 @@ final class ReviewModel {
     }
 
     var bot: Bot? { Bot.all.first { $0.id == snapshot.botId } }
-    var botName: String { bot?.name ?? snapshot.botId }
+    /// The bot, or an imported game's human opponent (never the platform's raw value).
+    var botName: String {
+        bot?.name ?? snapshot.opponentName ?? (snapshot.isImported || snapshot.botId.isEmpty ? "Opponent" : snapshot.botId)
+    }
     var needsAnalysis: Bool { isReadable && analysis == nil }
     var isAnalysing: Bool { analysisProgress != nil }
 
@@ -148,7 +151,7 @@ final class ReviewModel {
         snapshot = updated
         do {
             try record.update(updated)
-            try record.modelContext?.save()
+            record.modelContext?.saveReporting("this game's review")
         } catch {
             // The analysis stays on screen; the next visit runs it again.
             Self.log.error("Storing the analysis failed: \(String(describing: error), privacy: .public)")
@@ -415,7 +418,7 @@ final class ReviewModel {
     var opponentBar: PlayerBarModel {
         let color = snapshot.userColor.opposite
         let tray = BoardMaterial.tray(for: color, fen: displayedFen)
-        return PlayerBarModel(name: botName, elo: bot?.elo, avatarAsset: bot?.avatarAsset,
+        return PlayerBarModel(name: botName, elo: bot?.elo ?? snapshot.opponentRating, avatarAsset: bot?.avatarAsset,
                               captured: tray.captured, materialLead: tray.lead)
     }
 
