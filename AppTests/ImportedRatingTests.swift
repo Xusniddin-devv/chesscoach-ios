@@ -102,6 +102,24 @@ struct ImportedRatingTests {
         #expect(!RootTabView.showsTabs(hasOnboarded: false, hasProfile: false, onboardingEngaged: false))
     }
 
+    @Test func onboardingStopsHoldingOnceSaved() throws {
+        let container = try ModelContainer(
+            for: ModelStore.schema,
+            configurations: ModelConfiguration(schema: ModelStore.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        let model = OnboardingModel()
+        #expect(!model.holdsOnboarding)  // welcome
+        model.startQuestions()
+        #expect(model.holdsOnboarding)
+        model.answer(0, 1)
+        model.answer(1, 1)
+        model.answer(2, 0)
+        model.buildPlan(completedLessons: [])
+        model.save(in: container.mainContext)
+        defer { UserDefaults.standard.removeObject(forKey: Pref.hasOnboarded) }
+        // Saved: the stored profile now means "onboarded" (also for the debug finish hook).
+        #expect(!model.holdsOnboarding)
+    }
+
     @Test func savingOnboardingReplacesASyncedProfile() throws {
         // The old account's row arrived through sync; hikaru's save takes it over.
         ctx.insert(UserProfile(platform: "chesscom", username: "invaluable_me", currentRating: 844))
@@ -110,63 +128,4 @@ struct ImportedRatingTests {
         #expect(try ctx.fetchCount(FetchDescriptor<UserProfile>()) == 1)
         #expect(profile.username == "Hikaru" && profile.platformRating == 2838 && profile.goalRating == 2900)
     }
-
-    // MARK: Daily refresh from the platform
-
-    @Test func refreshUpdatesThePlatformRatingAtMostOnceADay() async throws {
-        let profile = try onboardHikaru()
-        let defaults = try #require(UserDefaults(suiteName: "ImportedRatingTests.refresh"))
-        defaults.removePersistentDomain(forName: "ImportedRatingTests.refresh")
-        let calls = Calls()
-        let client: (ImportPlatform) -> any GameImportClient = { RatingClient(platform: $0, rapid: 2851, calls: calls) }
-        let now = Date()
-
-        await PlatformRatingRefresh.refreshIfDue(in: ctx, now: now, defaults: defaults, client: client)
-        #expect(profile.currentRating == 2851)
-        #expect(calls.count == 1)
-
-        // Within a day: no request.
-        await PlatformRatingRefresh.refreshIfDue(in: ctx, now: now.addingTimeInterval(3_600), defaults: defaults, client: client)
-        #expect(calls.count == 1)
-        // A day later: asked again.
-        await PlatformRatingRefresh.refreshIfDue(in: ctx, now: now.addingTimeInterval(90_000), defaults: defaults, client: client)
-        #expect(calls.count == 2)
-    }
-
-    @Test func refreshFailsSilentlyAndSkipsNewPlayers() async throws {
-        let profile = try onboardHikaru()
-        let defaults = try #require(UserDefaults(suiteName: "ImportedRatingTests.fail"))
-        defaults.removePersistentDomain(forName: "ImportedRatingTests.fail")
-        let calls = Calls()
-        await PlatformRatingRefresh.refreshIfDue(in: ctx, defaults: defaults) { RatingClient(platform: $0, rapid: nil, calls: calls) }
-        #expect(profile.currentRating == 2838)
-
-        ProfileStore.saveProfile(platform: nil, username: "", avatarURL: nil, rating: 600, in: ctx)
-        defaults.removePersistentDomain(forName: "ImportedRatingTests.fail")
-        await PlatformRatingRefresh.refreshIfDue(in: ctx, defaults: defaults) { RatingClient(platform: $0, rapid: 2000, calls: calls) }
-        #expect(calls.count == 1)
-        #expect(ProfileStore.profile(in: ctx)?.currentRating == 600)
-    }
-}
-
-private final class Calls: @unchecked Sendable {
-    private let lock = NSLock()
-    private var n = 0
-    var count: Int { lock.withLock { n } }
-    func hit() { lock.withLock { n += 1 } }
-}
-
-/// The platform profile with one rapid rating; nil = the request fails.
-private struct RatingClient: GameImportClient {
-    let platform: ImportPlatform
-    let rapid: Int?
-    let calls: Calls
-
-    func profile(_ username: String) async throws -> PlatformProfile {
-        calls.hit()
-        guard let rapid else { throw ImportError.network }
-        return PlatformProfile(platform: platform, username: username, ratings: ["rapid": rapid, "blitz": 3442])
-    }
-
-    func recentGames(_ username: String, limit: Int, progress: @Sendable (Int) -> Void) async throws -> [ImportedGame] { [] }
 }

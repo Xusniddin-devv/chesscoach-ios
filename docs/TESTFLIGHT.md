@@ -42,7 +42,7 @@ TestFlight and App Store builds use the **Production** CloudKit environment. Wit
 These answers must match `App/PrivacyInfo.xcprivacy`, and RevenueCat's manifest when RevenueCat is used.
 
 - [ ] Tracking: **No**.
-- [ ] Data collected by the app itself: **none**. Games, progress and the profile stay on the device and in the user's own iCloud private database, which Apple doesn't count as developer collection. Usernames go to chess.com and Lichess only to fetch public games.
+- [ ] Data collected by the app itself: **none**. Games, progress and the profile stay on the device and in the user's own iCloud private database, which Apple doesn't count as developer collection. Usernames go to chess.com and Lichess only to fetch public games (onboarding, Change account, and Pro auto-sync of the linked account). Nothing else is sent.
 - [ ] If RevenueCat is used: **Purchase History**, not linked to the user, not used for tracking, purpose App Functionality. This is declared in RevenueCat's `PrivacyInfo.xcprivacy`.
 - [ ] Microphone and speech: on-device only, nothing collected. The usage strings are already in `project.yml`.
 - [ ] Archive once, then in Xcode Organizer → the archive → **Generate Privacy Report**. Check that it lists UserDefaults (CA92.1), File Timestamp (C617.1) and RevenueCat's entries, and nothing else.
@@ -57,6 +57,7 @@ These answers must match `App/PrivacyInfo.xcprivacy`, and RevenueCat's manifest 
 - [ ] Onboarding import timing on device, on cellular and on Wi-Fi: time to the reveal (target about 10 s), and when the background quick pass and full pass finish.
 - [ ] Voice: hold the mic during a phone call and with a Bluetooth headset. Expect the inline "The microphone isn't available right now.", never a crash.
 - [ ] Hold-to-talk, haptics and sounds on device.
+- [ ] Auto-sync (Pro, linked account): play a game on chess.com or Lichess, reopen the app after 15 min or pull down on Home; the game appears in Continue and is analysed. Background app refresh (`uz.xq.chessc.sync`, Info.plist `UIBackgroundModes` fetch) can't run in the Simulator: on device, leave the app in the background for a few hours, or in Xcode pause and run `e -l objc -- (void)[[BGTaskScheduler sharedScheduler] _simulateLaunchForTaskWithIdentifier:@"uz.xq.chessc.sync"]`.
 
 ## 9. Upload
 

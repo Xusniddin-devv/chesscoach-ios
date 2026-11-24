@@ -46,31 +46,68 @@ public struct ChessComClient: GameImportClient {
             try Task.checkCancellation()
             guard pgns.count < limit, let monthURL = URL(string: archive),
                   monthURL.host == base.host else { continue }
-            let month: Month
-            do {
-                month = try JSONDecoder().decode(Month.self, from: try await http.fetch(monthURL))
-            } catch ImportError.rateLimited {
-                throw ImportError.rateLimited
-            } catch ImportError.network {
-                throw ImportError.network
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                continue  // one broken month: keep the rest
-            }
-            for game in month.games.reversed() where (game.rules ?? "chess") == "chess" {
-                guard let pgn = game.pgn, !pgn.isEmpty else { continue }
-                // Present only for games reviewed on chess.com.
-                let accuracy = game.accuracies.flatMap { a in
-                    a.white == nil && a.black == nil ? nil : PlatformAccuracy(white: a.white, black: a.black, source: "chesscom")
-                }
-                pgns.append(ImportedGame(pgn: pgn, accuracy: accuracy))
+            guard let month = try await month(monthURL) else { continue }
+            for game in month.reversed() {
+                pgns.append(game)
                 progress(pgns.count)
                 if pgns.count == limit { break }
             }
             if pgns.count >= limit { break }
         }
         return pgns
+    }
+
+    /// Auto-sync: the archives from `since`'s month (UTC) onward, newest first, up to the
+    /// first stored game. A game that started before `since` is skipped (a long daily game
+    /// can finish after newer ones).
+    public func games(_ username: String, since: Date, limit: Int,
+                      isKnown: @Sendable (ImportedGame) -> Bool) async throws -> [ImportedGame] {
+        let archives = try JSONDecoder().decode(Archives.self, from: try await http.fetch(url(username, "/games/archives")))
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let start = utc.dateComponents([.year, .month], from: since)
+        let sinceMonth = (start.year ?? 0) * 12 + (start.month ?? 0)
+        var out: [ImportedGame] = []
+        for archive in archives.archives.reversed() {
+            try Task.checkCancellation()
+            guard let monthURL = URL(string: archive), monthURL.host == base.host else { continue }
+            let ym = monthURL.pathComponents.suffix(2).compactMap { Int($0) }
+            guard ym.count == 2 else { continue }
+            if ym[0] * 12 + ym[1] < sinceMonth { break }
+            guard let month = try await month(monthURL) else { continue }
+            for game in month.reversed() {
+                if isKnown(game) { return out }
+                if let date = PGNImporter.date(pgn: game.pgn), date <= since { continue }
+                out.append(game)
+                if out.count == limit { return out }
+            }
+        }
+        return out
+    }
+
+    /// One monthly archive's standard games, oldest first; nil for a broken month (the rest
+    /// are still read). Rate limits, network failures and cancellation are thrown.
+    private func month(_ monthURL: URL) async throws -> [ImportedGame]? {
+        let month: Month
+        do {
+            month = try JSONDecoder().decode(Month.self, from: try await http.fetch(monthURL))
+        } catch ImportError.rateLimited {
+            throw ImportError.rateLimited
+        } catch ImportError.network {
+            throw ImportError.network
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return nil
+        }
+        return month.games.compactMap { game in
+            guard (game.rules ?? "chess") == "chess", let pgn = game.pgn, !pgn.isEmpty else { return nil }
+            // Present only for games reviewed on chess.com.
+            let accuracy = game.accuracies.flatMap { a in
+                a.white == nil && a.black == nil ? nil : PlatformAccuracy(white: a.white, black: a.black, source: "chesscom")
+            }
+            return ImportedGame(pgn: pgn, accuracy: accuracy)
+        }
     }
 
     // MARK: Wire format

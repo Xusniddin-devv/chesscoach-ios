@@ -50,6 +50,7 @@ struct ProfileView: View {
             .contentMargins(.bottom, DS.Spacing.l, for: .scrollContent)
             .scrollIndicators(.hidden)
             .scrollPosition($scroll)
+            .autoSyncRefreshable()
             .background(DS.Color.background)
             .navigationTitle("You")
             .toolbar {

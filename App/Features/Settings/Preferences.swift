@@ -14,6 +14,8 @@ enum Pref {
     static let hasOnboarded = "hasOnboarded"
     /// The player's puzzle rating (Elo from first outcomes).
     static let puzzleRating = "puzzles.elo"
+    /// Auto-sync games from the linked chess.com / Lichess account (Pro; on by default).
+    static let autoSync = "pref.autoSync"
 
     enum Default {
         static let sound = true
@@ -22,6 +24,7 @@ enum Pref {
         static let coordinates = true
         static let wording = Wording.words
         static let defaultMode = PlayMode.training
+        static let autoSync = true
     }
 
     /// "Show moves as" (spec: Words below ~1200, the default for beginners).
@@ -32,11 +35,14 @@ enum Pref {
         var moveWording: MoveWording { self == .words ? .words : .notation }
     }
 
-    static var all: [String] { [sound, haptics, voice, coordinates, wording, defaultMode, hasOnboarded, "puzzles.rating", puzzleRating, "learn.track"] }
+    static var all: [String] {
+        [sound, haptics, voice, coordinates, wording, defaultMode, hasOnboarded, "puzzles.rating", puzzleRating, "learn.track",
+         autoSync, GameAutoSync.scheduleKey, GameAutoSync.proSeenKey]
+    }
 
     /// A Bool preference with its default when never set.
-    static func bool(_ key: String, default value: Bool = true) -> Bool {
-        UserDefaults.standard.object(forKey: key) as? Bool ?? value
+    static func bool(_ key: String, default value: Bool = true, in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: key) as? Bool ?? value
     }
 
     static var wordingValue: Wording {

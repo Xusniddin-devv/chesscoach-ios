@@ -8,6 +8,12 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
+	<!-- Auto-sync of the linked chess.com / Lichess account (GameAutoSync.backgroundTaskID). -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>uz.xq.chessc.sync</string>
 	</array>
 </dict>
 </plist>

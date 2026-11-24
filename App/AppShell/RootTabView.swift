@@ -8,6 +8,10 @@ struct RootTabView: View {
 
     @Environment(EngineHub.self) private var hub
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(Entitlements.self) private var entitlements
+    @Environment(GameAutoSync.self) private var autoSync: GameAutoSync?
+    @Environment(BackgroundAnalysis.self) private var analysis: BackgroundAnalysis?
     @AppStorage(Pref.hasOnboarded) private var hasOnboarded = false
     @Query private var records: [GameRecord]
     /// Onboarding saves the profile as it finishes, so a profile row means "onboarded" on
@@ -17,6 +21,9 @@ struct RootTabView: View {
     @State private var saveIssues = SaveIssues.shared
     /// The user is mid-onboarding (picked an account or started the questions).
     @State private var onboardingEngaged = false
+    @State private var launched = false
+
+    private static var inTests: Bool { ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil }
 
     private var isOnboarded: Bool {
         Self.showsTabs(hasOnboarded: hasOnboarded, hasProfile: !profiles.isEmpty, onboardingEngaged: onboardingEngaged)
@@ -38,7 +45,7 @@ struct RootTabView: View {
                 OnboardingFlow(onEngagedChange: { onboardingEngaged = $0 }) {
                     withAnimation(.easeInOut(duration: 0.4)) { hasOnboarded = true }
                 }
-                    .transition(.opacity)
+                .transition(.opacity)
             }
         }
         .tint(DS.Color.accent)
@@ -58,10 +65,18 @@ struct RootTabView: View {
         // Copies of one game left by sync (a re-import on a second phone) are merged at
         // launch and whenever iCloud delivers changes.
         .task { GameRecord.mergeDuplicates(in: context) }
-        // An imported player's chess.com / Lichess rating, refreshed at most once a day.
-        .task(id: profiles.isEmpty) {
-            guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
-            await PlatformRatingRefresh.refreshIfDue(in: context)
+        // Auto-sync of the linked account on launch and every return to the foreground
+        // (throttled inside); Pro is remembered for background refreshes.
+        .onChange(of: entitlements.isPro, initial: true) { old, pro in
+            // The store answers after launch: a launch-time `false` is not a lapse.
+            guard pro || old != pro else { return }
+            autoSync?.notePro(pro)
+            if pro { syncNow(.launch) }
+        }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            guard phase == .active else { return }
+            syncNow(launched ? .foreground : .launch)
+            launched = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in
             GameRecord.mergeDuplicates(in: context)
@@ -74,6 +89,11 @@ struct RootTabView: View {
             saveIssues.report("your puzzle progress", error: CocoaError(.fileWriteUnknown), context: context)
         }
         #endif
+    }
+
+    private func syncNow(_ trigger: GameAutoSync.Trigger) {
+        guard isOnboarded, !Self.inTests, let autoSync else { return }
+        Task { await autoSync.sync(in: context, analysis: analysis, isPro: entitlements.isPro, trigger: trigger) }
     }
 
     private var tabs: some View {

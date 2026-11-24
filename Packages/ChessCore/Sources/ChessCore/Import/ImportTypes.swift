@@ -105,6 +105,10 @@ public protocol GameImportClient: Sendable {
     /// evals the platform already has. `progress(fetched)` fires as games arrive.
     func recentGames(_ username: String, limit: Int,
                      progress: @Sendable (Int) -> Void) async throws -> [ImportedGame]
+    /// Auto-sync: standard games started after `since`, newest first, at most `limit`,
+    /// stopping at the first one `isKnown` (already stored). Default: `recentGames` cut there.
+    func games(_ username: String, since: Date, limit: Int,
+               isKnown: @Sendable (ImportedGame) -> Bool) async throws -> [ImportedGame]
 }
 
 extension HTTPClient {

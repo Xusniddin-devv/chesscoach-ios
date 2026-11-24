@@ -10,7 +10,7 @@ struct OnboardingFlow: View {
     @Environment(BackgroundAnalysis.self) private var background: BackgroundAnalysis?
     @Query private var lessons: [LessonProgress]
     let onFinish: () -> Void
-    /// Whether the user is past the find step (`Step.isEngaged`).
+    /// Whether the flow must stay up against a synced profile (`OnboardingModel.holdsOnboarding`).
     var onEngagedChange: (Bool) -> Void = { _ in }
 
     init(reimport: Bool = false, onEngagedChange: @escaping (Bool) -> Void = { _ in }, onFinish: @escaping () -> Void) {
@@ -48,7 +48,7 @@ struct OnboardingFlow: View {
         }
         .preferredColorScheme(.dark)
         .onAppear { model.background = background }
-        .onChange(of: model.step.isEngaged, initial: true) { _, engaged in onEngagedChange(engaged) }
+        .onChange(of: model.holdsOnboarding, initial: true) { _, holds in onEngagedChange(holds) }
         #if DEBUG
         .task { await OnboardingDebug.apply(model, context: context) }
         #endif

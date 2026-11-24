@@ -111,6 +111,12 @@ final class OnboardingModel {
     var target = 1000
     var months = 3
     private(set) var plan: TrainingPlan?
+    /// `save(in:)` ran: the profile, goal, plan and games are stored.
+    private(set) var saved = false
+
+    /// The flow holds the screen against a profile synced from another device: the user has
+    /// picked an account (or started the questions) and nothing is saved yet.
+    var holdsOnboarding: Bool { step.isEngaged && !saved }
 
     @ObservationIgnored private var lookupTask: Task<Void, Never>?
     @ObservationIgnored private var importTask: Task<Void, Never>?
@@ -562,6 +568,7 @@ final class OnboardingModel {
     /// being read are saved as they are; the background queue fills them in and rebuilds the
     /// plan when the last one is done.
     func save(in context: ModelContext) {
+        defer { saved = true }
         let profile = foundProfile
         ProfileStore.saveProfile(platform: platform, username: profile?.username ?? "",
                                  avatarURL: profile?.avatarURL, rating: rating, in: context)
