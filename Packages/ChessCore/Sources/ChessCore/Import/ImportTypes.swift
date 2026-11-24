@@ -33,9 +33,15 @@ public struct PlatformProfile: Sendable, Equatable, Codable {
     public var avatarURL: URL?
     /// Ratings by time control key: "rapid", "blitz", "bullet", "daily"/"classical".
     public var ratings: [String: Int]
+    /// Games played there (all time controls), when the platform says.
+    public var gameCount: Int?
+    /// When the account was opened.
+    public var joined: Date?
 
     public init(platform: ImportPlatform, username: String, realName: String? = nil, title: String? = nil,
-                avatarURL: URL? = nil, ratings: [String: Int] = [:]) {
+                avatarURL: URL? = nil, ratings: [String: Int] = [:], gameCount: Int? = nil, joined: Date? = nil) {
+        self.gameCount = gameCount
+        self.joined = joined
         self.platform = platform
         self.username = username
         self.realName = realName
@@ -95,10 +101,10 @@ public protocol GameImportClient: Sendable {
     var platform: ImportPlatform { get }
     /// Throws `ImportError.userNotFound` for an unknown or closed account.
     func profile(_ username: String) async throws -> PlatformProfile
-    /// The latest standard-chess games as PGN, newest first, at most `limit`.
-    /// `progress(fetched)` fires as games arrive.
+    /// The latest standard-chess games, newest first, at most `limit`, with any accuracy or
+    /// evals the platform already has. `progress(fetched)` fires as games arrive.
     func recentGames(_ username: String, limit: Int,
-                     progress: @Sendable (Int) -> Void) async throws -> [String]
+                     progress: @Sendable (Int) -> Void) async throws -> [ImportedGame]
 }
 
 extension HTTPClient {

@@ -36,6 +36,7 @@ struct LessonView: View {
             if let model { frame(model) } else { DS.Color.background.ignoresSafeArea() }
         }
         .paywall(isPresented: $showPaywall, feature: .allLessons)
+        .holdsEngine()
         .task {
             guard model == nil else { return }
             let next = LessonModel(lesson: lesson)

@@ -26,22 +26,6 @@ private func analysed(_ verdicts: [Verdict], user: Piece.Color = .white, acc: Do
 }
 
 @Suite struct OnboardingAnalysisTests {
-    @Test func analysesEachGameInOrderWithProgress() async {
-        let engine = FakeEngine()
-        let games = [game(["e2e4", "e7e5"]), game(["d2d4"]), game(["e2e4", "zz99"])]
-        let log = EventLog()
-        let out = await OnboardingAnalysis(engine: engine).run(games) { log.append($0) }
-        #expect(out.count == 3)
-        #expect(out[0].analysis?.depth == 12 && out[1].analysis != nil)
-        #expect(out[2].analysis == nil)  // illegal move: kept, unanalysed
-        let events = log.events
-        #expect(events.first == .gameStarted(index: 0, total: 3))
-        #expect(events.contains(.position(index: 0, done: 3, positions: 3)))
-        #expect(events.contains(.gameFailed(index: 2)))
-        #expect(events.filter { if case .gameFinished = $0 { true } else { false } }.count == 2)
-        #expect(engine.requests.allSatisfy { $0.depth == 12 })
-    }
-
     @Test func weaknessReportRanksMotifsByCountThenGames() {
         let g1 = analysed([
             verdict(ply: 1, mover: .white, cls: .blunder, motifs: [.hangingPiece], drop: 30),
@@ -71,13 +55,6 @@ private func analysed(_ verdicts: [Verdict], user: Piece.Color = .white, acc: Do
         let clean = CoachCommentary.afterGame(index: 0, snapshot: analysed([], acc: 92))
         #expect(clean.mood == .pleased && clean.text.contains("92 accuracy"))
     }
-}
-
-final class EventLog: @unchecked Sendable {
-    private let lock = NSLock()
-    private var _events: [OnboardingEvent] = []
-    var events: [OnboardingEvent] { lock.withLock { _events } }
-    func append(_ e: OnboardingEvent) { lock.withLock { _events.append(e) } }
 }
 
 @Suite struct RatingTierTests {
@@ -172,6 +149,18 @@ final class EventLog: @unchecked Sendable {
         let plan = TrainingPlan.make(weaknesses: a.weaknesses, rating: a.estimatedRating, ownMistakes: 0, preferredTrack: a.track)
         #expect(plan.focus.first == .missedMate)
         #expect(plan.days[0].tasks.contains { $0.lessonId == LessonLibrary.lessons(in: .checkmates).first?.id })
+    }
+
+    @Test func playFrequencySizesTheWeek() {
+        let daily = TrainingPlan.make(weaknesses: [.hangingPiece], rating: 900, ownMistakes: 10, frequency: .daily)
+        let weekends = TrainingPlan.make(weaknesses: [.hangingPiece], rating: 900, ownMistakes: 10, frequency: .weekends)
+        let usual = TrainingPlan.make(weaknesses: [.hangingPiece], rating: 900, ownMistakes: 10)
+        func puzzles(_ p: TrainingPlan) -> [Int] { p.days.flatMap(\.tasks).filter { $0.kind == .puzzles }.map(\.count) }
+        #expect(puzzles(daily).allSatisfy { $0 == 8 })
+        #expect(puzzles(weekends).allSatisfy { $0 == 3 })
+        #expect(puzzles(usual).allSatisfy { $0 == 5 })  // few times a week: the old size
+        #expect(daily.days[0].tasks.first?.count == 8)  // own mistakes too
+        #expect(PlayFrequency.allCases.map(\.title) == ["Daily", "Few times a week", "Weekends"])
     }
 
     @Test func planRoundTripsAsJSON() throws {

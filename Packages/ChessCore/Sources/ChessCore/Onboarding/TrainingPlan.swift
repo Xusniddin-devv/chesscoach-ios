@@ -47,6 +47,28 @@ public struct PlanDay: Codable, Sendable, Equatable, Identifiable {
 }
 
 /// A week of training built from the user's weaknesses (or onboarding answers).
+/// How often the player plays (the coach asks during the import). It sizes each day's tasks.
+public enum PlayFrequency: String, Codable, Sendable, CaseIterable {
+    case daily, fewTimesAWeek, weekends
+
+    public var title: String {
+        switch self {
+        case .daily: "Daily"
+        case .fewTimesAWeek: "Few times a week"
+        case .weekends: "Weekends"
+        }
+    }
+
+    /// Puzzles per puzzle task (and own mistakes per review).
+    public var puzzlesPerTask: Int {
+        switch self {
+        case .daily: 8
+        case .fewTimesAWeek: TrainingPlan.puzzlesPerTask
+        case .weekends: 3
+        }
+    }
+}
+
 public struct TrainingPlan: Codable, Sendable, Equatable {
     public static let length = 7
     public static let puzzlesPerTask = 5
@@ -74,7 +96,8 @@ public struct TrainingPlan: Codable, Sendable, Equatable {
     ///   - preferredTrack: track for lessons that aren't tied to a weakness (new players' goal).
     public static func make(weaknesses: [Motif], rating: Int, ownMistakes: Int,
                             completedLessons: Set<String> = [], preferredTrack: LessonTrack? = nil,
-                            now: Date = .now) -> TrainingPlan {
+                            frequency: PlayFrequency = .fewTimesAWeek, now: Date = .now) -> TrainingPlan {
+        let puzzlesPerTask = frequency.puzzlesPerTask
         var focus: [Motif] = []
         for m in weaknesses + defaultFocus where !focus.contains(m) { focus.append(m) }
         focus = Array(focus.prefix(3))

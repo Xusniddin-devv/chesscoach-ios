@@ -41,6 +41,7 @@ struct PlayView: View {
         .task { if model == nil { begin() } }
         .onAppear { hub.isGameLive = true }
         .onDisappear { hub.isGameLive = false }
+        .holdsEngine()  // no background analysis while a game is live
     }
 
     private func begin() {

@@ -42,16 +42,9 @@ struct TodayPlanCard: View {
                         .foregroundStyle(DS.Color.textSecondary)
                 }
             }
-            HStack(alignment: .top, spacing: 0) {
-                ForEach(Array(steps.enumerated()), id: \.element.id) { i, task in
-                    StepToken(task: task, bot: task.kind == .play ? Bot.all.first { $0.id == task.botId } : nil,
-                              state: isDone(task) ? .done : task.id == current?.id ? .current : .next,
-                              leadingLit: i > 0 && isDone(steps[i - 1]), hasLeading: i > 0,
-                              trailingLit: isDone(task), hasTrailing: i < steps.count - 1) { start(task) }
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.top, DS.Spacing.m)
+            PlanPath(steps: steps, state: { isDone($0) ? .done : $0.id == current?.id ? .current : .next },
+                     action: start)
+                .padding(.top, DS.Spacing.m)
             if let current {
                 Button("Start · \(current.title)") { start(current) }
                     .buttonStyle(ChunkyButtonStyle())
@@ -78,7 +71,10 @@ struct TodayPlanCard: View {
     static func steps(_ plan: TrainingPlan?, defaults: [PlanTask], boss: Bot) -> [PlanTask] {
         guard let plan, let i = plan.dayIndex(on: .now) else { return defaults }
         let tasks = plan.days[i].tasks
+        // The day's game, else the week's sparring bot, else the ladder's next bot.
+        let weekGame = plan.days.flatMap(\.tasks).first { $0.kind == .play }
         let play = tasks.first { $0.kind == .play }
+            ?? weekGame.map { PlanTask(id: "boss-\(i)", kind: .play, title: $0.title, detail: $0.detail, botId: $0.botId) }
             ?? PlanTask(id: "boss-\(boss.id)", kind: .play, title: "Play \(boss.name)", detail: "Next on the ladder", botId: boss.id)
         let practice = tasks.filter { $0.kind != .play }.prefix(2)
         return practice.isEmpty ? defaults : Array(practice) + [play]
@@ -169,10 +165,40 @@ struct TodayPlanCard: View {
     }
 }
 
+/// A day as a short path: its steps as chunky tokens joined by a track (accent behind done
+/// steps). Home's Today's plan and onboarding's week both draw days this way.
+struct PlanPath: View {
+    let steps: [PlanTask]
+    let state: (PlanTask) -> StepToken.State
+    let action: (PlanTask) -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Array(steps.enumerated()), id: \.element.id) { i, task in
+                StepToken(task: task, bot: task.kind == .play ? Bot.all.first { $0.id == task.botId } : nil,
+                          state: state(task),
+                          leadingLit: i > 0 && state(steps[i - 1]) == .done, hasLeading: i > 0,
+                          trailingLit: state(task) == .done, hasTrailing: i < steps.count - 1) { action(task) }
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    /// The Icons8 glyph for a step's kind.
+    static func glyph(_ kind: PlanTask.Kind) -> String {
+        switch kind {
+        case .puzzles: "puzzle"
+        case .ownMistakes: "review"
+        case .lesson: "lesson"
+        case .play: "play"
+        }
+    }
+}
+
 /// One step of the day's path: a chunky round token (the bot's avatar for the game — the
 /// day's boss), the track to its neighbours (accent once the step before is done), and its
 /// name under it.
-private struct StepToken: View {
+struct StepToken: View {
     enum State { case done, current, next }
 
     let task: PlanTask
@@ -245,7 +271,7 @@ private struct StepToken: View {
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 50, height: 50)
         } else {
-            IconImage(PlanTaskRow.glyph(task.kind), size: 28)
+            IconImage(PlanPath.glyph(task.kind), size: 28)
                 .foregroundStyle(state == .next ? DS.Color.text.opacity(0.5) : state == .current || state == .done ? DS.Color.onAccent : DS.Color.text)
         }
     }

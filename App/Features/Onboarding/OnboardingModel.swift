@@ -4,59 +4,94 @@ import Observation
 import ChessCore
 import StockfishKit
 
-/// Drives onboarding: platform → username (live check) → import + analysis → reveal → goal
-/// → plan; or the new-player questions instead of the import. Saves everything at the end.
+/// Drives onboarding: find the account (one username, looked up on chess.com and Lichess at
+/// once) → import → reveal → goal → plan; or the new-player questions instead. Saves
+/// everything at the end.
+///
+/// The import screen never makes the user wait for 20 full analyses: platform accuracies and
+/// Lichess evals arrive with the games, the rest get a quick pass in `BackgroundAnalysis`, the
+/// screen sweeps the 20 boards (real final positions and results) and moves on as soon as
+/// enough is known for the plan. The remaining games keep being read through the goal and
+/// plan steps, and after onboarding the plan is rebuilt when they are done.
 @MainActor
 @Observable
 final class OnboardingModel {
     enum Step: Hashable {
-        case welcome, platform, username, importing, question(Int), reveal, goal, plan
+        case welcome, find, importing, question(Int), reveal, goal, plan
     }
 
     enum Lookup: Equatable {
         case idle, checking, found(PlatformProfile), notFound, failed(String)
     }
 
-    enum Phase: Equatable { case fetching, converting, analysing, done, failed(String) }
+    enum Phase: Equatable { case fetching, reading, done, failed(String) }
 
-    /// One of the 20 tiles on the import screen.
+    /// One of the 20 boards on the import screen.
     struct Slot: Identifiable, Equatable {
-        enum State: Equatable { case waiting, fetched, analysing, done, failed }
+        enum State: Equatable { case waiting, fetched, failed }
         let id: Int
         var state: State = .waiting
         var snapshot: GameSnapshot?
-        /// Position after each ply (index 0 = start), for the live board.
+        /// Position after each ply (index 0 = start), for the big board's flip-through.
         var fens: [String] = []
-        /// Ply shown while analysing.
-        var ply = 0
+        /// A real accuracy only: the platform's, else this app's analysis. Never estimated.
         var accuracy: Double?
+        var analysed = false
         var won: Bool?
 
-        var fen: String {
-            guard !fens.isEmpty else { return Rules.startFen }
-            return fens[min(max(ply, 0), fens.count - 1)]
-        }
+        var finalFen: String { fens.last ?? Rules.startFen }
     }
 
     static let gameLimit = 20
+    /// Move on once this many games are analysed (or the budget runs out)…
+    static let enoughGames = 8
+    /// …measured from the moment the games are laid out. The sweep itself takes ~9 s.
+    static let readBudget: Duration = .seconds(10.5)
+    /// Time per board in the sweep.
+    static let sweepStep: Duration = .milliseconds(450)
+    /// The coach's "reading the rest" line stays this long before the reveal.
+    static let handoffPause: Duration = .seconds(1.4)
+    /// The coach asks how often the user plays once this many games are read or this long
+    /// after the games are laid out, whichever comes first…
+    static let askAfter = 3
+    static let askAfterTime: Duration = .seconds(4)
+    /// …and waits for the answer until this long after the games are laid out.
+    static let questionCap: Duration = .seconds(12)
 
     let reimport: Bool
     var step: Step
     private(set) var history: [Step] = []
 
-    // Platform + username
-    var platform: ImportPlatform?
+    // Find: one name, both platforms
+    private(set) var platform: ImportPlatform?
     var username = ""
-    private(set) var lookup: Lookup = .idle
+    private(set) var lookups: [ImportPlatform: Lookup] = [.chesscom: .idle, .lichess: .idle]
+    private(set) var pickedProfile: PlatformProfile?
+
+    /// The import screen knows enough to move on.
+    private(set) var handoverReady = false
+    /// Slot ids in the order their analysis arrived (the board shows the latest one).
+    private(set) var finishOrder: [Int] = []
+    /// The coach's one question during the import (shown once a few games are read).
+    private(set) var askingFrequency = false
+    /// The answer: it sizes the week's tasks.
+    private(set) var frequency: PlayFrequency?
 
     // Import
     private(set) var phase: Phase = .fetching
     private(set) var slots: [Slot] = (0..<OnboardingModel.gameLimit).map { Slot(id: $0) }
     private(set) var fetchedCount = 0
-    private(set) var movesAnalysed = 0
-    private(set) var gamesDone = 0
+    /// The board the sweep is on (nil before it starts and after it ends).
+    private(set) var sweepIndex: Int?
+    /// Ply shown on the big board while the sweep flips through the current game.
+    private(set) var sweepPly = 0
+    private(set) var sweepDone = false
+    private(set) var gamesAnalysed = 0
+    /// Plies whose evals came with the games (Lichess), counted as read.
+    private(set) var platformPlies = 0
     private(set) var coachLine = CoachLine(.neutral, "")
     private(set) var games: [GameSnapshot] = []
+    /// What the reveal shows: the weaknesses known when the import screen handed over.
     private(set) var report: WeaknessReport?
 
     // New player
@@ -70,14 +105,20 @@ final class OnboardingModel {
 
     @ObservationIgnored private var lookupTask: Task<Void, Never>?
     @ObservationIgnored private var importTask: Task<Void, Never>?
+    @ObservationIgnored private var sweepTask: Task<Void, Never>?
+    @ObservationIgnored private var listener: UUID?
+    @ObservationIgnored private var positionsBase = 0
+    @ObservationIgnored private var fastEngineOn = false
     @ObservationIgnored var makeClient: (ImportPlatform) -> any GameImportClient = { platform in
         switch platform {
         case .chesscom: ChessComClient()
         case .lichess: LichessClient()
         }
     }
-    @ObservationIgnored var engine: any ChessEngine = StockfishEngine.shared
-    /// More engine threads while onboarding reads 20 games; back to the app default after.
+    /// The app's background analysis (set by `OnboardingFlow`; tests pass their own).
+    @ObservationIgnored var background: BackgroundAnalysis?
+    /// More engine threads while onboarding reads games (nothing else uses the engine then);
+    /// back to the app default when onboarding ends.
     @ObservationIgnored var setFastEngine: @Sendable (Bool) async -> Void = { fast in
         let threads = fast ? max(1, min(4, ProcessInfo.processInfo.activeProcessorCount - 2)) : EngineHub.defaultThreads
         await StockfishEngine.shared.configure(threads: threads, hashMB: EngineHub.defaultHashMB)
@@ -85,14 +126,33 @@ final class OnboardingModel {
 
     init(reimport: Bool = false) {
         self.reimport = reimport
-        step = reimport ? .platform : .welcome
+        step = reimport ? .find : .welcome
     }
 
     // MARK: Navigation
 
     func go(_ next: Step) {
         history.append(step)
-        withAnimation(.snappy(duration: 0.35)) { step = next }
+        // Leaving the find step: no slide. A focused text field being slid out could stay on
+        // screen over the next step.
+        if step == .find {
+            var t = Transaction(animation: nil)
+            t.disablesAnimations = true
+            withTransaction(t) { step = next }
+        } else {
+            withAnimation(.snappy(duration: 0.35)) { step = next }
+        }
+        confirmStep()
+    }
+
+    /// Bumped one main-actor hop after every step change; the flow reads it. Measured on the
+    /// simulator: a step change made while the import's state changes around it could be
+    /// rendered with the old step (the view read it mid-update) and never refresh; the
+    /// second change makes the flow read the step again.
+    private(set) var stepRevision = 0
+
+    private func confirmStep() {
+        Task { @MainActor [weak self] in self?.stepRevision &+= 1 }
     }
 
     var canGoBack: Bool { !history.isEmpty && step != .importing }
@@ -100,81 +160,117 @@ final class OnboardingModel {
     func back() {
         guard let previous = history.popLast() else { return }
         withAnimation(.snappy(duration: 0.35)) { step = previous }
+        confirmStep()
     }
 
-    func choose(_ platform: ImportPlatform?) {
-        self.platform = platform
-        if platform == nil {
-            answers = [nil, nil, nil]
-            go(.question(0))
-        } else {
-            if case .found(let p) = lookup, p.platform != platform { lookup = .idle; username = "" }
-            go(.username)
-        }
-    }
+    // MARK: Find (one name, both platforms)
 
-    // MARK: Username
-
-    /// Debounced existence check as the user types.
+    /// Debounced lookup on both platforms at once as the user types.
     func usernameChanged() {
         lookupTask?.cancel()
         let name = username.trimmingCharacters(in: .whitespaces)
-        guard let platform, !name.isEmpty else { lookup = .idle; return }
-        lookup = .checking
-        let client = makeClient(platform)
+        guard !name.isEmpty else {
+            withAnimation(.snappy(duration: 0.3)) { lookups = [.chesscom: .idle, .lichess: .idle] }
+            return
+        }
+        lookups = [.chesscom: .checking, .lichess: .checking]
+        let clients = ImportPlatform.allCases.map { ($0, makeClient($0)) }
         lookupTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(450))
+            try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
-            do {
-                let profile = try await client.profile(name)
-                guard !Task.isCancelled else { return }
-                self?.lookup = .found(profile)
-            } catch ImportError.userNotFound {
-                guard !Task.isCancelled else { return }
-                self?.lookup = .notFound
-            } catch is CancellationError {
-            } catch ImportError.rateLimited {
-                self?.lookup = .failed("\(platform.title) asked us to slow down. Try again in a minute.")
-            } catch {
-                guard !Task.isCancelled else { return }
-                self?.lookup = .failed("Couldn't reach \(platform.title). Check your connection.")
+            await withTaskGroup(of: (ImportPlatform, Lookup).self) { group in
+                for (platform, client) in clients {
+                    group.addTask { (platform, await OnboardingModel.lookup(name, client: client)) }
+                }
+                for await (platform, result) in group {
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.snappy(duration: 0.3)) { self?.lookups[platform] = result }
+                }
             }
         }
     }
 
-    var foundProfile: PlatformProfile? {
-        if case .found(let p) = lookup { return p }
-        return nil
+    /// Asks one platform again after a network or rate-limit failure.
+    func retryLookup(_ platform: ImportPlatform) {
+        let name = username.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        lookups[platform] = .checking
+        let client = makeClient(platform)
+        Task { [weak self] in
+            let result = await OnboardingModel.lookup(name, client: client)
+            guard self?.username.trimmingCharacters(in: .whitespaces) == name else { return }
+            withAnimation(.snappy(duration: 0.3)) { self?.lookups[platform] = result }
+        }
     }
+
+    nonisolated static func lookup(_ name: String, client: any GameImportClient) async -> Lookup {
+        do {
+            return .found(try await client.profile(name))
+        } catch ImportError.userNotFound {
+            return .notFound
+        } catch is CancellationError {
+            return .idle
+        } catch ImportError.rateLimited {
+            return .failed("\(client.platform.title) asked us to slow down.")
+        } catch {
+            return .failed("Couldn't reach \(client.platform.title).")
+        }
+    }
+
+    func lookup(_ platform: ImportPlatform) -> Lookup { lookups[platform] ?? .idle }
+
+    var foundProfiles: [PlatformProfile] {
+        ImportPlatform.allCases.compactMap { if case .found(let p) = lookups[$0] { p } else { nil } }
+    }
+
+    var isSearching: Bool { lookups.values.contains(.checking) }
+
+    /// The account the import reads.
+    var foundProfile: PlatformProfile? { pickedProfile }
+
+    /// The user chose their account: straight into the import.
+    func pick(_ profile: PlatformProfile) {
+        guard step == .find, !picking else { return }
+        picking = true
+        platform = profile.platform
+        pickedProfile = profile
+        // Let the find step drop keyboard focus before it goes: a focused field that is being
+        // removed could keep the old step on screen over the import.
+        releaseFocus?()
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(120))
+            self?.picking = false
+            self?.startImport()
+        }
+    }
+
+    /// Set by the find step: resigns its text field.
+    @ObservationIgnored var releaseFocus: (() -> Void)?
+    @ObservationIgnored private var picking = false
 
     // MARK: Import
 
     func startImport() {
         guard let platform, let profile = foundProfile else { return }
-        go(.importing)
-        importTask?.cancel()
-        phase = .fetching
-        slots = (0..<Self.gameLimit).map { Slot(id: $0) }
-        fetchedCount = 0
-        movesAnalysed = 0
-        gamesDone = 0
-        games = []
-        report = nil
+        if step != .importing { go(.importing) }
+        resetImport()
         coachLine = CoachCommentary.fetching(platform: platform, count: Self.gameLimit)
         let client = makeClient(platform)
-        let engine = engine
         let username = profile.username
+        let setFastEngine = setFastEngine
+        fastEngineOn = true
 
         importTask = Task { [weak self] in
+            await setFastEngine(true)
             // 1. Fetch
-            let pgns: [String]
+            let fetched: [ImportedGame]
             do {
                 let progress = AsyncStream<Int>.makeStream()
-                async let fetched = client.recentGames(username, limit: Self.gameLimit) { progress.continuation.yield($0) }
+                async let games = client.recentGames(username, limit: Self.gameLimit) { progress.continuation.yield($0) }
                 let watcher = Task { @MainActor [weak self] in
                     for await n in progress.stream { self?.markFetched(n) }
                 }
-                pgns = try await fetched
+                fetched = try await games
                 progress.continuation.finish()
                 await watcher.value
             } catch is CancellationError {
@@ -186,10 +282,9 @@ final class OnboardingModel {
             guard let self, !Task.isCancelled else { return }
 
             // 2. Convert off the main actor (replaying every game once).
-            self.phase = .converting
             let converted = await Task.detached(priority: .userInitiated) {
-                pgns.compactMap { pgn -> (GameSnapshot, [String])? in
-                    guard let s = try? PGNImporter.snapshot(pgn: pgn, username: username, platform: platform) else { return nil }
+                fetched.compactMap { game -> (GameSnapshot, [String])? in
+                    guard let s = try? PGNImporter.snapshot(game: game, username: username, platform: platform) else { return nil }
                     var fens = [s.startFen]
                     for uci in s.moves { if let next = Rules.apply(uci: uci, to: fens[fens.count - 1])?.fenAfter { fens.append(next) } }
                     return (s, fens)
@@ -201,41 +296,139 @@ final class OnboardingModel {
                 self.coachLine = CoachLine(.concerned, "I couldn't find any standard games to read. Play a few and come back, or start fresh.")
                 return
             }
-            self.games = converted.map(\.0)
-            self.slots = (0..<Self.gameLimit).map { i in
-                guard i < converted.count else { return Slot(id: i, state: .failed) }
-                return Slot(id: i, state: .fetched, snapshot: converted[i].0, fens: converted[i].1,
-                            ply: converted[i].1.count - 1)
-            }
-            self.fetchedCount = converted.count
-
-            // 3. Analyse, one game after another, events in order.
-            self.phase = .analysing
-            let events = AsyncStream<OnboardingEvent>.makeStream()
-            let games = self.games
-            let setFastEngine = self.setFastEngine
-            var depth = OnboardingAnalysis.defaultDepth
-            #if DEBUG
-            // Screenshot hook: a shallower search so a scripted run takes seconds, not minutes.
-            if UserDefaults.standard.integer(forKey: "onboardingDepth") > 0 { depth = UserDefaults.standard.integer(forKey: "onboardingDepth") }
-            #endif
-            let runner = Task.detached { [depth] in
-                await setFastEngine(true)
-                let out = await OnboardingAnalysis(engine: engine, depth: depth).run(games) { events.continuation.yield($0) }
-                await setFastEngine(false)
-                events.continuation.finish()
-                return out
-            }
-            await withTaskCancellationHandler {
-                for await event in events.stream { self.handle(event) }
-            } onCancel: {
-                runner.cancel()
-            }
-            let analysed = await runner.value
-            guard !Task.isCancelled else { return }
-            self.finishImport(analysed)
+            self.layOut(converted)
+            await self.read()
         }
     }
+
+    private func resetImport() {
+        importTask?.cancel()
+        sweepTask?.cancel()
+        phase = .fetching
+        slots = (0..<Self.gameLimit).map { Slot(id: $0) }
+        fetchedCount = 0
+        sweepIndex = nil
+        sweepPly = 0
+        sweepDone = false
+        gamesAnalysed = 0
+        platformPlies = 0
+        games = []
+        report = nil
+        handoverReady = false
+        finishOrder = []
+        askingFrequency = false
+    }
+
+    private func layOut(_ converted: [(GameSnapshot, [String])]) {
+        games = converted.map(\.0)
+        slots = (0..<Self.gameLimit).map { i in
+            guard i < converted.count else { return Slot(id: i, state: .failed) }
+            let s = converted[i].0
+            return Slot(id: i, state: .fetched, snapshot: s, fens: converted[i].1,
+                        accuracy: s.userAccuracy, analysed: s.analysis != nil, won: GameSummary(s).won)
+        }
+        fetchedCount = converted.count
+        // Lichess games analysed there arrive graded already.
+        let ready = games.filter { $0.analysis != nil }
+        gamesAnalysed = ready.count
+        finishOrder = slots.filter(\.analysed).map(\.id)
+        platformPlies = ready.reduce(0) { $0 + ($1.analysis?.verdicts.count ?? 0) }
+        phase = .reading
+    }
+
+    /// Sweeps the boards while the background queue reads; hands over once enough is known.
+    private func read() async {
+        let started = ContinuousClock.now
+        if let background {
+            positionsBase = background.positionsRead
+            if let listener { background.stopListening(listener) }
+            listener = background.listen { [weak self] event in self?.handle(event) }
+            background.quick(games)
+        }
+        coachLine = CoachCommentary.analysing(index: 0, total: games.count, opponent: games.first?.opponentName)
+        sweepTask = Task { [weak self] in await self?.sweep() }
+
+        // Wait for the sweep and enough analysed games, or the budget.
+        while !Task.isCancelled {
+            if !askingFrequency, frequency == nil, ContinuousClock.now - started >= Self.askAfterTime { askFrequency() }
+            let enough = gamesAnalysed >= min(Self.enoughGames, games.count)
+            if sweepDone && (enough || ContinuousClock.now - started >= Self.readBudget) { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        guard !Task.isCancelled else { return }
+        #if DEBUG
+        OnboardingDebug.log("handover after \(ContinuousClock.now - started) analysed=\(gamesAnalysed)/\(games.count) positions=\(positionsRead)")
+        #endif
+        handOver()
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "onboardingHoldImport") { return }
+        #endif
+        // If the coach's question is open, give the user a moment to answer it (capped).
+        while askingFrequency, frequency == nil, ContinuousClock.now - started < Self.questionCap, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        try? await Task.sleep(for: Self.handoffPause)
+        guard !Task.isCancelled, step == .importing else { return }
+        go(.reveal)
+    }
+
+    private func sweep() async {
+        let frames = 9
+        for i in slots.indices where slots[i].state == .fetched {
+            guard !Task.isCancelled else { return }
+            withAnimation(.snappy(duration: 0.2)) { sweepIndex = i }
+            // Flip through the game into its final position.
+            let count = slots[i].fens.count
+            for f in 1...frames {
+                guard !Task.isCancelled else { return }
+                sweepPly = (count - 1) * f / frames
+                try? await Task.sleep(for: Self.sweepStep / frames)
+            }
+        }
+        withAnimation(.snappy(duration: 0.3)) {
+            sweepIndex = nil
+            sweepDone = true
+        }
+    }
+
+    private func handOver() {
+        let report = WeaknessReport(games)
+        self.report = report
+        phase = .done
+        handoverReady = true
+        let remaining = games.count - gamesAnalysed
+        coachLine = remaining > 0
+            ? CoachLine(.thinking, "I've seen enough to start. Reading the rest while we set your goal.")
+            : CoachCommentary.done(report: report)
+        prepareReveal()
+    }
+
+    private func handle(_ event: AnalysisQueue.Event) {
+        guard case .finished(let game) = event, let i = games.firstIndex(where: { $0.id == game.id }) else { return }
+        let wasAnalysed = games[i].analysis != nil
+        games[i] = game
+        if let slot = slots.firstIndex(where: { $0.snapshot?.id == game.id }) {
+            slots[slot].snapshot = game
+            slots[slot].analysed = true
+            withAnimation(.spring(duration: 0.5, bounce: 0.2)) {
+                slots[slot].accuracy = game.userAccuracy
+                if !finishOrder.contains(slot) { finishOrder.append(slot) }
+            }
+        }
+        if !wasAnalysed { gamesAnalysed += 1 }
+        if step == .importing, phase == .reading {
+            coachLine = CoachCommentary.afterGame(index: i, snapshot: game)
+        }
+        if gamesAnalysed >= Self.askAfter, frequency == nil, !askingFrequency, step == .importing { askFrequency() }
+    }
+
+    /// Positions read so far: this import's engine searches plus the evals that came with the games.
+    var positionsRead: Int {
+        platformPlies + max(0, (background?.positionsRead ?? 0) - positionsBase)
+    }
+
+    /// The game the sweep is on.
+    var sweepSlot: Slot? { sweepIndex.map { slots[$0] } }
 
     private func markFetched(_ n: Int) {
         fetchedCount = n
@@ -251,77 +444,44 @@ final class OnboardingModel {
         coachLine = CoachLine(.concerned, "That didn't work. Let's try again in a moment.")
     }
 
-    private func handle(_ event: OnboardingEvent) {
-        switch event {
-        case .gameStarted(let index, let total):
-            guard index < slots.count else { return }
-            slots[index].state = .analysing
-            slots[index].ply = 0
-            if index == 0 {
-                coachLine = CoachCommentary.analysing(index: 0, total: total, opponent: slots[0].snapshot?.opponentName)
-            }
-        case .position(let index, let done, _):
-            guard index < slots.count else { return }
-            slots[index].ply = max(0, done - 1)
-            movesAnalysed += 1
-        case .gameFinished(let index, let snapshot):
-            guard index < slots.count else { return }
-            let summary = GameSummary(snapshot)
-            slots[index].snapshot = snapshot
-            slots[index].accuracy = summary.accuracy
-            slots[index].won = summary.won
-            slots[index].ply = slots[index].fens.count - 1
-            withAnimation(.spring(duration: 0.6, bounce: 0.2)) { slots[index].state = .done }
-            if index < games.count { games[index] = snapshot }
-            gamesDone += 1
-            coachLine = CoachCommentary.afterGame(index: index, snapshot: snapshot)
-        case .gameFailed(let index):
-            guard index < slots.count else { return }
-            slots[index].state = .failed
-        }
+    private func askFrequency() {
+        withAnimation(.snappy(duration: 0.35)) { askingFrequency = true }
+        #if DEBUG
+        OnboardingDebug.log("question shown")
+        #endif
     }
 
-    private func finishImport(_ analysed: [GameSnapshot]) {
-        games = analysed
-        let report = WeaknessReport(analysed)
-        self.report = report
-        phase = .done
-        coachLine = CoachCommentary.done(report: report)
-        prepareReveal()
+    /// The coach's question, answered with a reply chip.
+    func answerFrequency(_ f: PlayFrequency) {
+        withAnimation(.snappy(duration: 0.3)) { frequency = f }
     }
 
-    /// The game being read now, if any.
-    var liveSlot: Slot? { slots.first { $0.state == .analysing } }
-
-    /// Stops the analysis and goes on with the games finished so far.
-    func skipRest() {
-        importTask?.cancel()
-        importTask = nil
-        let restore = setFastEngine
-        Task.detached { await restore(false) }
-        for i in slots.indices where slots[i].state == .analysing {
-            slots[i].state = .fetched
-            slots[i].ply = max(0, slots[i].fens.count - 1)
-        }
-        let report = WeaknessReport(games)
-        self.report = report
-        phase = .done
-        prepareReveal()
-        go(.reveal)
+    /// The worst move the user made in a slot's game, once analysed: the board's key moment.
+    func keyMoment(_ slot: Slot) -> Verdict? {
+        guard let s = slot.snapshot else { return nil }
+        return GameSummary(s).worst
     }
 
     func cancelImport() {
         importTask?.cancel()
+        sweepTask?.cancel()
         importTask = nil
-        let restore = setFastEngine
-        Task.detached { await restore(false) }
+        if let listener { background?.stopListening(listener) }
+        listener = nil
+        background?.stopAll()
+        restoreEngine()
         back()
     }
 
     func retryImport() {
-        if history.last == .username { history.removeLast() } else { history.removeAll { $0 == .importing } }
-        step = .username
         startImport()
+    }
+
+    private func restoreEngine() {
+        guard fastEngineOn else { return }
+        fastEngineOn = false
+        let restore = setFastEngine
+        Task.detached { await restore(false) }
     }
 
     // MARK: Reveal, goal, plan
@@ -352,6 +512,14 @@ final class OnboardingModel {
         target = GoalModel.suggestedTarget(current: rating, months: months)
     }
 
+    /// New to chess from the `find` step.
+    func startQuestions() {
+        platform = nil
+        pickedProfile = nil
+        answers = [nil, nil, nil]
+        go(.question(0))
+    }
+
     func answer(_ question: Int, _ value: Int) {
         answers[question] = value
         if question < 2 {
@@ -369,13 +537,18 @@ final class OnboardingModel {
     /// Puzzles from the user's own analysed mistakes.
     var ownMistakePuzzles: [Puzzle] { games.flatMap(BlunderPuzzles.from(snapshot:)) }
 
+    /// Built from everything read so far, including games finished after the reveal.
     func buildPlan(completedLessons: Set<String>) {
-        let weaknesses = report?.top ?? newPlayerAnswers?.weaknesses ?? []
+        let latest = games.isEmpty ? nil : WeaknessReport(games)
+        let weaknesses = latest?.top ?? newPlayerAnswers?.weaknesses ?? []
         plan = TrainingPlan.make(weaknesses: weaknesses, rating: rating, ownMistakes: ownMistakePuzzles.count,
-                                 completedLessons: completedLessons, preferredTrack: newPlayerAnswers?.track)
+                                 completedLessons: completedLessons, preferredTrack: newPlayerAnswers?.track,
+                                 frequency: frequency ?? .fewTimesAWeek)
     }
 
-    /// Persists the profile, games, goal and plan, and marks onboarding done.
+    /// Persists the profile, games, goal and plan, and marks onboarding done. Games still
+    /// being read are saved as they are; the background queue fills them in and rebuilds the
+    /// plan when the last one is done.
     func save(in context: ModelContext) {
         let profile = foundProfile
         ProfileStore.saveProfile(platform: platform, username: profile?.username ?? "",
@@ -386,6 +559,12 @@ final class OnboardingModel {
         let band = PuzzleBank.ratingRange
         let puzzleRating = min(max((rating / 100) * 100, band.lowerBound), band.upperBound - 100)
         UserDefaults.standard.set(puzzleRating, forKey: "puzzles.rating")
+        if let frequency { UserDefaults.standard.set(frequency.rawValue, forKey: "onboarding.frequency") }
         UserDefaults.standard.set(true, forKey: Pref.hasOnboarded)
+        if let listener { background?.stopListening(listener) }
+        listener = nil
+        if !games.isEmpty { background?.replanWhenQuickDone() }
+        restoreEngine()
     }
 }
+

@@ -4,12 +4,12 @@ import SwiftData
 import ChessCore
 
 /// Launch hooks for screenshots (Debug builds only):
-///   -onboardingDemo chesscom:hikaru   pick the platform, type the name, start the import
-///   -onboardingStop platform|username stop at that step (with the demo's platform/name)
-///   -onboardingSkipAfter 4            skip the rest after N analysed games
+///   -onboardingFind hikaru            stop on the find step with this name typed ("none" = empty)
+///   -onboardingDemo chesscom:hikaru   type the name, pick that platform's account, import
+///   -onboardingAnswer 1               answer the coach's import question with this choice
+///   -onboardingHoldImport YES         stay on the import screen after the sweep
 ///   -onboardingAdvance 6              then walk reveal → goal → plan, N seconds per step
 ///   -onboardingNew 1,1,0              new-player path with these answers
-///   -onboardingDepth 8                shallower analysis for quick scripted runs
 ///   -onboardingFinish 5               on the plan, press Start day 1 after N seconds
 /// Every step is printed with an `ONBOARDING` prefix so a script can screenshot on cue.
 @MainActor
@@ -18,10 +18,11 @@ enum OnboardingDebug {
 
     static func apply(_ model: OnboardingModel, context: ModelContext) async {
         let d = UserDefaults.standard
-        let stop = d.string(forKey: "onboardingStop")
         if let answers = d.string(forKey: "onboardingNew") {
             try? await Task.sleep(for: .seconds(1))
-            model.choose(nil)
+            model.go(.find)
+            try? await Task.sleep(for: .seconds(0.6))
+            model.startQuestions()
             for (i, a) in answers.split(separator: ",").compactMap({ Int($0) }).enumerated() {
                 try? await Task.sleep(for: .seconds(0.6))
                 model.answer(i, a)
@@ -29,33 +30,64 @@ enum OnboardingDebug {
             await advance(model, context: context)
             return
         }
+        if let name = d.string(forKey: "onboardingFind") {
+            try? await Task.sleep(for: .seconds(1))
+            model.go(.find)
+            log("step=find")
+            guard name != "none" else { return }
+            try? await Task.sleep(for: .seconds(0.8))
+            await type(name, into: model)
+            log("step=find typed")
+            try? await Task.sleep(for: .milliseconds(450))
+            for _ in 0..<60 where model.isSearching { try? await Task.sleep(for: .milliseconds(250)) }
+            log("step=find found=\(model.foundProfiles.map(\.platform.rawValue))")
+            return
+        }
         guard let demo = d.string(forKey: "onboardingDemo") else { return }
         let parts = demo.split(separator: ":").map(String.init)
         guard parts.count == 2, let platform = ImportPlatform(rawValue: parts[0]) else { return }
         try? await Task.sleep(for: .seconds(1))
-        model.go(.platform)
-        log("step=platform")
-        if stop == "platform" { return }
+        model.go(.find)
+        log("step=find")
         try? await Task.sleep(for: .seconds(0.8))
-        model.choose(platform)
-        model.username = parts[1]
-        model.usernameChanged()
-        for _ in 0..<40 where model.foundProfile == nil { try? await Task.sleep(for: .milliseconds(250)) }
-        log("step=username found=\(model.foundProfile != nil)")
-        if stop == "username" { return }
-        try? await Task.sleep(for: .seconds(1.5))
-        model.startImport()
-        log("step=importing")
-        let skipAfter = d.integer(forKey: "onboardingSkipAfter")
-        var lastDone = -1
-        while model.phase != .done {
-            if case .failed(let m) = model.phase { log("failed \(m)"); return }
-            if model.gamesDone != lastDone { lastDone = model.gamesDone; log("games=\(model.gamesDone) moves=\(model.movesAnalysed)") }
-            if skipAfter > 0, model.gamesDone >= skipAfter { model.skipRest(); break }
-            try? await Task.sleep(for: .milliseconds(300))
+        await type(parts[1], into: model)
+        for _ in 0..<60 where !model.foundProfiles.contains(where: { $0.platform == platform }) {
+            try? await Task.sleep(for: .milliseconds(250))
         }
-        if model.step == .importing { model.go(.reveal) }
+        guard let profile = model.foundProfiles.first(where: { $0.platform == platform }) else {
+            log("not found on \(platform.rawValue)")
+            return
+        }
+        try? await Task.sleep(for: .seconds(1.2))
+        let started = ContinuousClock.now
+        model.pick(profile)
+        for _ in 0..<50 where model.step != .importing { try? await Task.sleep(for: .milliseconds(50)) }
+        log("step=importing")
+        let answer = d.object(forKey: "onboardingAnswer") as? Int ?? Int(d.string(forKey: "onboardingAnswer") ?? "")
+        var lastRead = -1
+        while model.step == .importing {
+            if case .failed(let m) = model.phase { log("failed \(m)"); return }
+            if model.gamesAnalysed != lastRead {
+                lastRead = model.gamesAnalysed
+                log("read=\(model.gamesAnalysed)/\(model.fetchedCount) positions=\(model.positionsRead) t=\(ContinuousClock.now - started)")
+            }
+            if model.askingFrequency, model.frequency == nil, let answer, PlayFrequency.allCases.indices.contains(answer) {
+                try? await Task.sleep(for: .seconds(2.5))
+                model.answerFrequency(PlayFrequency.allCases[answer])
+            }
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        log("import screen took \(ContinuousClock.now - started)")
         await advance(model, context: context)
+    }
+
+    /// Types like a person, so the debounce sees one search at the end.
+    private static func type(_ name: String, into model: OnboardingModel) async {
+        for ch in name {
+            model.username.append(ch)
+            model.usernameChanged()
+            try? await Task.sleep(for: .milliseconds(90))
+        }
     }
 
     private static func advance(_ model: OnboardingModel, context: ModelContext) async {

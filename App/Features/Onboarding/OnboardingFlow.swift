@@ -7,6 +7,7 @@ import ChessCore
 struct OnboardingFlow: View {
     @State private var model: OnboardingModel
     @Environment(\.modelContext) private var context
+    @Environment(BackgroundAnalysis.self) private var background: BackgroundAnalysis?
     @Query private var lessons: [LessonProgress]
     let onFinish: () -> Void
 
@@ -18,11 +19,11 @@ struct OnboardingFlow: View {
     var body: some View {
         ZStack {
             DS.Color.background.ignoresSafeArea()
+            let _ = model.stepRevision  // see OnboardingModel.stepRevision
             Group {
                 switch model.step {
                 case .welcome: WelcomeStep(model: model)
-                case .platform: PlatformStep(model: model, onClose: model.reimport ? onFinish : nil)
-                case .username: UsernameStep(model: model)
+                case .find: FindStep(model: model, onClose: model.reimport ? onFinish : nil)
                 case .importing: ImportStep(model: model)
                 case .question(let i): QuestionStep(model: model, index: i)
                 case .reveal: RevealStep(model: model)
@@ -36,10 +37,14 @@ struct OnboardingFlow: View {
                 }
                 }
             }
+            // One identity per step, so a step that leaves is really removed (without it the
+            // find step could linger over the import after its removal transition).
+            .id(model.step)
             .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
                                     removal: .move(edge: .leading).combined(with: .opacity)))
         }
         .preferredColorScheme(.dark)
+        .onAppear { model.background = background }
         #if DEBUG
         .task { await OnboardingDebug.apply(model, context: context) }
         #endif

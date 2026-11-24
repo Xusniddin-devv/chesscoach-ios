@@ -105,8 +105,53 @@ enum EngineBenchmark {
         return out
     }
 
+    /// Quick-pass calibration: ms per position for node-limited searches (MultiPV 1, the
+    /// onboarding quick pass) per thread count, over the benchmark game's positions.
+    static func quickPass(nodes: [Int] = [10_000, 20_000, 30_000, 50_000, 80_000],
+                          threadCounts: [Int] = [1, 4]) async throws -> String {
+        verifyMoves()
+        let engine = StockfishEngine.shared
+        var out = "| Threads | Nodes | ms per position (avg) | max ms |\n| --- | --- | --- | --- |\n"
+        let clock = ContinuousClock()
+        for threads in threadCounts {
+            await engine.configure(threads: threads, hashMB: EngineHub.defaultHashMB)
+            // Warm-up.
+            for n in 0..<4 {
+                _ = try await engine.analyze(AnalysisRequest(startFen: Rules.startFen, moves: Array(moves.prefix(n)),
+                                                             depth: 0, multiPV: 1, nodes: 20_000))
+            }
+            for limit in nodes {
+                var total = Duration.zero
+                var worst = Duration.zero
+                for n in 0...moves.count {
+                    let start = clock.now
+                    _ = try await engine.analyzeInBackground(AnalysisRequest(
+                        startFen: Rules.startFen, moves: Array(moves.prefix(n)), depth: 0, multiPV: 1, nodes: limit))
+                    let took = clock.now - start
+                    total += took
+                    worst = max(worst, took)
+                }
+                let avg = total / (moves.count + 1)
+                func ms(_ d: Duration) -> String { String(format: "%.1f", Double(d.components.attoseconds) / 1e15 + Double(d.components.seconds) * 1000) }
+                out += "| \(threads) | \(limit) | \(ms(avg)) | \(ms(worst)) |\n"
+            }
+        }
+        await restoreDefaults(engine)
+        return out
+    }
+
     /// Headless entry (`-engineBenchmark` launch argument): writes Documents/engine-benchmark.md.
+    /// `-engineBenchmark quick` writes Documents/quick-benchmark.md instead.
     static func runHeadless() async {
+        if UserDefaults.standard.string(forKey: "engineBenchmark") == "quick" {
+            let url = URL.documentsDirectory.appending(path: "quick-benchmark.md")
+            do {
+                try await quickPass().write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                try? "failed: \(error)\n".write(to: url, atomically: true, encoding: .utf8)
+            }
+            return
+        }
         let url = URL.documentsDirectory.appending(path: "engine-benchmark.md")
         do {
             let rows = try await run()
