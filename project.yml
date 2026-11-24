@@ -80,6 +80,9 @@ targets:
     platform: iOS
     sources:
       - AppTests
+      # StoreKitTest sessions in HardPaywallTests load the scheme's products from this copy.
+      - path: Config/ChessCoach.storekit
+        buildPhase: resources
     dependencies:
       - target: ChessCoach
       - package: ChessCore
