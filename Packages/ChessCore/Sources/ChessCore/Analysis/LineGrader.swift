@@ -78,6 +78,15 @@ public final class LineGrader {
         drainIfNeeded()
     }
 
+    /// Puts back grades saved earlier (the analysis board reopening a saved line), without
+    /// searching again. Grades of plies already queued or graded are kept.
+    public func restore(_ saved: [Verdict]) {
+        let queued = Set(queue.map(\.ply))
+        for verdict in saved where verdicts[verdict.ply] == nil && !queued.contains(verdict.ply) {
+            verdicts[verdict.ply] = verdict
+        }
+    }
+
     /// Drops everything.
     public func reset() {
         discard(after: Int.min)

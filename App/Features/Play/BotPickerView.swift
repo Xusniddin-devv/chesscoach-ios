@@ -94,10 +94,12 @@ struct BotPickerView: View {
 }
 
 extension BotLadder {
-    /// The ladder from the saved games' wins and the player's estimate.
+    /// The ladder from the saved games' wins and the player's estimate (analysis-board games
+    /// never count).
     @MainActor init(records: [GameRecord], hub: EngineHub) {
         var wins: [String: Int] = [:]
-        for snapshot in records.compactMap(\.snapshot) where ProfileModel.outcome(of: snapshot) == .win {
+        for snapshot in records.compactMap(\.snapshot)
+        where !snapshot.isFreeplay && ProfileModel.outcome(of: snapshot) == .win {
             wins[snapshot.botId, default: 0] += 1
         }
         let profile = ProfileModel(records: records)

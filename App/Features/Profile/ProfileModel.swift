@@ -2,7 +2,8 @@ import Foundation
 import ChessCore
 
 /// Everything the Profile tab shows, computed from the saved games. Unreadable records are
-/// skipped (they stay in the store; `GameRecord.snapshot` logs them). Unfinished games
+/// skipped (they stay in the store; `GameRecord.snapshot` logs them), and so are analysis-board
+/// games (`GameSnapshot.isFreeplay`). Unfinished games
 /// (abandoned before a result) appear in the filmstrip but not in the rating.
 struct ProfileModel {
     struct Game: Identifiable {
@@ -59,7 +60,8 @@ struct ProfileModel {
         }
     }
 
-    /// Readable games, newest first.
+    /// Readable games against the bots, newest first. Analysis-board games (`isFreeplay`)
+    /// have no opponent and are never part of the rating or the stats.
     let games: [Game]
     let ratedGames: [RatedGame]
     let estimate: Int?
@@ -71,6 +73,7 @@ struct ProfileModel {
     init(records: [GameRecord]) {
         games = records
             .compactMap { record in record.snapshot.map { (record, $0) } }
+            .filter { !$0.1.isFreeplay }
             .sorted { $0.1.date > $1.1.date }
             .map { Game(record: $0.0, snapshot: $0.1, accuracy: Self.accuracy(of: $0.1)) }
         ratedGames = games.compactMap { game in

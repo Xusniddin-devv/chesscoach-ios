@@ -132,3 +132,17 @@ private func settle() async {
     #expect(grader.verdicts[1]?.mover == .black)
     #expect(engine.requests.first?.startFen == fen)
 }
+
+@MainActor @Test func lineGraderRestoresSavedGradesWithoutSearching() async {
+    let engine = FakeEngine()
+    let grader = LineGrader(engine: engine)
+    let saved = classifyPlayed(PlayedMoveInput(
+        fenBefore: Rules.startFen, fenAfter: Rules.fen(startFen: Rules.startFen, moves: ["e2e4"])!,
+        playedUci: "e2e4", playedSan: "e4", mover: .white, ply: 1,
+        before: AnalysisResult(bestMove: "e2e4", lines: []), after: AnalysisResult(bestMove: "e7e5", lines: [])))
+    grader.restore([saved])
+    #expect(grader.verdicts[1] == saved)
+    #expect(engine.requests.isEmpty)
+    grader.discard(after: 0)
+    #expect(grader.verdicts.isEmpty)
+}
