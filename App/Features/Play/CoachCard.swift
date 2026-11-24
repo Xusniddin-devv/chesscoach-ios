@@ -13,15 +13,21 @@ struct CoachCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-            ClassPill(moveClass: verdict.classification)
-            // The explanation is Pro; free users keep the verdict pill.
-            ProGate(.trainingExplanations) {
-                Text(explain(verdict, wording: wording))
-                    .font(DS.Font.body)
-                    .foregroundStyle(DS.Color.text)
-                    .fixedSize(horizontal: false, vertical: true)
-            } locked: {
-                LockedExplanation()
+            HStack(alignment: .top, spacing: DS.Spacing.sm) {
+                CoachAvatar(pose: CoachPose(verdict.classification), size: 44)
+                    .padding(.top, -4)
+                VStack(alignment: .leading, spacing: DS.Spacing.s) {
+                    ClassPill(moveClass: verdict.classification)
+                    // The explanation is Pro; free users keep the verdict pill.
+                    ProGate(.trainingExplanations) {
+                        CoachText(CoachText.marked(explain(verdict, wording: wording), san: verdict.san))
+                            .font(DS.Font.body)
+                            .foregroundStyle(DS.Color.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } locked: {
+                        LockedExplanation()
+                    }
+                }
             }
             HStack(spacing: DS.Spacing.sm) {
                 SecondaryButton(title: "Take back", action: onTakeBack)

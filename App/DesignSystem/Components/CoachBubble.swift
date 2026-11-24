@@ -9,6 +9,16 @@ enum CoachPose: String, CaseIterable, Sendable {
 
     init(_ mood: CoachMood) { self = CoachPose(rawValue: mood.rawValue) ?? .neutral }
 
+    /// The coach's face for a graded move: pleased at the good ones, concerned at mistakes.
+    init(_ moveClass: MoveClass) {
+        switch moveClass {
+        case .brilliant, .great, .best, .excellent: self = .pleased
+        case .mistake, .miss, .blunder: self = .concerned
+        case .inaccuracy: self = .thinking
+        case .good, .book, .forced: self = .neutral
+        }
+    }
+
     var asset: String { "Coach/\(rawValue)" }
 }
 
@@ -157,6 +167,20 @@ struct CoachText: View {
         }
         if !rest.isEmpty { out.append(.words(String(rest))) }
         return out
+    }
+
+    /// Marks up engine-written prose for `CoachText`: bare square names ("on g5") become
+    /// chips, and `san` (the move being talked about) is set in bold. Square names inside a
+    /// move ("Nf3", "exd5") and text already marked are left alone.
+    static func marked(_ plain: String, san: String? = nil) -> String {
+        var s = plain
+        if let san, !san.isEmpty, !s.contains("**") {
+            s = s.replacingOccurrences(of: san, with: "**\(san)**")
+        }
+        let range = NSRange(s.startIndex..., in: s)
+        // Not after a letter, digit, "[" or "*" (bold SAN) and not before a letter, digit or "]".
+        let regex = try! NSRegularExpression(pattern: "(?<![A-Za-z0-9\\[*])([a-h][1-8])(?![A-Za-z0-9\\]*])")
+        return regex.stringByReplacingMatches(in: s, range: range, withTemplate: "[$1]")
     }
 
     /// The text without chip brackets, for VoiceOver.

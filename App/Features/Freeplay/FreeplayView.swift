@@ -14,6 +14,8 @@ struct FreeplayView: View {
     @Environment(\.modelContext) private var context
     @State private var model: FreeplayModel?
     @State private var editing = false
+    @State private var paywall = false
+    @Environment(Entitlements.self) private var entitlements
 
     var body: some View {
         Group {
@@ -27,7 +29,8 @@ struct FreeplayView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if let model {
-                    Button { model.deep.toggle() } label: {
+                    // Deep (depth 20) is Pro; the normal search stays free.
+                    Button { if entitlements.isPro { model.deep.toggle() } else { paywall = true } } label: {
                         Text("Deep")
                             .font(DS.Font.subheadline.weight(.semibold))
                             .foregroundStyle(model.deep ? DS.Color.accent : DS.Color.text)
@@ -38,6 +41,7 @@ struct FreeplayView: View {
             }
         }
         .tint(DS.Color.text)
+        .paywall(isPresented: $paywall, feature: .deepAnalysis)
         .task {
             if model == nil {
                 model = FreeplayModel(engine: hub.engine, record: record, context: context)
