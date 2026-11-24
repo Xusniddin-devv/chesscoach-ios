@@ -30,6 +30,7 @@ struct PlayView: View {
         .background(DS.Color.background.ignoresSafeArea())
         .tint(DS.Color.text)  // bar glyphs stay neutral; the accent is for the one primary action
         .task { if model == nil { begin() } }
+        .holdsEngine()  // no background analysis while a game is live
     }
 
     private func begin() {

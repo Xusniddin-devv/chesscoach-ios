@@ -41,6 +41,7 @@ struct LessonView: View {
             }
         }
         .tint(DS.Color.text)
+        .holdsEngine()
         .task {
             guard model == nil else { return }
             let next = LessonModel(lesson: lesson)
