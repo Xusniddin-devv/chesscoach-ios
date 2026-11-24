@@ -72,6 +72,9 @@ targets:
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Chess Coach listens while you hold the mic button so you can say your move."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Your spoken move is turned into text on this iPhone. Nothing is sent anywhere."
         CODE_SIGN_ENTITLEMENTS: App/ChessCoach.entitlements
+        # Owner's individual Apple Developer team (App ID uz.xq.chessc, container iCloud.uz.xq.chessc).
+        DEVELOPMENT_TEAM: 6V8WGQWXMT
+        CODE_SIGN_STYLE: Automatic
         CURRENT_PROJECT_VERSION: "1"
         # Only HTTPS (Apple's exempt encryption): no export-compliance question per build.
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
