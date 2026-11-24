@@ -71,8 +71,12 @@ final class VoiceInput {
             request.contextualStrings = Self.vocabulary
             request.taskHint = .confirmation
 
+            // No usable input route (the mic is held by a call or another app, some Bluetooth
+            // routes, a Simulator without audio input): a 0-channel or 0 Hz format makes
+            // installTap raise an Objective-C exception that Swift cannot catch.
+            guard session.isInputAvailable else { throw VoiceError.noInput }
             let engine = AVAudioEngine()
-            Self.installTap(on: engine.inputNode, feeding: request)
+            try Self.installTap(on: engine.inputNode, feeding: request)
             engine.prepare()
             try engine.start()
 
@@ -154,8 +158,16 @@ final class VoiceInput {
     // The tap and the result handler run on audio / recogniser threads; they are built in
     // nonisolated functions so they do not inherit main-actor isolation.
 
-    private nonisolated static func installTap(on input: AVAudioInputNode, feeding request: SFSpeechAudioBufferRecognitionRequest) {
+    enum VoiceError: Error { case noInput }
+
+    /// Whether an input format can carry audio; anything else crashes `installTap`.
+    nonisolated static func isUsable(channels: AVAudioChannelCount, sampleRate: Double) -> Bool {
+        channels > 0 && sampleRate > 0
+    }
+
+    private nonisolated static func installTap(on input: AVAudioInputNode, feeding request: SFSpeechAudioBufferRecognitionRequest) throws {
         let format = input.outputFormat(forBus: 0)
+        guard isUsable(channels: format.channelCount, sampleRate: format.sampleRate) else { throw VoiceError.noInput }
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             request.append(buffer)
         }

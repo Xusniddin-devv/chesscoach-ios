@@ -34,7 +34,7 @@ struct ProfileView: View {
                     }
                     let weaknesses = model.weaknesses
                     if !weaknesses.isEmpty {
-                        costing(Array(weaknesses.prefix(3)), model: model)
+                        costing(WeaknessAllowance.split(weaknesses, isPro: entitlements.isPro), model: model)
                     }
                     #if DEBUG
                     NavigationLink("Engine benchmark (debug)") { EngineBenchmarkView() }
@@ -104,11 +104,11 @@ struct ProfileView: View {
         let remaining = PuzzleAllowance.remaining(progress, dailyId: PuzzleBank.daily(for: .now)?.id,
                                                   isPro: entitlements.isPro)
         if remaining == 0 { paywall = true; return }
-        let snapshots = records.compactMap(\.snapshot)
+        let snapshots = GameRecord.unique(records).compactMap(\.snapshot)
         let puzzles = BlunderPuzzles.fixIt(motif, snapshots: snapshots, rating: model.trainingRating,
                                            count: min(Self.fixCount, remaining ?? Self.fixCount))
         guard !puzzles.isEmpty else { return }
-        let own = Set(snapshots.filter { !$0.isFreeplay }.flatMap { BlunderPuzzles.from(snapshot: $0) }.map(\.id))
+        let own = Set(PuzzlesView.blunderPuzzles(from: records).map(\.id))
         fixSession = PuzzleSessionSetup(
             kind: .review, title: motif.title, puzzles: puzzles,
             sources: Dictionary(puzzles.map { ($0.id, own.contains($0.id) ? "blunder" : "bank") }, uniquingKeysWith: { a, _ in a }),
@@ -183,29 +183,56 @@ struct ProfileView: View {
     // MARK: What keeps costing you
 
     @ViewBuilder
-    private func costing(_ weaknesses: [ProfileModel.Weakness], model: ProfileModel) -> some View {
+    private func costing(_ weaknesses: (open: [ProfileModel.Weakness], locked: [ProfileModel.Weakness]),
+                         model: ProfileModel) -> some View {
         let gradedGames = model.gradedGames
         sectionTitle("What keeps costing you")
-        if let top = weaknesses.first {
+        if let top = weaknesses.open.first {
             WeaknessCard(weakness: top, gradedGames: gradedGames, fixCount: Self.fixCount) { fix(top.motif, model: model) }
         }
         VStack(spacing: 0) {
-            ForEach(weaknesses.dropFirst()) { weakness in
-                HStack {
-                    Text(weakness.motif.title)
-                        .font(.system(size: 16))
-                        .foregroundStyle(DS.Color.text)
-                    Spacer()
-                    FrequencyPips(on: weakness.games, of: gradedGames, maxPips: 5)
+            ForEach(weaknesses.open.dropFirst()) { weakness in
+                weaknessRow(weakness, gradedGames: gradedGames, locked: false)
+            }
+            // Free users: the next habits as a teaser (how often, not what), one tap to Pro.
+            if !weaknesses.locked.isEmpty {
+                UpgradeButton(.allWeaknesses) {
+                    VStack(spacing: 0) {
+                        ForEach(weaknesses.locked) { weakness in
+                            weaknessRow(weakness, gradedGames: gradedGames, locked: true)
+                        }
+                        HStack(spacing: DS.Spacing.xs) {
+                            Image("Icons/lock").renderingMode(.template).resizable().frame(width: 14, height: 14)
+                            Text("See all your habits with Pro")
+                                .font(DS.Font.subheadline.weight(.semibold))
+                        }
+                        .foregroundStyle(DS.Color.accent)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, DS.Spacing.sm)
+                    }
+                    .contentShape(Rectangle())
                 }
-                .padding(.vertical, 14)
-                .padding(.horizontal, 2)
-                .overlay(alignment: .bottom) { Rectangle().fill(DS.Color.surface2).frame(height: 1) }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(weakness.motif.title), in \(weakness.games) of \(gradedGames) games")
+                .accessibilityLabel("\(weaknesses.locked.count) more habits. See all your habits with Pro")
             }
         }
         .padding(.top, DS.Spacing.xs)
+    }
+
+    private func weaknessRow(_ weakness: ProfileModel.Weakness, gradedGames: Int, locked: Bool) -> some View {
+        HStack {
+            Text(weakness.motif.title)
+                .font(.system(size: 16))
+                .foregroundStyle(DS.Color.text)
+                .redacted(reason: locked ? .placeholder : [])
+            Spacer()
+            FrequencyPips(on: weakness.games, of: gradedGames, maxPips: 5)
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 2)
+        .overlay(alignment: .bottom) { Rectangle().fill(DS.Color.surface2).frame(height: 1) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(locked ? "Locked habit, in \(weakness.games) of \(gradedGames) games"
+                                   : "\(weakness.motif.title), in \(weakness.games) of \(gradedGames) games")
     }
 }
 

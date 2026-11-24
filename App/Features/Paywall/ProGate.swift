@@ -24,7 +24,8 @@ enum ProFeature: String, CaseIterable, Identifiable {
     case trainingExplanations
     /// Review: on-board badges/colours, explanations, branching, best lines and arrows.
     case fullReview
-    /// Puzzles beyond `freePuzzlesPerDay` + the daily one; SRS; blunder puzzles.
+    /// Puzzles beyond `freePuzzlesPerDay` + the daily one. Own-mistake puzzles count inside
+    /// the free allowance (ruling, decisions.md "Pro gates").
     case unlimitedPuzzles
     /// Learn: lessons after the first in each track.
     case allLessons
@@ -34,8 +35,9 @@ enum ProFeature: String, CaseIterable, Identifiable {
     case guessTheMove
     /// Deep analysis (longer engine search).
     case deepAnalysis
-    /// Freeplay: live grading badges.
-    case liveGrading
+    /// Profile: the habits after the top one (`WeaknessAllowance`). Freeplay's live grades
+    /// stay free (ruling, decisions.md "Pro gates").
+    case allWeaknesses
 
     var id: String { rawValue }
 
@@ -53,7 +55,7 @@ enum ProFeature: String, CaseIterable, Identifiable {
         case .gameImport: "Bring your chess.com and Lichess games in and review them here."
         case .guessTheMove: "Guess the moves of your games and see how close you came to the engine."
         case .deepAnalysis: "Let the engine think longer on every position."
-        case .liveGrading: "See each move graded as you play it."
+        case .allWeaknesses: "See every habit that keeps costing you games, not just the top one."
         }
     }
 }
@@ -148,6 +150,19 @@ enum PuzzleAllowance {
     /// Puzzles left today; nil means unlimited (Pro).
     static func remaining(_ progress: [PuzzleProgress], dailyId: String?, isPro: Bool, now: Date = .now) -> Int? {
         isPro ? nil : max(0, ProFeature.freePuzzlesPerDay - usedToday(progress, dailyId: dailyId, now: now))
+    }
+}
+
+/// Profile: up to `shown` habits; free users see the top `free` one, the rest as a locked
+/// teaser (spec: "weaknesses show the top one free and the rest Pro").
+enum WeaknessAllowance {
+    static let shown = 3
+    static let free = 1
+
+    static func split<T>(_ all: [T], isPro: Bool) -> (open: [T], locked: [T]) {
+        let top = Array(all.prefix(shown))
+        let open = isPro ? top.count : min(free, top.count)
+        return (Array(top.prefix(open)), Array(top.dropFirst(open)))
     }
 }
 
