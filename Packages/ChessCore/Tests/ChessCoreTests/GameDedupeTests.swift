@@ -28,4 +28,16 @@ import Testing
         #expect(GameDedupe.keeper([copy(id, moves: 2), copy(id, moves: 5)]) == 1)
         #expect(GameDedupe.keeper([]) == nil)
     }
+
+    /// Which row survives must not depend on content (it can differ between devices mid-sync)
+    /// or on fetch order: the smallest row id, the same on every device.
+    @Test func survivorIsTheSmallestRowIdInAnyOrder() {
+        let a = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let b = UUID(uuidString: "FFFFFFFF-0000-0000-0000-000000000000")!
+        #expect(GameDedupe.survivor(rowIDs: [a, b]) == 0)
+        #expect(GameDedupe.survivor(rowIDs: [b, a]) == 1)
+        // Copies that share a row id can't be told apart the same way everywhere: keep all.
+        #expect(GameDedupe.survivor(rowIDs: [a, a, b]) == nil)
+        #expect(GameDedupe.survivor(rowIDs: []) == nil)
+    }
 }

@@ -15,8 +15,12 @@ final class GameRecord {
     /// Bumped by every `update`; with the id and byte count it keys the decode cache, so a
     /// screen reading `snapshot` on every render decodes each game once.
     var revision: Int = 0
+    /// This row's own identity, set once at insert and never changed; synced copies of one
+    /// game differ here, so every device picks the same survivor (`GameDedupe.survivor`).
+    var rowID: UUID = UUID()
 
     init(snapshot: GameSnapshot) throws {
+        rowID = UUID()
         id = snapshot.id
         date = snapshot.date
         snapshotData = try encodeSnapshot(snapshot)
@@ -141,14 +145,44 @@ extension GameRecord {
         idsOnly.propertiesToFetch = [\.id]
         let ids = ((try? context.fetch(idsOnly)) ?? []).map(\.id)
         guard Set(ids).count < ids.count else { return 0 }
-        let all = (try? context.fetch(FetchDescriptor<GameRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)]))) ?? []
-        let keep = Set(keepers(all).map(ObjectIdentifier.init))
-        let extras = all.filter { !keep.contains(ObjectIdentifier($0)) }
-        guard !extras.isEmpty else { return 0 }
-        extras.forEach(context.delete)
+        let all = (try? context.fetch(FetchDescriptor<GameRecord>())) ?? []
+        let removed = Dictionary(grouping: all, by: \.id).values
+            .filter { $0.count > 1 }
+            .reduce(0) { $0 + mergeCopies($1, in: context).removed }
+        guard removed > 0 else { return 0 }
         context.saveReporting("merging synced games")
-        log.info("Merged \(extras.count) duplicate games")
-        return extras.count
+        log.info("Merged \(removed) duplicate games")
+        return removed
+    }
+
+    /// Merges copies of one game (same id) into one row; the caller saves. The surviving row
+    /// is chosen by its immutable `rowID` (identical on every device), then given the best
+    /// content of all copies (`GameDedupe.keeper`), and the others are deleted. Copies that
+    /// can't be told apart that way, or that are all unreadable, are left as they are
+    /// (readers still show one through `unique`). Returns the row to use and how many rows
+    /// were deleted.
+    @MainActor
+    static func mergeCopies(_ copies: [GameRecord], in context: ModelContext) -> (row: GameRecord?, removed: Int) {
+        guard copies.count > 1 else { return (copies.first, 0) }
+        let readable = copies.compactMap { record in record.snapshot.map { (record, $0) } }
+        guard let survivorIndex = GameDedupe.survivor(rowIDs: copies.map(\.rowID)),
+              let bestIndex = GameDedupe.keeper(readable.map(\.1)) else {
+            return (keepers(copies).first, 0)
+        }
+        let survivor = copies[survivorIndex]
+        let best = readable[bestIndex]
+        if best.0 !== survivor {
+            do {
+                try survivor.update(best.1)
+            } catch {
+                // Without the best content on the survivor, deleting the others would lose it.
+                log.error("Merging game \(survivor.id, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+                return (best.0, 0)
+            }
+        }
+        let extras = copies.filter { $0 !== survivor }
+        extras.forEach(context.delete)
+        return (survivor, extras.count)
     }
 
     /// The record kept for each id: readable copies first, then `GameDedupe`'s rule.

@@ -97,25 +97,28 @@ enum ProfileStore {
     /// delete-plus-insert. Extra copies of a game left by sync are removed.
     static func saveGames(_ games: [GameSnapshot], in context: ModelContext) {
         let ids = Set(games.map(\.id))
-        let rows = (try? context.fetch(FetchDescriptor<GameRecord>(predicate: #Predicate { ids.contains($0.id) },
-                                                                  sortBy: [SortDescriptor(\.date, order: .reverse)]))) ?? []
-        let kept = GameRecord.unique(rows)
-        let keptIDs = Set(kept.map(ObjectIdentifier.init))
-        for extra in rows where !keptIDs.contains(ObjectIdentifier(extra)) { context.delete(extra) }
-        let existing = Dictionary(kept.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let rows = (try? context.fetch(FetchDescriptor<GameRecord>(predicate: #Predicate { ids.contains($0.id) }))) ?? []
+        var existing: [UUID: GameRecord] = [:]
+        for (id, copies) in Dictionary(grouping: rows, by: \.id) {
+            existing[id] = GameRecord.mergeCopies(copies, in: context).row
+        }
         for game in games {
-            guard let row = existing[game.id] else {
-                if let record = try? GameRecord(snapshot: game) { context.insert(record) }
-                continue
-            }
-            var merged = game
-            if let stored = row.snapshot {
-                if let analysis = stored.analysis, analysis.isFull || merged.analysis == nil {
-                    merged.analysis = analysis
+            do {
+                guard let row = existing[game.id] else {
+                    context.insert(try GameRecord(snapshot: game))
+                    continue
                 }
-                merged.openingName = merged.openingName ?? stored.openingName
+                var merged = game
+                if let stored = row.snapshot {
+                    if let analysis = stored.analysis, analysis.isFull || merged.analysis == nil {
+                        merged.analysis = analysis
+                    }
+                    merged.openingName = merged.openingName ?? stored.openingName
+                }
+                try row.update(merged)
+            } catch {
+                SaveIssues.shared.report("your imported games", error: error, context: context)
             }
-            try? row.update(merged)
         }
         context.saveReporting("your imported games")
     }

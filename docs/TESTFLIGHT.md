@@ -12,7 +12,7 @@ Things the code can't do for you. Do them in this order before the first upload.
 
 TestFlight and App Store builds use the **Production** CloudKit environment. Without a deployed schema every export fails and sync silently doesn't happen.
 
-- [ ] Run a Debug build on a device signed in to iCloud. Play one game, solve one puzzle, finish one lesson, and run onboarding with an import. That creates every record type in the Development schema: `CD_GameRecord` (including the new `revision` field), `CD_PuzzleProgress`, `CD_LessonProgress`, `CD_StreakState`, `CD_UserProfile`, `CD_TrainingPlanRecord`.
+- [ ] Run a Debug build on a device signed in to iCloud. Play one game, solve one puzzle, finish one lesson, and run onboarding with an import. That creates every record type in the Development schema: `CD_GameRecord` (including the new `revision` and `rowID` fields), `CD_PuzzleProgress`, `CD_LessonProgress`, `CD_StreakState`, `CD_UserProfile`, `CD_TrainingPlanRecord`.
 - [ ] CloudKit Console → container `iCloud.uz.xq.chessc` → Schema → **Deploy Schema Changes…** to Production.
 - [ ] After any model change, repeat this before the next TestFlight build. Fields are added only; never rename or delete one.
 

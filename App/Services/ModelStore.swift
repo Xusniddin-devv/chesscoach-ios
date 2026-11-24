@@ -7,7 +7,8 @@ import OSLog
 /// without an iCloud account and starts syncing once one exists. It is never toggled on the
 /// account state, because a mirrored store reopened without mirroring can open read-only or
 /// be purged. The CloudKit and local configurations use separate files (`cloud.store`,
-/// `local.store`), so the fallback never opens the mirrored file. Models must stay
+/// `local.store`), so the fallback never opens the mirrored file. The legacy `default.store`
+/// is copied to the store being opened and deleted only once that store has opened. Models must stay
 /// CloudKit-compatible (every property defaulted, no unique constraints).
 ///
 /// Every @Model type lives in `models` (DataReset clears the same list).
@@ -31,9 +32,17 @@ enum ModelStore {
         directory.appending(path: "\(mode.rawValue).store")
     }
 
-    /// Builds before separate files kept everything in SwiftData's `default.store`. Moves it
-    /// (with its -wal / -shm files) to `target` once, when `target` doesn't exist yet.
-    /// Returns whether it moved.
+    private static let storeSuffixes = ["", "-wal", "-shm"]
+
+    private static func files(of store: URL) -> [URL] {
+        storeSuffixes.map { URL(filePath: store.path(percentEncoded: false) + $0) }
+    }
+
+    /// Builds before separate files kept everything in SwiftData's `default.store`. Copies it
+    /// (with its -wal / -shm files, all or nothing) to `target` when `target` doesn't exist
+    /// yet. The original stays until the container on `target` has opened
+    /// (`finishLegacyMigration`); if it doesn't open, `undoLegacyMigration` removes the copy
+    /// and the next store can take it. Returns whether it copied.
     @discardableResult
     static func migrateLegacyStore(to target: URL, in directory: URL = .applicationSupportDirectory) -> Bool {
         let fm = FileManager.default
@@ -41,17 +50,27 @@ enum ModelStore {
         guard fm.fileExists(atPath: legacy.path(percentEncoded: false)),
               !fm.fileExists(atPath: target.path(percentEncoded: false)) else { return false }
         do {
-            for suffix in ["", "-wal", "-shm"] {
-                let from = URL(filePath: legacy.path(percentEncoded: false) + suffix)
-                guard fm.fileExists(atPath: from.path(percentEncoded: false)) else { continue }
-                try fm.moveItem(at: from, to: URL(filePath: target.path(percentEncoded: false) + suffix))
+            for (from, to) in zip(files(of: legacy), files(of: target))
+            where fm.fileExists(atPath: from.path(percentEncoded: false)) {
+                try fm.copyItem(at: from, to: to)
             }
-            log.info("Moved the legacy store to \(target.lastPathComponent, privacy: .public)")
+            log.info("Copied the legacy store to \(target.lastPathComponent, privacy: .public)")
             return true
         } catch {
-            log.error("Moving the legacy store failed: \(error.localizedDescription, privacy: .public)")
+            log.error("Copying the legacy store failed: \(error.localizedDescription, privacy: .public)")
+            undoLegacyMigration(target)
             return false
         }
+    }
+
+    /// The container on the copy opened: the original store goes.
+    static func finishLegacyMigration(in directory: URL = .applicationSupportDirectory) {
+        for file in files(of: directory.appending(path: "default.store")) { try? FileManager.default.removeItem(at: file) }
+    }
+
+    /// The container on the copy didn't open: remove the copy, keep the original.
+    static func undoLegacyMigration(_ target: URL) {
+        for file in files(of: target) { try? FileManager.default.removeItem(at: file) }
     }
 
     static func makeContainer() -> ModelContainer {
@@ -68,24 +87,34 @@ enum ModelStore {
         let inTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
         if !inTests {
             let url = storeURL(.cloud)
-            migrateLegacyStore(to: url)
+            let copied = migrateLegacyStore(to: url)
             do {
                 let config = ModelConfiguration("cloud", schema: schema, url: url, cloudKitDatabase: .private(containerID))
                 let container = try ModelContainer(for: schema, configurations: config)
+                if copied { finishLegacyMigration() }
                 isSyncing = true
                 return container
             } catch {
-                // The cloud file stays untouched for the next launch; this session is local.
-                log.error("CloudKit store unavailable, using the local store: \(error.localizedDescription, privacy: .public)")
+                // The cloud file stays for the next launch (a fresh copy of the legacy store is
+                // removed again, so the local store can take it); this session is local.
+                if copied { undoLegacyMigration(url) }
+                log.fault("CloudKit store unavailable, using the local store this session: \(error.localizedDescription, privacy: .public)")
             }
         }
         #endif
         do {
             let url = storeURL(.local)
             // The XCTest host shares the app's container: it never adopts the user's store.
-            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil { migrateLegacyStore(to: url) }
+            let copied = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil && migrateLegacyStore(to: url)
             let config = ModelConfiguration("local", schema: schema, url: url, cloudKitDatabase: .none)
-            return try ModelContainer(for: schema, configurations: config)
+            do {
+                let container = try ModelContainer(for: schema, configurations: config)
+                if copied { finishLegacyMigration() }
+                return container
+            } catch {
+                if copied { undoLegacyMigration(url) }
+                throw error
+            }
         } catch {
             // Last resort: keep the app usable this session rather than crash.
             log.fault("Local store failed, using memory: \(error.localizedDescription, privacy: .public)")

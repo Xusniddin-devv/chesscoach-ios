@@ -21,7 +21,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Coach character (poses), speech bubble, chip-aware text (`[e4]`, `**bold**`, `CoachText.marked`) | `App/DesignSystem/Components/CoachBubble.swift`, assets `Coach/*` |
 | Streak pill, done ring, mini board, chips, flow layout | `App/DesignSystem/Components/TrainingComponents.swift` |
 | Icons (Icons8 iOS Filled, potrace SVG templates; brand logos the only exception) | `App/Resources/Assets.xcassets/Icons/`, lock `icons8.json` |
-| Saved game record (SwiftData), in-place update (`revision`), decode cache (`GameCache`: snapshot, `finalFen`, `blunderPuzzles`), sync duplicates (`unique`, `mergeDuplicates`, rule `ChessCore/Persistence/GameDedupe.swift`) | `App/Persistence/GameRecord.swift` |
+| Saved game record (SwiftData), in-place update (`revision`), decode cache (`GameCache`: snapshot, `finalFen`, `blunderPuzzles`), sync duplicates (`unique` on read; `mergeDuplicates` / `mergeCopies` keep the smallest immutable `rowID` and move the best content onto it; rules `ChessCore/Persistence/GameDedupe.swift`) | `App/Persistence/GameRecord.swift` |
 | Puzzle / lesson progress, streak rows, `TrainingStore` | `App/Persistence/TrainingModels.swift` |
 | User profile (platform, rating, goal), training plan, imported games | `App/Persistence/ProfileModels.swift` (`ProfileStore`) |
 | Sounds, haptics (`.gameFeedback`), voice input | `App/Services/Sound.swift`, `Haptics.swift`, `Voice.swift` |

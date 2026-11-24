@@ -105,21 +105,80 @@ struct SyncAndStoreTests {
         #expect(ModelStore.storeURL(.local).lastPathComponent == "local.store")
     }
 
-    @Test func legacyStoreMovesOnce() throws {
+    @Test func legacyStoreIsCopiedThenRemovedOnlyAfterOpening() throws {
         let dir = FileManager.default.temporaryDirectory.appending(path: "store-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
-        try Data("db".utf8).write(to: dir.appending(path: "default.store"))
+        let legacy = dir.appending(path: "default.store")
+        try Data("db".utf8).write(to: legacy)
         try Data("wal".utf8).write(to: dir.appending(path: "default.store-wal"))
+        let exists = { (url: URL) in FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) }
+
+        // The store didn't open: the copy goes, the original stays for the next try.
+        let cloud = ModelStore.storeURL(.cloud, in: dir)
+        #expect(ModelStore.migrateLegacyStore(to: cloud, in: dir))
+        ModelStore.undoLegacyMigration(cloud)
+        #expect(!exists(cloud) && exists(legacy))
+
+        // It opened: the original goes.
         let target = ModelStore.storeURL(.local, in: dir)
         #expect(ModelStore.migrateLegacyStore(to: target, in: dir))
         #expect(try Data(contentsOf: target) == Data("db".utf8))
         #expect(try Data(contentsOf: dir.appending(path: "local.store-wal")) == Data("wal".utf8))
-        #expect(!FileManager.default.fileExists(atPath: dir.appending(path: "default.store").path(percentEncoded: false)))
+        #expect(exists(legacy))
+        ModelStore.finishLegacyMigration(in: dir)
+        #expect(!exists(legacy) && !exists(dir.appending(path: "default.store-wal")))
         // An existing target is never overwritten.
-        try Data("new".utf8).write(to: dir.appending(path: "default.store"))
+        try Data("new".utf8).write(to: legacy)
         #expect(!ModelStore.migrateLegacyStore(to: target, in: dir))
         #expect(try Data(contentsOf: target) == Data("db".utf8))
+    }
+
+    /// Two devices that hold the same two copies, fetched in opposite orders, must keep the
+    /// same row (re-review N1): otherwise each deletes the other's and sync loses the game.
+    @Test func mergeKeepsTheSameRowOnEveryDevice() throws {
+        let id = UUID()
+        let small = UUID(uuidString: "00000000-0000-0000-0000-00000000000A")!
+        let large = UUID(uuidString: "F0000000-0000-0000-0000-00000000000B")!
+        for betterOnLarge in [false, true] {
+        var survivors: [UUID] = []
+        for order in [[small, large], [large, small]] {
+            let device = try ModelContainer(
+                for: ModelStore.schema,
+                configurations: ModelConfiguration(schema: ModelStore.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+            let ctx = device.mainContext
+            for rowID in order {
+                // The larger row id carries the better content: it must move onto the survivor.
+                let record = try GameRecord(snapshot: game(id, pass: betterOnLarge && rowID == large ? .full : .quick))
+                record.rowID = rowID
+                ctx.insert(record)
+            }
+            try ctx.save()
+            #expect(GameRecord.mergeDuplicates(in: ctx) == 1)
+            let left = try ctx.fetch(FetchDescriptor<GameRecord>())
+            #expect(left.count == 1)
+            #expect(left.first?.snapshot?.analysis?.isFull == betterOnLarge)
+            survivors += left.map(\.rowID)
+        }
+        #expect(survivors == [small, small])
+        }
+    }
+
+    /// Copies sharing a row id can't be ordered the same way everywhere: nothing is deleted,
+    /// and readers still show one.
+    @Test func indistinguishableCopiesAreKept() throws {
+        let id = UUID()
+        let shared = UUID()
+        for _ in 0..<2 {
+            let record = try GameRecord(snapshot: game(id))
+            record.rowID = shared
+            context.insert(record)
+        }
+        try context.save()
+        #expect(GameRecord.mergeDuplicates(in: context) == 0)
+        let records = try context.fetch(FetchDescriptor<GameRecord>())
+        #expect(records.count == 2)
+        #expect(ProfileModel(records: records).games.count == 1)
     }
 
     @Test func savesReportSuccess() throws {
