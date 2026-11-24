@@ -25,7 +25,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Puzzle / lesson progress, streak rows, `TrainingStore` | `App/Persistence/TrainingModels.swift` |
 | User profile (platform, rating, goal), training plan, imported games | `App/Persistence/ProfileModels.swift` (`ProfileStore`) |
 | Sounds, haptics (`.gameFeedback`), voice input | `App/Services/Sound.swift`, `Haptics.swift`, `Voice.swift` |
-| Pro status (RevenueCat or StoreKit, `-forcePro YES|NO`) | `App/Services/Purchases.swift` (`Entitlements`) |
+| Pro status (RevenueCat or StoreKit, `status` for the launch gate, plans with each product's intro-offer trial, `-forcePro YES|NO`, `-demoPlans YES`) | `App/Services/Purchases.swift` (`Entitlements`) |
 | App icon | `App/Resources/Assets.xcassets/AppIcon.appiconset` |
 
 ## Board
@@ -124,7 +124,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Flow (welcome, chat-style account finder, ~10 s import + background, reveal, goal, week as a token path, new player) | `App/Features/Onboarding/*` (`OnboardingFlow`, `OnboardingModel`, `FindStep`, `ImportStep`, `QuestionStep`, `PlanStep`) |
+| Flow (welcome, chat-style account finder, ~10 s import + background, reveal, goal, week as a token path, new player; the paywall last under `HARD_PAYWALL`) | `App/Features/Onboarding/*` (`OnboardingFlow`, `OnboardingModel`, `FindStep`, `ImportStep`, `QuestionStep`, `PlanStep`) |
 | chess.com / Lichess clients, PGN → snapshot (`source: chesscom|lichess`) | `ChessCore/Import/*` |
 | Onboarding analysis, coach lines, goal model, 7-day plan | `ChessCore/Onboarding/*` |
 
@@ -133,9 +133,11 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Settings (pushed from Profile's gear): play defaults, feedback, Pro, about, re-import (Pro), reset | `App/Features/Settings/SettingsView.swift`, `SettingsRows.swift`, `Preferences.swift` (`Pref`, `AppInfo`) |
-| Paywall, `ProFeature`, `ProGate`, `UpgradeButton`, puzzle / lesson / habit allowances (`WeaknessAllowance`) | `App/Features/Paywall/PaywallView.swift`, `ProGate.swift` |
+| Paywall screen (coach + goal road + trial timeline + plans pinned with the CTA; `PaywallScreen`, in-app sheet `PaywallView`, launch gate `PaywallGate`) | `App/Features/Paywall/PaywallView.swift` |
+| Hard paywall: `HARD_PAYWALL` build setting (`HardPaywall.isOn`, env `\.hardPaywall`), launch routing (`LaunchRoute`: onboarding / checking / paywall / tabs), the coach's personalised line (`PaywallStory`), trial timeline from the store's intro offer (`TrialTimeline`), day-before reminder notification (`TrialReminder`) | `App/Features/Paywall/HardPaywall.swift`, routing in `App/AppShell/RootTabView.swift`, onboarding's `.paywall` step in `OnboardingFlow.swift` |
+| `ProFeature`, `ProGate`, `UpgradeButton`, puzzle / lesson / habit allowances (`WeaknessAllowance`), the free tier when `HARD_PAYWALL=0` | `App/Features/Paywall/ProGate.swift` |
 | Licenses (GPLv3, Stockfish, chesskit, RevenueCat, Lichess CC0, Icons8) | `App/Features/Licenses/LicensesView.swift`, `App/Resources/Licenses/*.txt` |
-| Build config (RevenueCat key from gitignored `Config/Secrets.xcconfig`), StoreKit test file, entitlements | `Config/App.xcconfig`, `Config/ChessCoach.storekit`, `App/ChessCoach.entitlements`, `App/Info.plist` |
+| Build config (RevenueCat key from gitignored `Config/Secrets.xcconfig`, `HARD_PAYWALL`), StoreKit test file (yearly 7-day and monthly 3-day trials; also a test-bundle resource), entitlements | `Config/App.xcconfig`, `Config/ChessCoach.storekit`, `App/ChessCoach.entitlements`, `App/Info.plist` |
 | Rating estimate, tiers (pieces), milestones, weaknesses, motif wording | `ChessCore/Profile/ProfileStats.swift` |
 
 ## Grading and explanations (ChessCore/Analysis)
@@ -167,4 +169,4 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 |---|---|
 | ChessCore (Swift Testing, `swift test`) | `Packages/ChessCore/Tests/ChessCoreTests/*` (fake engine: `Support/FakeEngine.swift`) |
 | StockfishKit | `Packages/StockfishKit/Tests/StockfishKitTests/*` |
-| App (simulator) | `AppTests/*` — Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), settings / paywall, training store, onboarding, launch, merge invariants (`MergeIntegrationTests.swift`), decode cache / sync duplicates / store files / privacy manifest (`SyncAndStoreTests.swift`), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
+| App (simulator) | `AppTests/*` — Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), settings / paywall, hard paywall gate matrix + trial timeline + StoreKitTest plans (`HardPaywallTests.swift`), training store, onboarding, launch, merge invariants (`MergeIntegrationTests.swift`), decode cache / sync duplicates / store files / privacy manifest (`SyncAndStoreTests.swift`), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
