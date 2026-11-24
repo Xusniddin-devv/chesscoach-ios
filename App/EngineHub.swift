@@ -32,6 +32,9 @@ final class EngineHub {
         await StockfishEngine.shared.configure(threads: Self.defaultThreads, hashMB: Self.defaultHashMB)
     }
 
+    /// The one shared engine (the result panel analyses the finished game on it).
+    var engine: any ChessEngine { StockfishEngine.shared }
+
     func makeSession(bot: Bot, userColor: Piece.Color, mode: PlayMode) -> GameSession {
         GameSession(bot: bot, userColor: userColor, mode: mode, engine: StockfishEngine.shared,
                     playerRating: playerRating)

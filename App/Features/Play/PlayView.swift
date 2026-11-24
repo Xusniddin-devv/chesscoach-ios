@@ -8,7 +8,15 @@ import ChessCore
 /// the flat action bar (resign · hint · back · forward · flip). A Training interrupt slides the coach
 /// card up in place of the action bar. ‹ › and the strip show earlier positions read-only.
 struct PlayView: View {
+    /// Where the player goes from the result panel (Home routes it after the cover closes).
+    enum Exit: Equatable {
+        case home
+        case review(UUID)
+        case newBot
+    }
+
     let setup: PlaySetup
+    var onExit: (Exit) -> Void = { _ in }
 
     @Environment(EngineHub.self) private var hub
     @Environment(\.modelContext) private var context
@@ -17,6 +25,7 @@ struct PlayView: View {
     @State private var confirmingResign = false
     @State private var showingResult = false
     @State private var saveFailed = false
+    @State private var openingReview = false
 
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "uz.xq.chessc", category: "persistence")
 
@@ -80,9 +89,16 @@ struct PlayView: View {
             }
         }
         .sheet(isPresented: $showingResult) {
-            GameOverSheet(model: model, saveFailed: saveFailed, onPlayAgain: playAgain, onDone: done,
-                          onCloseWithoutSaving: closeWithoutSaving)
+            GameOverSheet(model: model, tier: hub.playerTier, wording: hub.wording, saveFailed: saveFailed,
+                          isOpeningReview: openingReview, onReview: openReview, onRematch: playAgain,
+                          onNewBot: newBot, onClose: done, onCloseWithoutSaving: closeWithoutSaving)
                 .interactiveDismissDisabled()
+                .task {
+                    await model.analyzeFinishedGame(engine: hub.engine)
+                    #if DEBUG
+                    if model.summaryAnalysis != nil { print("AUTOPLAY summary") }
+                    #endif
+                }
         }
         .confirmationDialog("Resign this game?", isPresented: $confirmingResign, titleVisibility: .visible) {
             Button("Resign", role: .destructive) { session.resign() }
@@ -164,6 +180,7 @@ struct PlayView: View {
     }
 
     private func done() {
+        model?.cancelSummaryAnalysis()
         saveThen {
             showingResult = false
             dismiss()
@@ -171,9 +188,36 @@ struct PlayView: View {
     }
 
     private func playAgain() {
+        model?.cancelSummaryAnalysis()
         saveThen {
             showingResult = false
+            openingReview = false
             begin()
+        }
+    }
+
+    private func newBot() {
+        model?.cancelSummaryAnalysis()
+        saveThen {
+            showingResult = false
+            onExit(.newBot)
+            dismiss()
+        }
+    }
+
+    /// Review needs the analysis the panel is running, so it waits for it (the button shows
+    /// the progress), then saves the game with it and opens Review.
+    private func openReview() {
+        guard let model else { return }
+        openingReview = true
+        Task {
+            await model.waitForSummary()
+            saveThen {
+                showingResult = false
+                if let id = model.savedGameID { onExit(.review(id)) }
+                dismiss()
+            }
+            openingReview = false
         }
     }
 

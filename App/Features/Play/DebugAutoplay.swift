@@ -8,6 +8,7 @@ import StockfishKit
 ///   -debugAutoplay pip       starts a Training game against that bot as White and plays it
 ///                            (see `DebugAutoplay`)
 ///   -debugHistory 1          with autoplay: after the 6th move, view an earlier ply for 6 s
+///   -debugStay 1             with autoplay: keep the result panel up instead of pressing Done
 enum DebugLaunch {
     static var autoplayBot: Bot? {
         UserDefaults.standard.string(forKey: "debugAutoplay").flatMap { id in Bot.all.first { $0.id == id } }
@@ -33,6 +34,8 @@ enum DebugAutoplay {
         guard DebugLaunch.autoplayBot != nil else { return }
         Task {
             await run(model)
+            // -debugStay 1 keeps the result panel up (screenshots of the panel).
+            guard UserDefaults.standard.string(forKey: "debugStay") == nil else { return }
             try? await Task.sleep(for: .seconds(6))
             log("done")
             onFinished()

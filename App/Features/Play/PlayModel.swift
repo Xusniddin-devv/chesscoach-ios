@@ -40,6 +40,8 @@ final class PlayModel {
     private(set) var isHinting = false
     private(set) var isSaved = false
     private(set) var isSaving = false
+    /// The saved game's id (Review opens it from the result panel).
+    private(set) var savedGameID: UUID?
     /// Writes a snapshot to the store; replaceable in tests.
     @ObservationIgnored var persist: @MainActor (GameSnapshot, ModelContext) throws -> Void = PlayModel.insertRecord
 
@@ -332,9 +334,93 @@ final class PlayModel {
         }
     }
 
+    // MARK: Game-over summary
+
+    /// Both sides' analysis of the finished game (`GameAnalyzer` at the Review depth), run while
+    /// the result panel is up: the bot's accuracy and move classes, the key moment. Saved with
+    /// the game, so Review opens without analysing again.
+    private(set) var summaryAnalysis: GameAnalysis?
+    /// 0…1 while the summary analysis runs; nil otherwise.
+    private(set) var summaryProgress: Double?
+    @ObservationIgnored private var summaryTask: Task<GameAnalysis, any Error>?
+
+    /// Analyses the finished game once its live grades are in (the engine is free then).
+    /// Returns when the run ends; a cancelled or failed run leaves `summaryAnalysis` nil
+    /// (Review analyses the game later).
+    func analyzeFinishedGame(engine: any ChessEngine) async {
+        guard isOver, summaryAnalysis == nil, summaryTask == nil, !session.moves.isEmpty else { return }
+        _ = await session.finalSnapshot()
+        guard !Task.isCancelled, !isSaved, summaryTask == nil else { return }
+        let analyzer = GameAnalyzer(engine: engine, depth: ReviewModel.depth)
+        let startFen = session.startFen
+        let moves = session.moves
+        summaryProgress = 0
+        let task = Task {
+            try await analyzer.analyze(startFen: startFen, moves: moves) { [weak self] done, total in
+                Task { @MainActor in
+                    guard let self, self.summaryTask != nil else { return }
+                    self.summaryProgress = Double(done) / Double(max(total, 1))
+                }
+            }
+        }
+        summaryTask = task
+        let outcome = await withTaskCancellationHandler { await task.result } onCancel: { task.cancel() }
+        guard summaryTask != nil else { return }  // cancelled meanwhile
+        summaryTask = nil
+        summaryProgress = nil
+        if case .success(let analysis) = outcome, analysis.verdicts.count == moves.count {
+            summaryAnalysis = analysis
+        }
+    }
+
+    /// Stops the summary analysis (leaving for a rematch or another bot).
+    func cancelSummaryAnalysis() {
+        summaryTask?.cancel()
+        summaryTask = nil
+        summaryProgress = nil
+    }
+
+    /// Waits for a running summary analysis to finish (Review needs it anyway).
+    func waitForSummary() async {
+        if let summaryTask { _ = await summaryTask.result }
+    }
+
+    private var analysedVerdicts: [Verdict]? { summaryAnalysis?.verdicts }
+
+    /// A side's accuracy on the panel: the analysis once it is in; for the user, the live
+    /// grades until then (the bot's moves are not graded live).
+    func summaryAccuracy(for color: Piece.Color) -> Double? {
+        if let analysis = summaryAnalysis {
+            return color == .white ? analysis.accuracyWhite : analysis.accuracyBlack
+        }
+        return color == session.userColor ? accuracy : nil
+    }
+
+    /// A side's move classes with counts (only classes that occur, best first).
+    func summaryCounts(for color: Piece.Color) -> [(moveClass: MoveClass, count: Int)] {
+        let verdicts = analysedVerdicts ?? (color == session.userColor ? userVerdicts : [])
+        return moveClassCounts(verdicts.filter { $0.mover == color })
+    }
+
+    /// The move that swung the game most (either side once analysed, the user's before).
+    var summaryKeyMoment: Verdict? {
+        keyMoment(analysedVerdicts ?? userVerdicts)
+    }
+
+    /// The position after `ply` (0 = the start).
+    func fen(afterPly ply: Int) -> String {
+        var fen = session.startFen
+        for uci in session.moves.prefix(ply) {
+            guard let applied = Rules.apply(uci: uci, to: fen) else { break }
+            fen = applied.fenAfter
+        }
+        return fen
+    }
+
     // MARK: Saving
 
-    /// Stores the game once, after its last grades are in (`finalSnapshot`, never `snapshot()`).
+    /// Stores the game once, after its last grades are in (`finalSnapshot`, never `snapshot()`),
+    /// with the summary analysis when it finished.
     /// A grade halted by an engine error is retried up to `maxGradeRetries` times; after that the
     /// partial game is stored (Plan 2 re-analyses it). A failed write leaves the game unsaved,
     /// so the next Done / Play again tries again.
@@ -349,7 +435,12 @@ final class PlayModel {
             session.retry()
             snapshot = await session.finalSnapshot()
         }
+        if let analysis = summaryAnalysis, analysis.verdicts.count == snapshot.moves.count {
+            snapshot.analysis = analysis
+            snapshot.openingName = OpeningBook.deepest(startFen: snapshot.startFen, moves: snapshot.moves)?.name
+        }
         try persist(snapshot, context)
+        savedGameID = snapshot.id
         isSaved = true
     }
 
