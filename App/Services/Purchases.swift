@@ -41,7 +41,14 @@ final class Entitlements {
         // Only a public Apple SDK key ("appl_…") configures RevenueCat. Empty, an unexpanded
         // "$(REVENUECAT_API_KEY)", a placeholder or a secret key all mean StoreKit 2 only, so an
         // archive without Config/Secrets.xcconfig still sells through StoreKit.
-        if !key.hasPrefix("appl_") {
+        // DEBUG builds also accept a RevenueCat Test Store key ("test_…"): purchases work in the
+        // Simulator without App Store Connect. Release never configures with a test key.
+        #if DEBUG
+        let usable = key.hasPrefix("appl_") || key.hasPrefix("test_")
+        #else
+        let usable = key.hasPrefix("appl_")
+        #endif
+        if !usable {
             backend = .storeKit
         } else {
             backend = .revenueCat
