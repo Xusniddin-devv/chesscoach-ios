@@ -47,7 +47,8 @@ final class Entitlements {
             Purchases.configure(withAPIKey: key)
         }
         #if DEBUG
-        forced = UserDefaults.standard.object(forKey: "forcePro") as? Bool
+        // Launch arguments arrive as strings ("YES"): `bool(forKey:)` reads them, `as? Bool` doesn't.
+        forced = UserDefaults.standard.object(forKey: "forcePro") == nil ? nil : UserDefaults.standard.bool(forKey: "forcePro")
         #else
         forced = nil
         #endif

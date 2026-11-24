@@ -48,7 +48,8 @@ struct PuzzlesView: View {
                 if let p = PuzzleBank.daily(for: .now) { session = PuzzleSessionSetup(kind: .daily, title: "Daily puzzle", puzzles: [p]) }
             case "practice":
                 let pool = PuzzleBank.puzzles(band: practiceBand, theme: theme.isEmpty ? nil : theme)
-                session = PuzzleSessionSetup(kind: .practice, title: "Practice", puzzles: Array(pool.prefix(5)))
+                session = PuzzleSessionSetup(kind: .practice, title: theme.isEmpty ? "Practice" : PuzzleBank.title(forTheme: theme),
+                                             puzzles: Array(pool.prefix(5)), theme: theme.isEmpty ? nil : theme)
             case "mistakes":
                 let own = Self.blunderPuzzles(from: games)
                 if !own.isEmpty {
@@ -259,7 +260,7 @@ struct PuzzlesView: View {
         if pool.isEmpty { pool = PuzzleBank.puzzles(band: practiceBand, theme: chosen) }
         guard !pool.isEmpty else { return }
         let title = chosen.map(PuzzleBank.title(forTheme:)) ?? "Practice"
-        session = PuzzleSessionSetup(kind: .practice, title: title, puzzles: limited(pool))
+        session = PuzzleSessionSetup(kind: .practice, title: title, puzzles: limited(pool), theme: chosen)
     }
 }
 

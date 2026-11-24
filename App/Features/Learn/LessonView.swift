@@ -2,8 +2,11 @@ import SwiftUI
 import SwiftData
 import ChessCore
 
-/// Full-screen lesson: board, a progress line, and the explanation card under it.
-/// Glass toolbar: close, restart, hint.
+/// Full-screen lesson on Play's layout (`TrainingBoardScaffold`), like the puzzle solver:
+/// a flat top row (close, one pip per move to play, lesson title, "3 / 7" in mono), the
+/// prompt with the side to move, the board centred, the status line, the coach explaining
+/// each step in a speech bubble (square chips, moves in bold), and the flat action bar
+/// Hint · Start over · Next (accent once the lesson is complete). No stacked cards.
 struct LessonView: View {
     let lesson: Lesson
     /// Opens another lesson (Next lesson); nil when this is the last one of its track.
@@ -22,150 +25,132 @@ struct LessonView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let model { content(model) } else { DS.Color.background }
-            }
-            .background(DS.Color.background)
-            .navigationTitle(lesson.title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Close", systemImage: "xmark") { dismiss() }
-                }
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("Start over", systemImage: "arrow.counterclockwise") { model?.restart() }
-                    Button("Hint", systemImage: "lightbulb") { model?.hint() }
-                        .disabled(model?.interactive != true)
-                }
-            }
+        Group {
+            if let model { content(model) } else { DS.Color.background }
         }
-        .tint(DS.Color.text)
+        .background(DS.Color.background.ignoresSafeArea())
+        .paywall(isPresented: $showPaywall, feature: .allLessons)
         .task {
             guard model == nil else { return }
             let next = LessonModel(lesson: lesson)
             next.attach(context)
             model = next
             next.start()
+            #if DEBUG
+            // `-debugLessonPlay N`: plays the first N scripted moves (screenshots).
+            let n = UserDefaults.standard.integer(forKey: "debugLessonPlay")
+            for _ in 0..<n {
+                try? await Task.sleep(for: .seconds(1.2))
+                guard let move = next.player.expectedMove else { break }
+                _ = next.move(move)
+            }
+            #endif
         }
     }
 
     private func content(_ model: LessonModel) -> some View {
-        VStack(spacing: 0) {
-            progressLine(model)
-                .padding(.horizontal, DS.Spacing.m)
-                .padding(.vertical, DS.Spacing.sm)
-            BoardView(
-                tracker: model.tracker,
-                fen: model.player.fen,
-                orientation: lesson.userColor,
-                interactive: model.interactive,
-                lastMove: model.lastMove,
-                squareTint: model.squareTint,
-                badges: [:],
-                arrows: model.arrows,
-                onMove: model.move)
-            .padding(.horizontal, DS.Spacing.s)
-            ScrollView {
-                card(model)
-                    .padding(.horizontal, DS.Spacing.m)
-                    .padding(.vertical, DS.Spacing.m)
-            }
-            .scrollBounceBehavior(.basedOnSize)
-        }
+        TrainingBoardScaffold(
+            prompt: prompt(model),
+            side: lesson.userColor,
+            status: status(model),
+            statusAccessory: model.engineFailed ? .action("Retry", model.retryEngine) : nil,
+            header: {
+                TrainingTopBar(
+                    pips: pips(model), current: lesson.goal == .line ? model.player.userMovesDone : nil,
+                    title: lesson.title,
+                    figure: lesson.goal == .line ? "\(model.player.userMovesDone) / \(model.player.userMovesTotal)" : nil,
+                    figureLabel: "\(model.player.userMovesDone) of \(model.player.userMovesTotal) moves") { dismiss() }
+            },
+            board: {
+                BoardView(
+                    tracker: model.tracker,
+                    fen: model.player.fen,
+                    orientation: lesson.userColor,
+                    interactive: model.interactive,
+                    lastMove: model.lastMove,
+                    squareTint: model.squareTint,
+                    badges: [:],
+                    arrows: model.arrows,
+                    onMove: model.move)
+            },
+            coach: { coach(model) },
+            actions: { actionBar(model) })
         .animation(.snappy(duration: 0.25), value: model.player.status)
+        .animation(.snappy(duration: 0.2), value: model.wrongMove)
     }
 
-    private func progressLine(_ model: LessonModel) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(lesson.track.title)
-                .font(DS.Font.subheadline)
-                .foregroundStyle(DS.Color.textSecondary)
-            Spacer()
-            if lesson.goal == .line {
-                Text("\(model.player.userMovesDone) / \(model.player.userMovesTotal)")
-                    .font(DS.Font.numeral)
-                    .accessibilityLabel("\(model.player.userMovesDone) of \(model.player.userMovesTotal) moves")
+    // MARK: Words
+
+    /// Scripted lines: one pip per move to play, done ones filled.
+    private func pips(_ model: LessonModel) -> [Bool?] {
+        guard lesson.goal == .line else { return [] }
+        return (0..<model.player.userMovesTotal).map { $0 < model.player.userMovesDone ? true : nil }
+    }
+
+    private func prompt(_ model: LessonModel) -> String {
+        let side = lesson.userColor == .white ? "White" : "Black"
+        switch lesson.goal {
+        case .line: return "You play \(side) · \(lesson.track.title.lowercased().dropLast()) line"
+        case .mate: return "\(side) to move · mate in one"
+        case .win: return "\(side) to move · checkmate"
+        case .draw: return "\(side) to move · hold the draw"
+        }
+    }
+
+    private func status(_ model: LessonModel) -> String? {
+        if model.engineFailed { return "The engine stopped" }
+        switch model.player.status {
+        case .completed: return "Lesson complete"
+        case .failed: return "Not this time"
+        case .autoTurn: return lesson.userColor == .white ? "Black replies…" : "White replies…"
+        case .opponentTurn: return "Engine is thinking…"
+        case .userTurn:
+            if model.wrongMove {
+                return model.player.hintLevel >= 2 ? "Not this one · the arrow shows the move" : "Not this one · the piece to move is marked"
             }
+            return "Your move"
         }
     }
 
     @ViewBuilder
-    private func card(_ model: LessonModel) -> some View {
+    private func coach(_ model: LessonModel) -> some View {
         switch model.player.status {
         case .completed:
-            ResultCard(title: "Lesson complete", message: completeMessage, positive: true) {
-                HStack(spacing: DS.Spacing.sm) {
-                    SecondaryButton(title: "Again", action: model.restart)
-                    if let next = nextLesson, LessonAllowance.isLocked(next, isPro: entitlements.isPro) {
-                        PrimaryButton(title: "Next lesson with Pro") { showPaywall = true }
-                            .paywall(isPresented: $showPaywall, feature: .allLessons)
-                    } else if let next = nextLesson, let onNext {
-                        PrimaryButton(title: "Next lesson") { onNext(next) }
-                    } else {
-                        PrimaryButton(title: "Done") { dismiss() }
-                    }
-                }
-            }
+            CoachBubble(pose: .pleased, text: CoachText.marked(completeMessage), avatarSize: 52)
         case .failed(let reason):
-            ResultCard(title: "Not this time", message: reason, positive: false) {
-                PrimaryButton(title: "Try again", action: model.restart)
-            }
+            CoachBubble(pose: .concerned, text: CoachText.marked(reason), avatarSize: 52)
         default:
-            explanation(model)
-        }
-    }
-
-    private func explanation(_ model: LessonModel) -> some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-            SectionLabel(label(model))
-            Text(model.player.explanation)
-                .font(DS.Font.body)
-                .foregroundStyle(DS.Color.text)
-                .fixedSize(horizontal: false, vertical: true)
-                .contentTransition(.opacity)
-            if model.wrongMove {
-                HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s) {
-                    Circle().fill(DS.Color.danger).frame(width: 8, height: 8)
-                    Text(model.player.hintLevel >= 2 ? "Not this one. The arrow shows the move." : "Not this one. The piece to move is marked.")
-                        .font(DS.Font.subheadline)
-                        .foregroundStyle(DS.Color.textSecondary)
-                }
-                .transition(.opacity)
-            }
-            if model.engineFailed {
-                Button("The engine stopped. Retry") { model.retryEngine() }
-                    .font(DS.Font.headline)
-                    .foregroundStyle(DS.Color.accent)
-            }
-        }
-        .padding(DS.Spacing.m)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
-        .animation(.snappy(duration: 0.2), value: model.wrongMove)
-    }
-
-    private func label(_ model: LessonModel) -> String {
-        let side = lesson.userColor == .white ? "White" : "Black"
-        switch model.player.status {
-        case .autoTurn: return lesson.userColor == .white ? "Black replies" : "White replies"
-        case .opponentTurn: return "Engine is thinking"
-        default: break
-        }
-        switch lesson.goal {
-        case .line: return "Your move as \(side)"
-        case .mate: return "Checkmate in one"
-        case .win: return "Goal: checkmate"
-        case .draw: return "Goal: hold the draw"
+            CoachBubble(pose: model.wrongMove ? .thinking : .neutral,
+                        text: CoachText.marked(model.player.explanation), avatarSize: 52)
         }
     }
 
     private var completeMessage: String {
         switch lesson.goal {
-        case .line: "You played the whole line. Use it in your next game."
+        case .line: "**You played the whole line.** Use it in your next game."
         case .mate: lesson.summary
-        case .win: "Checkmate. That technique wins every time."
-        case .draw: "Draw held. Knowing when it's a draw saves half points."
+        case .win: "**Checkmate.** That technique wins every time."
+        case .draw: "**Draw held.** Knowing when it's a draw saves half points."
+        }
+    }
+
+    // MARK: Action bar
+
+    private func actionBar(_ model: LessonModel) -> some View {
+        let complete = model.player.status == .completed
+        return GameActionBar {
+            GameAction(title: "Hint", icon: "hint") { model.hint() }
+                .disabled(!model.interactive)
+            GameAction(title: "Start over", icon: "return") { withAnimation(.snappy) { model.restart() } }
+            if let next = nextLesson, LessonAllowance.isLocked(next, isPro: entitlements.isPro) {
+                GameAction(title: "Next", icon: "lock", prominent: complete) { showPaywall = true }
+                    .accessibilityLabel("Next lesson with Pro")
+            } else if let next = nextLesson, let onNext {
+                GameAction(title: "Next", icon: "forward", prominent: complete) { onNext(next) }
+                    .accessibilityLabel("Next lesson")
+            } else {
+                GameAction(title: "Done", icon: "forward", prominent: complete) { dismiss() }
+            }
         }
     }
 }

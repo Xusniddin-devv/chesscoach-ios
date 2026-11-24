@@ -110,7 +110,8 @@ struct ProfileView: View {
         let own = Set(snapshots.filter { !$0.isFreeplay }.flatMap { BlunderPuzzles.from(snapshot: $0) }.map(\.id))
         fixSession = PuzzleSessionSetup(
             kind: .review, title: motif.title, puzzles: puzzles,
-            sources: Dictionary(puzzles.map { ($0.id, own.contains($0.id) ? "blunder" : "bank") }, uniquingKeysWith: { a, _ in a }))
+            sources: Dictionary(puzzles.map { ($0.id, own.contains($0.id) ? "blunder" : "bank") }, uniquingKeysWith: { a, _ in a }),
+            theme: PuzzleBank.themes(for: motif).first)
     }
 
     private func sectionTitle(_ text: String) -> some View {
