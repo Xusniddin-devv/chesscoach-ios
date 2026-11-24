@@ -10,14 +10,21 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| App entry, SwiftData container, engine configure | `App/ChessCoachApp.swift` |
-| Tabs (Home, Puzzles, Learn, Profile); player rating sync from saved games | `App/AppShell/RootTabView.swift` |
+| App entry, engine configure, Entitlements injection | `App/ChessCoachApp.swift` |
+| SwiftData container (CloudKit or local, `-debugEmptyStore`), the one model list | `App/Services/ModelStore.swift` (`ModelStore.models`; `DataReset.models` = same) |
+| Onboarding gate, tabs (Home, Puzzles, Learn, Profile); player rating sync from saved games | `App/AppShell/RootTabView.swift` |
 | Shared engine access, sessions, review models, player rating + wording | `App/EngineHub.swift` |
 | Design tokens (colours, type, spacing, radii) | `App/DesignSystem/Tokens.swift` |
 | Buttons, labels, avatar tiles (bots, user tier piece), move badge, pill | `App/DesignSystem/Components/*` |
-| Icons (Icons8 iOS Filled, potrace SVG templates) | `App/Resources/Assets.xcassets/Icons/`, lock `icons8.json` |
+| Coach character (poses), speech bubble, chip-aware text (`[e4]`, `**bold**`, `CoachText.marked`) | `App/DesignSystem/Components/CoachBubble.swift`, assets `Coach/*` |
+| Streak pill, done ring, mini board, chips, flow layout | `App/DesignSystem/Components/TrainingComponents.swift` |
+| Icons (Icons8 iOS Filled, potrace SVG templates; brand logos the only exception) | `App/Resources/Assets.xcassets/Icons/`, lock `icons8.json` |
 | Saved game record (SwiftData), in-place update | `App/Persistence/GameRecord.swift` |
-| Puzzles / Learn placeholders | `App/Features/Placeholders/ComingSoonView.swift` |
+| Puzzle / lesson progress, streak rows, `TrainingStore` | `App/Persistence/TrainingModels.swift` |
+| User profile (platform, rating, goal), training plan, imported games | `App/Persistence/ProfileModels.swift` (`ProfileStore`) |
+| Sounds, haptics (`.gameFeedback`), voice input | `App/Services/Sound.swift`, `Haptics.swift`, `Voice.swift` |
+| Pro status (RevenueCat or StoreKit, `-forcePro YES|NO`) | `App/Services/Purchases.swift` (`Entitlements`) |
+| App icon | `App/Resources/Assets.xcassets/AppIcon.appiconset` |
 
 ## Board
 
@@ -42,7 +49,8 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Greeting, Play card, Analysis board card, recent games → Review (freeplay excluded: `recentGames`) | `App/Features/Home/HomeView.swift` |
+| Greeting, Play card, Analysis board card, recent games → Review (bots + imports; freeplay excluded: `recentGames`) | `App/Features/Home/HomeView.swift` |
+| Today's plan (day, tasks → puzzles / own mistakes / lesson / bot, goal line, next week) | `App/Features/Home/TodayPlanCard.swift`, `ChessCore/Onboarding/TrainingPlan.swift` |
 
 ## Analysis board (Freeplay) and position editor
 
@@ -64,10 +72,11 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Bot picker = sparring ladder (bot, mode, colour); ladder rules | `App/Features/Play/BotPickerView.swift`, `ChessCore/Play/BotLadder.swift` |
-| Game screen, action bar, saving | `App/Features/Play/PlayView.swift`, `App/Features/Play/PlayModel.swift` |
+| Game screen, flat action bar (incl. hold-to-talk mic cell), saving | `App/Features/Play/PlayView.swift`, `App/Features/Play/PlayModel.swift`, `App/Features/Voice/VoiceMicButton.swift` |
+| Voice move parsing (spoken text → UCI) | `ChessCore/Voice/VoiceMove.swift` |
 | Game logic: board, grading queue, bot moves, interrupts, take-back | `ChessCore/Play/GameSession.swift` |
 | Bots, bot strength / pacing, Training thresholds | `ChessCore/Play/Bots.swift`, `ChessCore/Play/Levels.swift`, `ChessCore/Play/PlayerProfile.swift` |
-| Coach card (Training interrupt) | `App/Features/Play/CoachCard.swift` |
+| Coach card (Training interrupt; coach figure + chip text; explanation Pro-gated) | `App/Features/Play/CoachCard.swift` |
 | Game-over result panel (players, accuracy, class chips, key moment), summary analysis, confetti | `App/Features/Play/GameOverSheet.swift`, `PlayModel.swift` (summary), `ConfettiBurst.swift`, `UserAccuracy.swift`, `ChessCore/Analysis/GameSummary.swift` |
 | DEBUG autoplay / launch arguments | `App/Features/Play/DebugAutoplay.swift` |
 
@@ -75,7 +84,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Review screen (scaffold, comment card, action bar) | `App/Features/Review/ReviewView.swift` |
+| Review screen (scaffold, comment card, action bar; free users: classes/comments/Best/branches → paywall) | `App/Features/Review/ReviewView.swift` |
 | Analysis run + store, stepping, branches, comments | `App/Features/Review/ReviewModel.swift` |
 | Move list sheet (accuracy, class counts, moves) | `App/Features/Review/ReviewMoveList.swift` |
 | DEBUG launch arguments (-debugReview …) | `App/Features/Review/DebugReview.swift` |
@@ -86,8 +95,44 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Profile tab "You" (piece hero, last-games filmstrip, move-quality ribbon, habits) | `App/Features/Profile/ProfileView.swift` |
-| Stats from saved games | `App/Features/Profile/ProfileModel.swift` |
+| Profile tab "You" (piece hero + goal line, last-games filmstrip, ribbon, habits, "Fix it", Settings gear) | `App/Features/Profile/ProfileView.swift` |
+| Stats from saved games (bots + imports, never freeplay) | `App/Features/Profile/ProfileModel.swift` |
+| "Fix it" puzzles for a habit (own positions first, then bank) | `ChessCore/Puzzles/BlunderPuzzles.swift` (`fixIt`) |
+
+## Puzzles
+
+| Feature | Files |
+|---|---|
+| Puzzles tab (daily, own mistakes, practice, streak, free allowance) | `App/Features/Puzzles/PuzzlesView.swift` |
+| Solver screen + model (setup move, replies, verdict band, badges, SRS + streak + puzzle rating) | `App/Features/Puzzles/PuzzleSessionView.swift`, `PuzzleSessionModel.swift` |
+| Shared training frame (progress segments, coach narration, chunky buttons, verdict band, "Which move?" pills) | `App/Features/Shared/TrainingFrame.swift` |
+| Solution explanation (chips), puzzle rating (Elo, first outcomes) | `ChessCore/Puzzles/PuzzleExplainer.swift`, `ChessCore/Puzzles/PuzzleRating.swift` |
+| Puzzle format, solver rules, bank (6,000 Lichess CC0), daily, own-mistake puzzles | `ChessCore/Puzzles/*`, `Resources/puzzles.json`, `scripts/gen-puzzles.sh` |
+| Spaced repetition, day streak | `ChessCore/Training/SRS.swift`, `Streak.swift` |
+
+## Learn
+
+| Feature | Files |
+|---|---|
+| Learn tab (winding path: unit banners, lesson tokens, boss bots, popovers; Pro lock after the first lesson) | `App/Features/Learn/LearnView.swift` |
+| Lesson player + model (scripted lines, mate patterns, endgames vs engine) | `App/Features/Learn/LessonView.swift`, `LessonModel.swift`, `ChessCore/Lessons/*`, `Resources/lessons.json` |
+
+## Onboarding and import
+
+| Feature | Files |
+|---|---|
+| Flow (welcome, platform, username, import + analysis, reveal, goal, plan, new player) | `App/Features/Onboarding/*` (`OnboardingFlow`, `OnboardingModel`, steps) |
+| chess.com / Lichess clients, PGN → snapshot (`source: chesscom|lichess`) | `ChessCore/Import/*` |
+| Onboarding analysis, coach lines, goal model, 7-day plan | `ChessCore/Onboarding/*` |
+
+## Settings, paywall, licenses
+
+| Feature | Files |
+|---|---|
+| Settings (pushed from Profile's gear): play defaults, feedback, Pro, about, re-import (Pro), reset | `App/Features/Settings/SettingsView.swift`, `SettingsRows.swift`, `Preferences.swift` (`Pref`, `AppInfo`) |
+| Paywall, `ProFeature`, `ProGate`, `UpgradeButton`, puzzle / lesson allowances | `App/Features/Paywall/PaywallView.swift`, `ProGate.swift` |
+| Licenses (GPLv3, Stockfish, chesskit, RevenueCat, Lichess CC0, Icons8) | `App/Features/Licenses/LicensesView.swift`, `App/Resources/Licenses/*.txt` |
+| Build config (RevenueCat key from gitignored `Config/Secrets.xcconfig`), StoreKit test file, entitlements | `Config/App.xcconfig`, `Config/ChessCoach.storekit`, `App/ChessCoach.entitlements`, `App/Info.plist` |
 | Rating estimate, tiers (pieces), milestones, weaknesses, motif wording | `ChessCore/Profile/ProfileStats.swift` |
 
 ## Grading and explanations (ChessCore/Analysis)
@@ -107,7 +152,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Legal moves, SAN, FEN, game state (via ChessKit) | `ChessCore/Rules/Rules.swift` |
-| Saved game format (lenient decoding; optional `source`, `isFreeplay`) | `ChessCore/Persistence/GameSnapshot.swift` |
+| Saved game format (lenient decoding; `source` freeplay / chesscom / lichess, `isFreeplay`, `isImported`, opponent name / rating) | `ChessCore/Persistence/GameSnapshot.swift` |
 | Engine protocol, requests, results | `ChessCore/Engine/EngineTypes.swift` |
 | Stockfish process bridge, UCI, cache | `Packages/StockfishKit/Sources/StockfishKit/*`, `Sources/StockfishCore/bridge.cpp` |
 | Engine benchmark (DEBUG, Profile tab) | `App/Debug/EngineBenchmarkView.swift` |
@@ -119,4 +164,4 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 |---|---|
 | ChessCore (Swift Testing, `swift test`) | `Packages/ChessCore/Tests/ChessCoreTests/*` (fake engine: `Support/FakeEngine.swift`) |
 | StockfishKit | `Packages/StockfishKit/Tests/StockfishKitTests/*` |
-| App (simulator) | `AppTests/*` — Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
+| App (simulator) | `AppTests/*` — Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), settings / paywall, training store, onboarding, launch, merge invariants (`MergeIntegrationTests.swift`), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
