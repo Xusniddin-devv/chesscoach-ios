@@ -61,7 +61,7 @@ struct TodayPlanCard: View {
             }
             VStack(spacing: 0) {
                 ForEach(Array(day.tasks.enumerated()), id: \.element.id) { i, task in
-                    if i > 0 { Divider().overlay(DS.Color.surface2).padding(.leading, 52) }
+                    if i > 0 { Divider().overlay(DS.Color.surface2) }
                     Button { start(task) } label: {
                         PlanTaskRow(task: task, done: isDone(task), showsChevron: true)
                     }

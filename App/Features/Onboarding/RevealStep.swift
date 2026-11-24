@@ -257,6 +257,7 @@ struct MoveMark: View {
     /// The better move, ringed in accent.
     var bestUci: String? = nil
     let orientation: Piece.Color
+    var moveClass: MoveClass = .blunder
 
     var body: some View {
         GeometryReader { geo in
@@ -272,9 +273,10 @@ struct MoveMark: View {
                         Rectangle().strokeBorder(DS.Color.accent, lineWidth: max(2, b.width * 0.12))
                             .frame(width: b.width, height: b.height).position(x: b.midX, y: b.midY)
                     }
-                    Rectangle().fill(DS.Color.danger.opacity(0.45)).frame(width: r.width, height: r.height).position(x: r.midX, y: r.midY)
-                    Rectangle().fill(DS.Color.danger.opacity(0.25)).frame(width: f.width, height: f.height).position(x: f.midX, y: f.midY)
-                    MoveBadge(moveClass: .blunder)
+                    let tint = DS.Color.moveClass(moveClass)
+                    Rectangle().fill(tint.opacity(0.45)).frame(width: r.width, height: r.height).position(x: r.midX, y: r.midY)
+                    Rectangle().fill(tint.opacity(0.25)).frame(width: f.width, height: f.height).position(x: f.midX, y: f.midY)
+                    MoveBadge(moveClass: moveClass)
                         .scaleEffect(max(0.55, r.width / 26))
                         .position(x: r.maxX - 2, y: r.minY + 2)
                 }

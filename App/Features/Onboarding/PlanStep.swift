@@ -20,7 +20,12 @@ struct PlanStep: View {
     private var coachText: String {
         guard let plan = model.plan else { return "Here's your week." }
         let focus = plan.focus.prefix(2).map { $0.shortName.lowercased() }.joined(separator: " and ")
-        return "Here's your week: **\(focus)** first. Ten minutes a day."
+        let pace = switch model.frequency {
+        case .daily: "About fifteen minutes a day."
+        case .weekends: "Short sessions, made for weekends."
+        case .fewTimesAWeek, nil: "Ten minutes a day."
+        }
+        return "Here's your week: **\(focus)** first. \(pace)"
     }
 }
 
@@ -46,7 +51,7 @@ struct WeekView: View {
                     }
                     VStack(spacing: 0) {
                         ForEach(Array(day.tasks.enumerated()), id: \.element.id) { i, task in
-                            if i > 0 { Divider().overlay(DS.Color.surface2).padding(.leading, 52) }
+                            if i > 0 { Divider().overlay(DS.Color.surface2) }
                             PlanTaskRow(task: task, done: false)
                         }
                     }
@@ -127,19 +132,20 @@ struct DaySquare: View {
     }
 }
 
-/// One task: Icons8 glyph on a tile, title, one line, and a completion ring (or chevron).
+/// One task: what kind it is (a small label), its title and one line, and a completion
+/// ring (or chevron). No icon tiles: the label says what it is.
 struct PlanTaskRow: View {
     let task: PlanTask
     let done: Bool
     var showsChevron = false
 
     var body: some View {
-        HStack(spacing: DS.Spacing.sm) {
-            Glyph(name: Self.glyph(task.kind), size: 20)
-                .foregroundStyle(done ? DS.Color.textSecondary : DS.Color.text)
-                .frame(width: 40, height: 40)
-                .background(DS.Color.surface2, in: RoundedRectangle(cornerRadius: DS.Radius.small))
+        HStack(alignment: .center, spacing: DS.Spacing.sm) {
             VStack(alignment: .leading, spacing: 2) {
+                Text(Self.kindLabel(task.kind))
+                    .font(DS.Font.label)
+                    .tracking(DS.Font.labelTracking)
+                    .foregroundStyle(DS.Color.textSecondary)
                 Text(task.title)
                     .font(DS.Font.headline)
                     .foregroundStyle(done ? DS.Color.textSecondary : DS.Color.text)
@@ -159,17 +165,17 @@ struct PlanTaskRow: View {
                 DoneRing(done: true, size: 20)
             }
         }
-        .padding(.vertical, DS.Spacing.s)
+        .padding(.vertical, DS.Spacing.sm)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 
-    static func glyph(_ kind: PlanTask.Kind) -> String {
+    static func kindLabel(_ kind: PlanTask.Kind) -> String {
         switch kind {
-        case .puzzles: "puzzle"
-        case .ownMistakes: "review"
-        case .lesson: "lesson"
-        case .play: "play"
+        case .puzzles: "PUZZLES"
+        case .ownMistakes: "FROM YOUR GAMES"
+        case .lesson: "LESSON"
+        case .play: "GAME"
         }
     }
 }
