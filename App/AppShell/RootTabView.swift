@@ -45,7 +45,7 @@ struct RootTabView: View {
             case "learn": tab = .learn
             default: break
             }
-            if ["settings", "paywall"].contains(UserDefaults.standard.string(forKey: "debugOpen")) { tab = .profile }
+            if ["settings", "paywall", "licenses"].contains(UserDefaults.standard.string(forKey: "debugOpen")) { tab = .profile }
         }
         #endif
     }
@@ -55,7 +55,7 @@ struct RootTabView: View {
     private static var skipsOnboarding: Bool {
         #if DEBUG
         let d = UserDefaults.standard
-        return ["debugAutoplay", "debugScreen", "debugOpen", "debugTab", "debugReview", "debugFreeplay"]
+        return ["debugAutoplay", "debugScreen", "debugOpen", "debugTab", "debugReview", "debugFreeplay", "debugEditor"]
             .contains { d.string(forKey: $0) != nil }
         #else
         return false

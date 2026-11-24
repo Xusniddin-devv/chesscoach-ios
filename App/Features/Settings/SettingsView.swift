@@ -26,6 +26,7 @@ struct SettingsView: View {
     @State private var confirmingReset = false
     @State private var resetFailed = false
     @State private var importing = false
+    @State private var showingLicenses = false
 
     var body: some View {
         ScrollView {
@@ -45,8 +46,15 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .paywall(isPresented: $showingPaywall)
         #if DEBUG
-        .task { if UserDefaults.standard.string(forKey: "debugOpen") == "paywall" { showingPaywall = true } }
+        .task {
+            switch UserDefaults.standard.string(forKey: "debugOpen") {
+            case "paywall": showingPaywall = true
+            case "licenses": showingLicenses = true
+            default: break
+            }
+        }
         #endif
+        .navigationDestination(isPresented: $showingLicenses) { LicensesView() }
         .manageSubscriptionsSheet(isPresented: $showingManage)
         .fullScreenCover(isPresented: $importing) {
             OnboardingFlow(reimport: true) { importing = false }

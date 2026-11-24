@@ -9,6 +9,7 @@ import StockfishKit
 ///                            (see `DebugAutoplay`)
 ///   -debugHistory 1          with autoplay: after the 6th move, view an earlier ply for 6 s
 ///   -debugStay 1             with autoplay: keep the result panel up instead of pressing Done
+///   -debugHoldInterrupt 1    with autoplay: leave the first coach card up
 enum DebugLaunch {
     static var autoplayBot: Bot? {
         UserDefaults.standard.string(forKey: "debugAutoplay").flatMap { id in Bot.all.first { $0.id == id } }
@@ -77,6 +78,8 @@ enum DebugAutoplay {
                     try? await Task.sleep(for: .seconds(6))
                     model.returnToLive()
                 }
+            case .interrupted where UserDefaults.standard.string(forKey: "debugHoldInterrupt") != nil:
+                continue  // `-debugHoldInterrupt 1`: leave the coach card up (screenshots)
             case .interrupted(let verdict):
                 if tookBack {
                     log("interrupt \(verdict.classification.label) -> continue")
