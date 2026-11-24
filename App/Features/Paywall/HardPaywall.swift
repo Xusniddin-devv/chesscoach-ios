@@ -60,9 +60,16 @@ enum LaunchRoute: Equatable {
     }
 
     /// The onboarding flow's last step: the paywall, unless Pro is already active (restored
-    /// earlier, forced) or this is Settings' re-import.
+    /// earlier, forced) or this is Settings' re-import. Shown in both modes: every new user
+    /// sees the offer once.
     static func onboardingEndsOnPaywall(hardPaywall: Bool, isPro: Bool, reimport: Bool) -> Bool {
-        hardPaywall && !isPro && !reimport
+        !isPro && !reimport
+    }
+
+    /// Whether the onboarding paywall has an X. Without the hard paywall the X leads to the
+    /// free tier; with it there is nowhere to go but the launch gate, so no X.
+    static func onboardingPaywallClosable(hardPaywall: Bool) -> Bool {
+        !hardPaywall
     }
 }
 

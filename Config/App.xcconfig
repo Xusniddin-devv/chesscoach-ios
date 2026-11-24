@@ -14,10 +14,11 @@ SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(CLOUDKIT_SYNC_FLAG_$(CLOUDK
 CLOUDKIT_SYNC_FLAG_1 = CLOUDKIT_SYNC
 CLOUDKIT_SYNC_FLAG_0 =
 
-// HARD_PAYWALL: 1 = Coach Pro is required. Onboarding ends on the paywall (7-day trial on the
-// yearly plan) and a launch without the `pro` entitlement shows the same paywall before the
-// tabs. 0 = the free tier with Pro gates (ProGate, allowances). Read once at launch from
-// Info.plist `HardPaywall` (App/Features/Paywall/HardPaywall.swift). Defaults to 1.
-HARD_PAYWALL = 1
+// HARD_PAYWALL: onboarding always ends on the paywall for a non-Pro user.
+// 0 (default) = that paywall has an X into the free tier with Pro gates (ProGate, allowances),
+// and later launches open on the tabs. 1 = Coach Pro is required: no X, and a launch without
+// the `pro` entitlement shows the paywall before the tabs. Read once at launch from
+// Info.plist `HardPaywall` (App/Features/Paywall/HardPaywall.swift).
+HARD_PAYWALL = 0
 
 #include? "Secrets.xcconfig"

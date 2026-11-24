@@ -28,7 +28,8 @@ struct HardPaywallTests {
 
     @Test func appBuildCarriesTheSetting() {
         let value = Bundle.main.object(forInfoDictionaryKey: "HardPaywall") as? String
-        #expect(value == "1", "Config/App.xcconfig HARD_PAYWALL → Info.plist HardPaywall, default 1")
+        // Default 0: the onboarding paywall closes into the free tier (owner, 2026-11-24).
+        #expect(value == "0", "Config/App.xcconfig HARD_PAYWALL → Info.plist HardPaywall, default 0")
     }
 
     // MARK: Routing matrix
@@ -55,12 +56,19 @@ struct HardPaywallTests {
     }
 
     @Test func onboardingEndsOnPaywallOnlyWhenNeeded() {
-        #expect(LaunchRoute.onboardingEndsOnPaywall(hardPaywall: true, isPro: false, reimport: false))
-        #expect(!LaunchRoute.onboardingEndsOnPaywall(hardPaywall: true, isPro: true, reimport: false))
-        #expect(!LaunchRoute.onboardingEndsOnPaywall(hardPaywall: true, isPro: false, reimport: true))
-        #expect(!LaunchRoute.onboardingEndsOnPaywall(hardPaywall: false, isPro: false, reimport: false))
+        // Every new non-Pro user sees the paywall once, in either mode.
+        for hard in [true, false] {
+            #expect(LaunchRoute.onboardingEndsOnPaywall(hardPaywall: hard, isPro: false, reimport: false))
+            #expect(!LaunchRoute.onboardingEndsOnPaywall(hardPaywall: hard, isPro: true, reimport: false))
+            #expect(!LaunchRoute.onboardingEndsOnPaywall(hardPaywall: hard, isPro: false, reimport: true))
+        }
     }
 
+    @Test func onboardingPaywallClosesIntoTheFreeTierOnly() {
+        // HARD_PAYWALL=0: the X leads to the free tier. HARD_PAYWALL=1: there is nowhere to go.
+        #expect(LaunchRoute.onboardingPaywallClosable(hardPaywall: false))
+        #expect(!LaunchRoute.onboardingPaywallClosable(hardPaywall: true))
+    }
     @Test func entitlementStatus() {
         #expect(Entitlements(apiKey: "", forcedPro: true).status == .pro)
         #expect(Entitlements(apiKey: "", forcedPro: false).status == .free)
