@@ -9,6 +9,7 @@ import ChessCore
 ///   -onboardingSkipAfter 4            skip the rest after N analysed games
 ///   -onboardingAdvance 6              then walk reveal → goal → plan, N seconds per step
 ///   -onboardingNew 1,1,0              new-player path with these answers
+///   -onboardingDepth 8                shallower analysis for quick scripted runs
 ///   -onboardingFinish 5               on the plan, press Start day 1 after N seconds
 /// Every step is printed with an `ONBOARDING` prefix so a script can screenshot on cue.
 @MainActor

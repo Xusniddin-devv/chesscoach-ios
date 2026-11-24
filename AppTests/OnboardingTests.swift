@@ -11,7 +11,7 @@ struct OnboardingTests {
         let container = try ModelContainer(
             for: ModelStore.schema,
             configurations: ModelConfiguration(schema: ModelStore.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
-        return container.mainContext
+        return ModelContext(container)
     }
 
     private func snapshot(_ id: UUID = UUID()) -> GameSnapshot {
@@ -43,7 +43,8 @@ struct OnboardingTests {
         ProfileStore.saveGames([snapshot(id)], in: ctx)
         let games = try ctx.fetch(FetchDescriptor<GameRecord>())
         #expect(games.count == 2)
-        #expect(games.compactMap(\.snapshot).allSatisfy(\.isImported))
+        let imported = games.compactMap(\.snapshot).allSatisfy { $0.isImported }
+        #expect(imported)
     }
 
     @Test func resetClearsOnboardingToo() throws {

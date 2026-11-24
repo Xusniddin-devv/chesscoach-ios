@@ -214,9 +214,14 @@ final class OnboardingModel {
             let events = AsyncStream<OnboardingEvent>.makeStream()
             let games = self.games
             let setFastEngine = self.setFastEngine
-            let runner = Task.detached {
+            var depth = OnboardingAnalysis.defaultDepth
+            #if DEBUG
+            // Screenshot hook: a shallower search so a scripted run takes seconds, not minutes.
+            if UserDefaults.standard.integer(forKey: "onboardingDepth") > 0 { depth = UserDefaults.standard.integer(forKey: "onboardingDepth") }
+            #endif
+            let runner = Task.detached { [depth] in
                 await setFastEngine(true)
-                let out = await OnboardingAnalysis(engine: engine).run(games) { events.continuation.yield($0) }
+                let out = await OnboardingAnalysis(engine: engine, depth: depth).run(games) { events.continuation.yield($0) }
                 await setFastEngine(false)
                 events.continuation.finish()
                 return out

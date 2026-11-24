@@ -20,7 +20,7 @@ struct PlanStep: View {
     private var coachText: String {
         guard let plan = model.plan else { return "Here's your week." }
         let focus = plan.focus.prefix(2).map { $0.shortName.lowercased() }.joined(separator: " and ")
-        return "Here's your week. We start with **\(focus)**. Ten minutes a day is enough."
+        return "Here's your week: **\(focus)** first. Ten minutes a day."
     }
 }
 

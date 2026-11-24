@@ -32,7 +32,7 @@ struct GoalStep: View {
     private var coachPose: CoachPose { model.chance >= 60 ? .pleased : (model.chance < 25 ? .thinking : .neutral) }
 
     private var coachText: String {
-        "Where do you want to be? Drag along the players. I'll be honest about the odds."
+        "Pick a target along the players. I'll be honest about the odds."
     }
 
     private var readout: some View {
@@ -40,7 +40,7 @@ struct GoalStep: View {
         return VStack(alignment: .leading, spacing: DS.Spacing.xs) {
             HStack(alignment: .lastTextBaseline, spacing: DS.Spacing.sm) {
                 Text(model.target, format: .number.grouping(.never))
-                    .font(.system(size: 64, weight: .bold, design: .monospaced))
+                    .font(.system(size: 56, weight: .bold, design: .monospaced))
                     .foregroundStyle(DS.Color.text)
                     .contentTransition(.numericText(value: Double(model.target)))
                     .animation(.snappy(duration: 0.15), value: model.target)
