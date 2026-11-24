@@ -13,3 +13,6 @@ xcuserdata/
 # Local secrets (RevenueCat key etc.)
 Config/Secrets.xcconfig
 .build-dd/
+
+# Third-party design references (Mobbin, Dribbble, other apps): local only, never public
+docs/design/references/
