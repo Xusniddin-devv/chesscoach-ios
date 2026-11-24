@@ -4,7 +4,7 @@ import ChessCore
 
 /// The lesson player on the same `TrainingFrame` as the puzzle solver: one progress segment
 /// per move to play, the coach narrating each step in successive bubbles, the board edge to
-/// edge, and — for scripted lines — "Which move?" answer pills with real moves under the
+/// edge, and - for scripted lines - "Which move?" answer pills with real moves under the
 /// board (the board accepts the move too). The verdict is the same sliding band: accent
 /// "Correct" with the step's note, red "Not this one" naming the move, "Lesson complete".
 struct LessonView: View {

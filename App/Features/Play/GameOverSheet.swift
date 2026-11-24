@@ -2,7 +2,7 @@ import SwiftUI
 import ChessCore
 
 /// The result panel over the final position, chess.com style: both players facing each other
-/// with the score between them ("1 – 0", the reason small under it), each side's accuracy in
+/// with the score between them ("1 - 0", the reason small under it), each side's accuracy in
 /// plain heavy type and its move classes as badge chips with counts, the key moment on a mini
 /// board with one coach line, then Review game (primary), Rematch and New bot.
 ///
@@ -108,12 +108,12 @@ struct GameOverSheet: View {
         }
     }
 
-    /// From the user's side: "1 – 0" when they won.
+    /// From the user's side: "1 - 0" when they won.
     private var score: String {
         switch model.outcome {
-        case .won: "1 – 0"
-        case .lost: "0 – 1"
-        case .draw, nil: "½ – ½"
+        case .won: "1 - 0"
+        case .lost: "0 - 1"
+        case .draw, nil: "½ - ½"
         }
     }
 
@@ -249,7 +249,7 @@ private struct AccuracyNumber: View {
     let pending: Bool
 
     var body: some View {
-        Text(value.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "–")
+        Text(value.map { $0.formatted(.number.precision(.fractionLength(1))) } ?? "-")
             .font(.system(size: 34, weight: .heavy).monospacedDigit())
             .tracking(-1)
             .foregroundStyle(value == nil ? DS.Color.textSecondary : DS.Color.text)

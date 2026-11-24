@@ -190,7 +190,7 @@ struct ProfileModel {
         return userAccuracy(verdicts: snapshot.verdicts, userColor: snapshot.userColor)
     }
 
-    /// "Like Bc4 here — Pip took it for free."
+    /// "Like Bc4 here - Pip took it for free."
     static func context(for weakness: Weakness) -> String? {
         guard let example = weakness.example else { return nil }
         let san = example.verdict.san
@@ -198,12 +198,12 @@ struct ProfileModel {
         let best = example.verdict.bestSan
         switch weakness.motif {
         case .hangingPiece:
-            return "Like \(san) here — \(bot) \(example.opponentTookIt ? "took it" : "could take it") for free."
-        case .allowedFork: return "Like \(san) here — it let \(bot) attack two pieces at once."
-        case .allowedMate: return "Like \(san) here — it let \(bot) force checkmate."
-        case .missedMate: return "Like \(san) here — \(best) was checkmate in a few moves."
-        case .missedCapture: return "Like \(san) here — \(best) won material instead."
-        case .openingPrinciple: return "Like \(san) here — before the knights and bishops were out."
+            return "Like \(san) here - \(bot) \(example.opponentTookIt ? "took it" : "could take it") for free."
+        case .allowedFork: return "Like \(san) here - it let \(bot) attack two pieces at once."
+        case .allowedMate: return "Like \(san) here - it let \(bot) force checkmate."
+        case .missedMate: return "Like \(san) here - \(best) was checkmate in a few moves."
+        case .missedCapture: return "Like \(san) here - \(best) won material instead."
+        case .openingPrinciple: return "Like \(san) here - before the knights and bishops were out."
         }
     }
 }

@@ -7,7 +7,7 @@ import Foundation
 /// - **Which content to show** (`keeper`): the best copy by content. Used on read and to
 ///   fill the surviving row.
 /// - **Which row survives a merge** (`survivor`): never by content or fetch order, which
-///   differ between devices mid-sync — two devices could each keep their own row, delete
+///   differ between devices mid-sync - two devices could each keep their own row, delete
 ///   the other's, and lose the game everywhere. The smallest immutable row id is the same
 ///   choice on every device.
 public enum GameDedupe {

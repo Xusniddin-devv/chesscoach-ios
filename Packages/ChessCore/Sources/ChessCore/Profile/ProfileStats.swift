@@ -57,8 +57,8 @@ public func currentMilestone(_ estimate: Int) -> (elo: Int, name: String)? {
     ratingMilestones.last { $0.elo <= estimate }
 }
 
-/// The player's level as a chess piece: Pawn below 800, Knight 800–1199, Bishop 1200–1499,
-/// Rook 1500–1799, Queen 1800–2099, King from 2100.
+/// The player's level as a chess piece: Pawn below 800, Knight 800-1199, Bishop 1200-1499,
+/// Rook 1500-1799, Queen 1800-2099, King from 2100.
 public enum RatingTier: Int, CaseIterable, Sendable, Comparable {
     case pawn, knight, bishop, rook, queen, king
 

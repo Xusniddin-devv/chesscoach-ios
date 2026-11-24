@@ -87,7 +87,7 @@ struct ReviewMoveList: View {
     }
 
     private func numeral(_ value: String?, secondary: Bool = false) -> some View {
-        Text(value ?? "—")
+        Text(value ?? "-")
             .font(secondary ? DS.Font.subheadline.monospacedDigit() : DS.Font.numeral)
             .foregroundStyle(DS.Color.text)
             .frame(width: Self.columnWidth, alignment: .trailing)

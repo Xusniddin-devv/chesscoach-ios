@@ -3,7 +3,7 @@ import SwiftData
 import ChessCore
 
 /// Puzzles tab in the coach's voice: the coach with the streak and today's hook, the daily
-/// puzzle as the hero, own mistakes as a filmstrip, and practice — the level on a scrubbable
+/// puzzle as the hero, own mistakes as a filmstrip, and practice - the level on a scrubbable
 /// rating ruler (the onboarding goal picker's bars) and the themes as rows of chunky piece
 /// tokens with solved ticks. No pills, no stepper, no card grid.
 struct PuzzlesView: View {

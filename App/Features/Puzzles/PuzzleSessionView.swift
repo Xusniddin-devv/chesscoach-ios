@@ -5,7 +5,7 @@ import ChessCore
 /// The puzzle solver on the shared `TrainingFrame`: X + one progress segment per puzzle +
 /// the puzzle rating in mono; the coach says what to find ("White to move. Find the fork.",
 /// square chips); the board edge to edge, centred; the hint and a chunky Continue. The verdict
-/// slides up as a full-width band — accent "Solved first try · +8" with the Best / Brilliant
+/// slides up as a full-width band - accent "Solved first try · +8" with the Best / Brilliant
 /// badge on the square, or red "Not quite. [Nf5+] was the fork." with Retry / Show solution.
 struct PuzzleSessionView: View {
     let setup: PuzzleSessionSetup

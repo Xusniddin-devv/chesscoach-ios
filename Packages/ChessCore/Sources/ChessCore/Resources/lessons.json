@@ -66,7 +66,7 @@
   "id": "opening-ruy-lopez",
   "track": "openings",
   "title": "Ruy López (Spanish)",
-  "summary": "The most respected 1.e4 e5 opening — long-term pressure on Black.",
+  "summary": "The most respected 1.e4 e5 opening - long-term pressure on Black.",
   "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   "userColor": "w",
   "goal": "line",
@@ -89,7 +89,7 @@
    },
    {
     "san": "Bb5",
-    "note": "Pin the knight that defends e5 — the Spanish bishop."
+    "note": "Pin the knight that defends e5 - the Spanish bishop."
    },
    {
     "san": "a6",
@@ -270,7 +270,7 @@
    },
    {
     "san": "c4",
-    "note": "Offer the gambit — you'll get the pawn back or a strong centre."
+    "note": "Offer the gambit - you'll get the pawn back or a strong centre."
    },
    {
     "san": "e6",
@@ -333,7 +333,7 @@
    },
    {
     "san": "Bf4",
-    "note": "The London bishop — out before locking it behind e3."
+    "note": "The London bishop - out before locking it behind e3."
    },
    {
     "san": "Nf6",
@@ -479,7 +479,7 @@
    },
    {
     "san": "Bf5",
-    "note": "Develop the bishop OUTSIDE the pawn chain — the point of the Caro."
+    "note": "Develop the bishop OUTSIDE the pawn chain - the point of the Caro."
    },
    {
     "san": "Ng3",
@@ -522,7 +522,7 @@
    },
    {
     "san": "e6",
-    "note": "Decline the gambit and support d5 — solidity first."
+    "note": "Decline the gambit and support d5 - solidity first."
    },
    {
     "san": "Nc3",
@@ -562,7 +562,7 @@
   "id": "opening-scandinavian",
   "track": "openings",
   "title": "Scandinavian Defence",
-  "summary": "Challenge 1.e4 at once — simple, clear plans for Black.",
+  "summary": "Challenge 1.e4 at once - simple, clear plans for Black.",
   "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   "userColor": "b",
   "goal": "line",
@@ -699,7 +699,7 @@
    },
    {
     "san": "g6",
-    "note": "Prepare the fianchetto — the KID's signature."
+    "note": "Prepare the fianchetto - the KID's signature."
    },
    {
     "san": "Nc3",
@@ -759,7 +759,7 @@
   "id": "endgame-kp-vs-k-opposition",
   "track": "endgames",
   "title": "Pawn promotion with opposition",
-  "summary": "Get your king in front of the pawn and take the opposition — your king leads, the pawn follows.",
+  "summary": "Get your king in front of the pawn and take the opposition - your king leads, the pawn follows.",
   "startFen": "8/8/8/4k3/8/4P3/8/4K3 w - - 0 1",
   "userColor": "w",
   "goal": "win",
@@ -779,7 +779,7 @@
   "id": "endgame-kp-defense-opposition",
   "track": "endgames",
   "title": "Hold the draw: K vs K+P with opposition",
-  "summary": "Keep your king directly in front of the enemy pawn and take the opposition. Don't let the enemy king march around you — it's a draw.",
+  "summary": "Keep your king directly in front of the enemy pawn and take the opposition. Don't let the enemy king march around you - it's a draw.",
   "startFen": "8/8/8/8/4k3/4p3/8/4K3 w - - 0 1",
   "userColor": "w",
   "goal": "draw",
@@ -809,7 +809,7 @@
   "id": "endgame-back-rank-mate",
   "track": "endgames",
   "title": "Back-rank mate pattern",
-  "summary": "The enemy king is trapped behind its own pawns. Deliver mate on the back rank in one move — find it!",
+  "summary": "The enemy king is trapped behind its own pawns. Deliver mate on the back rank in one move - find it!",
   "startFen": "6k1/5ppp/8/8/8/8/6PP/3R2K1 w - - 0 1",
   "userColor": "w",
   "goal": "win",
@@ -819,7 +819,7 @@
   "id": "endgame-kp-king-in-front",
   "track": "endgames",
   "title": "Winning K+P: king in front",
-  "summary": "Your king is in front of the pawn on the 6th rank — this always wins. Use your king to clear a path and shepherd the pawn home.",
+  "summary": "Your king is in front of the pawn on the 6th rank - this always wins. Use your king to clear a path and shepherd the pawn home.",
   "startFen": "4k3/8/4K3/4P3/8/8/8/8 w - - 0 1",
   "userColor": "w",
   "goal": "win",
@@ -829,7 +829,7 @@
   "id": "endgame-connected-passers",
   "track": "endgames",
   "title": "Connected passed pawns",
-  "summary": "Two connected passers beat a lone king. Advance them side by side so they defend each other — never let one be captured for free.",
+  "summary": "Two connected passers beat a lone king. Advance them side by side so they defend each other - never let one be captured for free.",
   "startFen": "4k3/8/8/1PP5/8/8/8/4K3 w - - 0 1",
   "userColor": "w",
   "goal": "win",
@@ -839,7 +839,7 @@
   "id": "endgame-wrong-bishop-draw",
   "track": "endgames",
   "title": "Hold the draw: wrong-bishop rook pawn",
-  "summary": "The h8 promotion square is the wrong colour for this bishop, so it can never be controlled. Sit your king in the corner (Kg8–Kh8) and it's a draw.",
+  "summary": "The h8 promotion square is the wrong colour for this bishop, so it can never be controlled. Sit your king in the corner (Kg8-Kh8) and it's a draw.",
   "startFen": "6k1/8/5K1P/8/8/8/8/1B6 b - - 0 1",
   "userColor": "b",
   "goal": "draw",
@@ -849,7 +849,7 @@
   "id": "endgame-rook-pawn-draw",
   "track": "endgames",
   "title": "Hold the draw: K vs K + rook pawn",
-  "summary": "With your king in the corner the pawn promotes to, the enemy king can never make progress without stalemating you. Shuffle Kg8–Kh8.",
+  "summary": "With your king in the corner the pawn promotes to, the enemy king can never make progress without stalemating you. Shuffle Kg8-Kh8.",
   "startFen": "7k/8/6KP/8/8/8/8/8 b - - 0 1",
   "userColor": "b",
   "goal": "draw",
@@ -874,14 +874,14 @@
   "id": "mate-smothered",
   "track": "checkmates",
   "title": "Smothered mate",
-  "summary": "A king hemmed in by its own pieces is mated by a knight — nothing can block a knight check.",
+  "summary": "A king hemmed in by its own pieces is mated by a knight - nothing can block a knight check.",
   "startFen": "6rk/5ppp/8/6N1/8/8/8/6K1 w - - 0 1",
   "userColor": "w",
   "goal": "mate",
   "steps": [
    {
     "uci": "g5f7",
-    "note": "A king hemmed in by its own pieces is mated by a knight — nothing can block a knight check."
+    "note": "A king hemmed in by its own pieces is mated by a knight - nothing can block a knight check."
    }
   ]
  },
@@ -889,14 +889,14 @@
   "id": "mate-two-rook-ladder",
   "track": "checkmates",
   "title": "Two-rook (ladder) mate",
-  "summary": "One rook cuts off a rank while the other delivers mate on the next — the staircase mate.",
+  "summary": "One rook cuts off a rank while the other delivers mate on the next - the staircase mate.",
   "startFen": "7k/R7/8/8/8/8/8/1R5K w - - 0 1",
   "userColor": "w",
   "goal": "mate",
   "steps": [
    {
     "uci": "b1b8",
-    "note": "One rook cuts off a rank while the other delivers mate on the next — the staircase mate."
+    "note": "One rook cuts off a rank while the other delivers mate on the next - the staircase mate."
    }
   ]
  },
@@ -934,14 +934,14 @@
   "id": "mate-arabian",
   "track": "checkmates",
   "title": "Arabian mate",
-  "summary": "Knight and rook combine to trap a king in the corner — one of the oldest known mates.",
+  "summary": "Knight and rook combine to trap a king in the corner - one of the oldest known mates.",
   "startFen": "7k/R7/5N2/8/8/8/8/K7 w - - 0 1",
   "userColor": "w",
   "goal": "mate",
   "steps": [
    {
     "uci": "a7h7",
-    "note": "Knight and rook combine to trap a king in the corner — one of the oldest known mates."
+    "note": "Knight and rook combine to trap a king in the corner - one of the oldest known mates."
    }
   ]
  },

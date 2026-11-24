@@ -113,7 +113,7 @@ extension BotLadder.Rung {
     }
 }
 
-/// One rung: the bot's figure on the ladder's rail, name and Elo, and where it stands —
+/// One rung: the bot's figure on the ladder's rail, name and Elo, and where it stands -
 /// "Beaten · 2 wins", "Next up" (accent), its blurb when open, or a lock and "Beat Cadet to
 /// unlock" (dimmed). The selected row sits on `surface` with an accent ring on the figure.
 private struct LadderRow: View {

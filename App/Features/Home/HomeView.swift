@@ -164,7 +164,7 @@ struct HomeView: View {
                 ProfileModel.userVerdicts(game.snapshot).contains { $0.motifs.contains(habit.motif) }
             }.count
             if recent > 1 {
-                parts.append("\(habit.motif.headline) — in \(recent) of your last \(min(5, profile.games.count)) games.")
+                parts.append("\(habit.motif.headline) - in \(recent) of your last \(min(5, profile.games.count)) games.")
                 pose = .concerned
             }
         }

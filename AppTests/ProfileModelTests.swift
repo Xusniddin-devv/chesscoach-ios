@@ -131,7 +131,7 @@ struct ProfileModelTests {
         // The example is the newest game's move, named with its bot.
         let top = try #require(m.weaknesses.first)
         #expect(top.example?.verdict.classification == .mistake)
-        #expect(ProfileModel.context(for: top) == "Like e4 here — Rookie Ron could take it for free.")
+        #expect(ProfileModel.context(for: top) == "Like e4 here - Rookie Ron could take it for free.")
     }
 
     @Test func accuracyDeltaComparesWithTheGamesBefore() throws {

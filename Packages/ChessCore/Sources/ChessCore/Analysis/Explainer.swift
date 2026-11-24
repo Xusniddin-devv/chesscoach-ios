@@ -46,6 +46,6 @@ public func explain(_ v: Verdict, wording: MoveWording) -> String {
     let why = v.motifs.first.map(motifText)
         ?? "it gives up about \(pawns(v.cpLoss)) pawns of advantage"
         + (words ? " (chess engines measure positions in pawn-units: +1.0 means being one pawn ahead)" : "")
-    let better = words ? "\(bestSan) — \(describe(uci: bestUci, fen: v.facts.fenBefore))" : bestSan
+    let better = words ? "\(bestSan) - \(describe(uci: bestUci, fen: v.facts.fenBefore))" : bestSan
     return "\(v.san) is a \(v.classification.label.lowercased()): \(why). Better was \(better)."
 }

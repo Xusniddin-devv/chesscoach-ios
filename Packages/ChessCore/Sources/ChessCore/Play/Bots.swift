@@ -18,13 +18,13 @@ public struct Bot: Identifiable, Sendable, Hashable {
 
     public static let all: [Bot] = [
         Bot(id: "pip", name: "Pip", elo: 600,
-            blurb: "Just learning — will hang pieces right alongside you."),
+            blurb: "Just learning - will hang pieces right alongside you."),
         Bot(id: "ron", name: "Rookie Ron", elo: 800,
             blurb: "Knows the rules but misses most tactics."),
         Bot(id: "cadet", name: "Cadet", elo: 1000,
             blurb: "Solid basics. Punishes obvious blunders."),
         Bot(id: "blaze", name: "Blaze", elo: 1300,
-            blurb: "Aggressive attacker — keep your king safe."),
+            blurb: "Aggressive attacker - keep your king safe."),
         Bot(id: "wall", name: "The Wall", elo: 1600,
             blurb: "Patient and defensive. Hard to break down."),
         Bot(id: "maestro", name: "Maestro", elo: 1900,

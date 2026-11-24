@@ -1,7 +1,7 @@
 import SwiftUI
 import ChessCore
 
-/// The coach presents the week: day 1 open and actionable, days 2–7 as a file of squares.
+/// The coach presents the week: day 1 open and actionable, days 2-7 as a file of squares.
 struct PlanStep: View {
     let model: OnboardingModel
     let onStart: () -> Void
@@ -30,7 +30,7 @@ struct PlanStep: View {
 }
 
 /// The week in the path language of Home's Today's plan: today as three connected chunky
-/// tokens (its practice steps, then the bot to play as the boss), then days 2–7 as a
+/// tokens (its practice steps, then the bot to play as the boss), then days 2-7 as a
 /// vertical track of day tokens with the day's focus and what's in it. No tiles, no cards.
 struct WeekView: View {
     let plan: TrainingPlan
@@ -86,7 +86,7 @@ struct WeekView: View {
         }
     }
 
-    /// The day's path: up to two practice steps, then a game as the boss — the day's own,
+    /// The day's path: up to two practice steps, then a game as the boss - the day's own,
     /// else the week's sparring bot.
     static func steps(_ day: PlanDay, in plan: TrainingPlan) -> [PlanTask] {
         let weekGame = plan.days.flatMap(\.tasks).first { $0.kind == .play }

@@ -3,8 +3,8 @@ import Foundation
 /// Rating distribution of active players on one platform, and the goal-chance heuristic.
 ///
 /// SOURCE (approximation, not official data): the anchor points below are hand-read from
-/// publicly shared rating-distribution charts — chess.com rapid (chess.com's leaderboard and
-/// member-stats pages, community-posted histograms, 2024–2025) and Lichess blitz (lichess.org/stat/
+/// publicly shared rating-distribution charts - chess.com rapid (chess.com's leaderboard and
+/// member-stats pages, community-posted histograms, 2024-2025) and Lichess blitz (lichess.org/stat/
 /// rating/distribution/blitz, 2025). They are rounded to whole percent and smoothed by monotone
 /// interpolation into 50-point buckets. Good enough for "top N %" and a picture; the UI says
 /// "approximate, active players". Replace with a fresh export when the app ships.

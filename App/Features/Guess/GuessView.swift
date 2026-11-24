@@ -157,7 +157,7 @@ private struct GuessIntroCard: View {
     }
 }
 
-/// Your move, the game's move, the best move — each with its badge disc — and the points.
+/// Your move, the game's move, the best move - each with its badge disc - and the points.
 private struct GuessRevealCard: View {
     let result: GuessResult
     let mover: String

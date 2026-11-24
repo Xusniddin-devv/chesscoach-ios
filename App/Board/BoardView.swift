@@ -305,7 +305,7 @@ struct PieceImage: View {
 #if DEBUG
 /// Static board states for previews and the screenshot test.
 enum BoardSamples {
-    /// 1.e4 e5 2.Nf3 Nc6 3.Ng5?? — Black to move; White should have played Bc4.
+    /// 1.e4 e5 2.Nf3 Nc6 3.Ng5?? - Black to move; White should have played Bc4.
     static let ng5Fen = "r1bqkbnr/pppp1ppp/2n5/4p1N1/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 3 3"
 
     @MainActor static var ng5Blunder: some View {

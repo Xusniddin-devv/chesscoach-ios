@@ -3,8 +3,8 @@ import SwiftData
 import ChessCore
 
 /// Home's "Today's plan" as a short Duolingo-style path: three chunky tokens joined by a
-/// track — the day's puzzles, its lesson, and the bot to play as the boss token (its avatar)
-/// — each done / current / next from what the player actually did today, and one chunky
+/// track - the day's puzzles, its lesson, and the bot to play as the boss token (its avatar)
+/// - each done / current / next from what the player actually did today, and one chunky
 /// Start for the current step. Without a plan (onboarding skipped) the path is the daily
 /// puzzle, the next lesson and the ladder's next bot.
 struct TodayPlanCard: View {
@@ -66,7 +66,7 @@ struct TodayPlanCard: View {
         .sheet(item: $paywall) { PaywallView(feature: $0) }
     }
 
-    /// Three steps: up to two practice tasks of the day, then a game as the boss — the day's
+    /// Three steps: up to two practice tasks of the day, then a game as the boss - the day's
     /// own game, else the ladder's next bot.
     static func steps(_ plan: TrainingPlan?, defaults: [PlanTask], boss: Bot) -> [PlanTask] {
         guard let plan, let i = plan.dayIndex(on: .now) else { return defaults }
@@ -195,7 +195,7 @@ struct PlanPath: View {
     }
 }
 
-/// One step of the day's path: a chunky round token (the bot's avatar for the game — the
+/// One step of the day's path: a chunky round token (the bot's avatar for the game - the
 /// day's boss), the track to its neighbours (accent once the step before is done), and its
 /// name under it.
 struct StepToken: View {

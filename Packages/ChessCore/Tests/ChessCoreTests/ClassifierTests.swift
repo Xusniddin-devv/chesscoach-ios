@@ -181,7 +181,7 @@ private func e4Input(ply: Int = 20, best: String = "e2e4", before: [Int], whiteA
     #expect(v.mateBefore == nil && v.mateAfter == nil)
 }
 
-/// 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6?? — White mates with Qxf7#. Stockfish reports the mated position
+/// 1.e4 e5 2.Bc4 Nc6 3.Qh5 Nf6?? - White mates with Qxf7#. Stockfish reports the mated position
 /// as `info depth 0 score mate 0` with no best move.
 private let scholarsFen = "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4"
 private func matingInput(before: AnalysisResult) -> PlayedMoveInput {

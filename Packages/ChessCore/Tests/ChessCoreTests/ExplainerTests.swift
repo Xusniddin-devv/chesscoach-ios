@@ -16,13 +16,13 @@ private func verdict(motifs: [Motif], cpLoss: Int, bestUci: String = "f1c4",
 
 @Test func explanationInWords() {
     let v = verdict(motifs: [.hangingPiece], cpLoss: 320)
-    #expect(explain(v, wording: .words) == "Ng5 is a blunder: your piece can simply be captured there. Better was Bc4 — your bishop moves from f1 to c4.")
+    #expect(explain(v, wording: .words) == "Ng5 is a blunder: your piece can simply be captured there. Better was Bc4 - your bishop moves from f1 to c4.")
     #expect(explain(v, wording: .notation) == "Ng5 is a blunder: your piece can simply be captured there. Better was Bc4.")
 }
 
 @Test func explanationWithoutMotifUsesPawnUnits() {
     let v = verdict(motifs: [], cpLoss: 130)
-    #expect(explain(v, wording: .words) == "Ng5 is a blunder: it gives up about 1.3 pawns of advantage (chess engines measure positions in pawn-units: +1.0 means being one pawn ahead). Better was Bc4 — your bishop moves from f1 to c4.")
+    #expect(explain(v, wording: .words) == "Ng5 is a blunder: it gives up about 1.3 pawns of advantage (chess engines measure positions in pawn-units: +1.0 means being one pawn ahead). Better was Bc4 - your bishop moves from f1 to c4.")
     #expect(explain(verdict(motifs: [], cpLoss: 130), wording: .notation).contains("about 1.3 pawns of advantage. Better"))
 }
 
@@ -30,5 +30,5 @@ private func verdict(motifs: [Motif], cpLoss: Int, bestUci: String = "f1c4",
     let b = "rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
     var v = verdict(motifs: [.missedCapture], cpLoss: 200, bestUci: "e4d5")
     v.facts.fenBefore = b
-    #expect(explain(v, wording: .words).hasSuffix("Better was exd5 — your pawn on e4 takes the pawn on d5."))
+    #expect(explain(v, wording: .words).hasSuffix("Better was exd5 - your pawn on e4 takes the pawn on d5."))
 }

@@ -18,7 +18,7 @@ struct AvatarTile: View {
             .accessibilityHidden(true)
     }
 
-    /// `Radius.medium` at 64 pt, `Radius.small` at 32–40 pt.
+    /// `Radius.medium` at 64 pt, `Radius.small` at 32-40 pt.
     static func radius(_ size: CGFloat) -> CGFloat { size >= 56 ? DS.Radius.medium : DS.Radius.small }
 }
 

@@ -4,9 +4,9 @@ import ChessCore
 
 /// Learn tab: a dark winding path (Duolingo's structure) told as a chess story (Chessigma's
 /// locked bosses). Each track is a unit: a banner with its progress, then its lessons as
-/// chunky round tokens with an Icons8 piece glyph, snaking left and right — done tokens in
+/// chunky round tokens with an Icons8 piece glyph, snaking left and right - done tokens in
 /// accent, the next one pulsing with the coach standing beside it, later ones dimmed, Pro
-/// ones locked — and a boss at the end: the sparring bot to beat to clear the unit
+/// ones locked - and a boss at the end: the sparring bot to beat to clear the unit
 /// (a silhouette until the unit's lessons are done). Tapping a token opens a popover
 /// anchored to it with the title and Start.
 struct LearnView: View {
