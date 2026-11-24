@@ -8,6 +8,8 @@ struct OnboardingFlow: View {
     @State private var model: OnboardingModel
     @Environment(\.modelContext) private var context
     @Environment(BackgroundAnalysis.self) private var background: BackgroundAnalysis?
+    @Environment(Entitlements.self) private var entitlements
+    @Environment(\.hardPaywall) private var hardPaywall
     @Query private var lessons: [LessonProgress]
     let onFinish: () -> Void
 
@@ -31,10 +33,10 @@ struct OnboardingFlow: View {
                     model.buildPlan(completedLessons: Set(lessons.map(\.lessonId)))
                     model.go(.plan)
                 }
-                case .plan: PlanStep(model: model) {
-                    model.save(in: context)
-                    onFinish()
+                case .plan: PlanStep(model: model, startTitle: endsOnPaywall ? "Continue" : "Start day 1") {
+                    finishPlan()
                 }
+                case .paywall: PaywallScreen(moment: .onboarding, onClose: nil, onUnlocked: onFinish)
                 }
             }
             // One identity per step, so a step that leaves is really removed (without it the
@@ -44,10 +46,26 @@ struct OnboardingFlow: View {
                                     removal: .move(edge: .leading).combined(with: .opacity)))
         }
         .preferredColorScheme(.dark)
-        .onAppear { model.background = background }
+        .onAppear {
+            model.background = background
+            model.finishPlan = finishPlan
+        }
         #if DEBUG
         .task { await OnboardingDebug.apply(model, context: context) }
         #endif
+    }
+}
+
+extension OnboardingFlow {
+    private var endsOnPaywall: Bool {
+        LaunchRoute.onboardingEndsOnPaywall(hardPaywall: hardPaywall, isPro: entitlements.isPro, reimport: model.reimport)
+    }
+
+    /// Saves everything first (a launch after quitting on the paywall lands on the launch
+    /// gate, not a second onboarding), then the paywall or the app.
+    private func finishPlan() {
+        model.save(in: context)
+        if endsOnPaywall { model.go(.paywall) } else { onFinish() }
     }
 }
 

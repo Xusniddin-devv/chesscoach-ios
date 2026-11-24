@@ -31,11 +31,18 @@ TestFlight and App Store builds use the **Production** CloudKit environment. Wit
 
 ## 5. Purchases
 
-- [ ] App Store Connect → the app → Subscriptions: one group with `uz.xq.chessc.pro.monthly` ($4.99) and `uz.xq.chessc.pro.yearly` ($29.99, 7-day free trial), as in `Config/ChessCoach.storekit`, and the subscription screenshot and review notes. Paid Apps agreement and banking must be active, or sandbox purchases fail.
+- [ ] App Store Connect → the app → Subscriptions: **one subscription group** ("Coach Pro") holding both products, so a user has one Pro at a time and can switch plans:
+  - `uz.xq.chessc.pro.yearly`, $29.99 a year, with an **introductory offer: Free trial, 3 days**, new subscribers, every territory. This is the only intro offer.
+  - `uz.xq.chessc.pro.monthly`, $4.99 a month, **no introductory offer** (billed at purchase).
+  - Same as `Config/ChessCoach.storekit`. The app never hardcodes a price or a trial: the paywall reads each product's price, its introductory offer and whether this Apple Account is still eligible from the store ("Try 3 days free.", "Then $29.99 a year.", "Try for $0.00"). A plan without a trial (monthly, or yearly for an account that already used its trial) shows its price and "Subscribe".
+  - Add the subscription screenshot (the paywall, `docs/design/screens/final-paywall-onboarding.png`) and review notes. Paid Apps agreement and banking must be active, or sandbox purchases fail.
+- [ ] **Hard paywall** (`HARD_PAYWALL = 1` in `Config/App.xcconfig`, the default): onboarding ends on the paywall and the app needs Coach Pro. Review notes for App Review: "The app analyses the user's own games and builds a training plan during onboarding before asking for a subscription. The yearly plan starts with a 3-day free trial, the monthly plan is billed at purchase; Restore, Terms and Privacy are on the paywall." Set `HARD_PAYWALL = 0` (e.g. in `Config/Secrets.xcconfig`) for a build with the free tier and Pro gates instead.
+- [ ] App Review 3.1.2 asks for the subscription's name on the paywall; the minimal paywall shows the price, period and trial but not the words "Coach Pro" (the App Store's purchase sheet does). If review flags it, add "Coach Pro" to the headline (it stays under the 25-word budget only if a word goes elsewhere).
+- [ ] The paywall promises a reminder before the trial ends: it schedules a local notification right after a trial starts and asks for notification permission at that moment. Check it in TestFlight (Settings → Notifications → Chess Coach) and that it fires on day 2 of the yearly trial (the day before billing).
 - [ ] Choose the back end for this build:
   - **RevenueCat**: put the public Apple SDK key in `Config/Secrets.xcconfig` (gitignored) as `REVENUECAT_API_KEY = appl_…`. Set up the products, the `pro` entitlement and an offering in the RevenueCat dashboard.
   - **StoreKit only**: leave the key out. Anything that isn't an `appl_…` key (empty, a placeholder, a secret key) falls back to StoreKit 2, and the archive still works.
-- [ ] Test a sandbox purchase, a restore and a trial in TestFlight.
+- [ ] Test a sandbox purchase, a restore and a trial in TestFlight. In the Simulator, plans only load when the app is run from Xcode (the scheme's StoreKit configuration); a run started with `simctl` shows "I couldn't reach the App Store" (DEBUG builds: `-demoPlans YES` shows sample plans, `-forcePro YES` skips the paywall). `StoreKitPlansTests` buy the trial through `SKTestSession` when run from Xcode (⌘U); from `xcodebuild` the StoreKit test daemon refuses the session and they record a known issue.
 
 ## 6. Privacy nutrition label (App Store Connect → App Privacy)
 

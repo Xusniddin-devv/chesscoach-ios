@@ -11,7 +11,12 @@ struct ChessCoachApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            Group {
+                // As the unit tests' host the app shows nothing: tests host their own roots on
+                // in-memory containers, and a second live root's @Query (the launch gate, the
+                // onboarding) would observe their saves.
+                if Self.isTestHost { Color.clear } else { RootTabView() }
+            }
                 .environment(hub)
                 .environment(entitlements)
                 .environment(analysis)
@@ -29,4 +34,6 @@ struct ChessCoachApp: App {
         }
         .modelContainer(container)
     }
+
+    private static let isTestHost = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 }

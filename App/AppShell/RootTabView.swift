@@ -8,6 +8,8 @@ struct RootTabView: View {
 
     @Environment(EngineHub.self) private var hub
     @Environment(\.modelContext) private var context
+    @Environment(Entitlements.self) private var entitlements
+    @Environment(\.hardPaywall) private var hardPaywall
     @AppStorage(Pref.hasOnboarded) private var hasOnboarded = false
     @Query private var records: [GameRecord]
     /// Onboarding saves the profile as it finishes, so a profile row means "onboarded" on
@@ -15,18 +17,39 @@ struct RootTabView: View {
     @Query private var profiles: [UserProfile]
     @State private var tab: TabID = .home
     @State private var saveIssues = SaveIssues.shared
+    /// Set while the onboarding flow is on screen: it saves the profile before its own
+    /// paywall step, and that must not swap it for the launch gate.
+    @State private var onboardingInProgress = false
 
     private var isOnboarded: Bool { hasOnboarded || !profiles.isEmpty }
 
+    private var route: LaunchRoute {
+        if Self.skipsOnboarding { return .tabs }
+        return LaunchRoute.resolve(onboarded: isOnboarded, onboardingInProgress: onboardingInProgress,
+                                   hardPaywall: hardPaywall, status: entitlements.status)
+    }
+
     var body: some View {
         Group {
-            if isOnboarded || Self.skipsOnboarding {
+            switch route {
+            case .tabs:
                 tabs.transition(.opacity)
-            } else {
-                OnboardingFlow { withAnimation(.easeInOut(duration: 0.4)) { hasOnboarded = true } }
-                    .transition(.opacity)
+            case .onboarding:
+                OnboardingFlow {
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        hasOnboarded = true
+                        onboardingInProgress = false
+                    }
+                }
+                .onAppear { onboardingInProgress = true }
+                .transition(.opacity)
+            case .checking:
+                DS.Color.background.ignoresSafeArea()
+            case .paywall:
+                PaywallGate().transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: route)
         .tint(DS.Color.accent)
         .preferredColorScheme(.dark)
         // The player's level follows the saved games: Training thresholds and wording.

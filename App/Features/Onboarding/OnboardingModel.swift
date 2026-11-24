@@ -18,6 +18,8 @@ import StockfishKit
 final class OnboardingModel {
     enum Step: Hashable {
         case welcome, find, importing, question(Int), reveal, goal, plan
+        /// Under `HARD_PAYWALL`: the coach presents Coach Pro after the plan (no back).
+        case paywall
     }
 
     enum Lookup: Equatable {
@@ -155,7 +157,11 @@ final class OnboardingModel {
         Task { @MainActor [weak self] in self?.stepRevision &+= 1 }
     }
 
-    var canGoBack: Bool { !history.isEmpty && step != .importing }
+    var canGoBack: Bool { !history.isEmpty && step != .importing && step != .paywall }
+
+    /// What the plan's button does: save, then the paywall or straight into the app. Set by
+    /// `OnboardingFlow`; the DEBUG hooks call it too.
+    @ObservationIgnored var finishPlan: (() -> Void)?
 
     func back() {
         guard let previous = history.popLast() else { return }

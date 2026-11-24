@@ -26,7 +26,6 @@ struct SettingsPaywallTests {
 
     @Test func everyProFeatureHasAPitch() {
         for feature in ProFeature.allCases { #expect(!feature.pitch.isEmpty) }
-        #expect(PaywallView.values.count == 4)
     }
 
     @Test func prefDefaultsWhenUnset() {

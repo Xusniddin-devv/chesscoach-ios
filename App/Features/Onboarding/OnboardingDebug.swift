@@ -10,7 +10,8 @@ import ChessCore
 ///   -onboardingHoldImport YES         stay on the import screen after the sweep
 ///   -onboardingAdvance 6              then walk reveal → goal → plan, N seconds per step
 ///   -onboardingNew 1,1,0              new-player path with these answers
-///   -onboardingFinish 5               on the plan, press Start day 1 after N seconds
+///   -onboardingFinish 5               on the plan, press its button after N seconds (→ paywall
+///                                     under HARD_PAYWALL, else the app)
 /// Every step is printed with an `ONBOARDING` prefix so a script can screenshot on cue.
 @MainActor
 enum OnboardingDebug {
@@ -104,8 +105,8 @@ enum OnboardingDebug {
         let finish = UserDefaults.standard.double(forKey: "onboardingFinish")
         guard finish > 0 else { return }
         try? await Task.sleep(for: .seconds(finish))
-        model.save(in: context)
-        log("step=home")
+        model.finishPlan?()
+        log(model.step == .paywall ? "step=paywall" : "step=home")
     }
 }
 #endif

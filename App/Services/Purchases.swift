@@ -15,6 +15,7 @@ import RevenueCat
 ///
 /// Gating principle (spec): analysis is always computed and stored; only the UI checks
 /// `isPro`. Use `ProGate` / `UpgradeButton` (App/Features/Paywall/ProGate.swift) in views.
+/// Under `HARD_PAYWALL` the launch gate reads `status` (App/Features/Paywall/HardPaywall.swift).
 @MainActor @Observable
 final class Entitlements {
     static let entitlementID = "pro"
@@ -25,6 +26,11 @@ final class Entitlements {
     private(set) var plans: [Plan] = []
     private(set) var loadingPlans = false
     private(set) var plansFailed = false
+    /// True once the first status check has answered (cached or fresh), so a launch gate
+    /// never flashes the paywall at a subscriber whose status hasn't loaded yet.
+    private(set) var resolved = false
+    /// False when this iPhone can't buy (Screen Time / parental controls).
+    private(set) var canMakePayments = true
 
     enum Backend: Equatable { case revenueCat, storeKit }
     let backend: Backend
@@ -36,7 +42,9 @@ final class Entitlements {
     /// DEBUG: `-forcePro YES|NO` launch argument pins `isPro` (screenshots, UI tests).
     @ObservationIgnored private let forced: Bool?
 
-    init(apiKey: String? = Bundle.main.object(forInfoDictionaryKey: "RevenueCatAPIKey") as? String) {
+    /// - Parameter forcedPro: pins `isPro` (tests); DEBUG builds also read `-forcePro YES|NO`.
+    init(apiKey: String? = Bundle.main.object(forInfoDictionaryKey: "RevenueCatAPIKey") as? String,
+         forcedPro: Bool? = nil) {
         let key = (apiKey ?? "").trimmingCharacters(in: .whitespaces)
         // Only a public Apple SDK key ("appl_…") configures RevenueCat. Empty, an unexpanded
         // "$(REVENUECAT_API_KEY)", a placeholder or a secret key all mean StoreKit 2 only, so an
@@ -57,17 +65,21 @@ final class Entitlements {
         }
         #if DEBUG
         // Launch arguments arrive as strings ("YES"): `bool(forKey:)` reads them, `as? Bool` doesn't.
-        forced = UserDefaults.standard.object(forKey: "forcePro") == nil ? nil : UserDefaults.standard.bool(forKey: "forcePro")
+        forced = forcedPro ?? (UserDefaults.standard.object(forKey: "forcePro") == nil ? nil : UserDefaults.standard.bool(forKey: "forcePro"))
         #else
-        forced = nil
+        forced = forcedPro
         #endif
-        if let forced { isPro = forced }
+        if let forced {
+            isPro = forced
+            resolved = true
+        }
     }
 
     /// Call once at launch: current status, plans, and a listener for renewals / refunds.
     func start() async {
         guard !started else { return }
         started = true
+        canMakePayments = AppStore.canMakePayments
         switch backend {
         case .revenueCat:
             updates = Task { [weak self] in
@@ -75,6 +87,8 @@ final class Entitlements {
                     self?.apply(info)
                 }
             }
+            // Cached when offline; a failure still resolves (the gate offers Restore and Retry).
+            if let info = try? await Purchases.shared.customerInfo() { apply(info) }
         case .storeKit:
             updates = Task { [weak self] in
                 for await update in Transaction.updates {
@@ -84,7 +98,14 @@ final class Entitlements {
             }
             await refreshStoreKit()
         }
+        resolved = true
         await loadPlans()
+    }
+
+    /// Status for the launch gate: unknown until the first check answers.
+    var status: EntitlementStatus {
+        if isPro { return .pro }
+        return resolved ? .free : .unknown
     }
 
     // MARK: Plans
@@ -99,6 +120,10 @@ final class Entitlements {
         let perMonth: String?
         /// "7 days" when a free trial applies to this user.
         let freeTrial: String?
+        /// The trial's length in days (3), when `freeTrial` is set.
+        var trialDays: Int?
+        /// Zero in the product's currency ("$0.00"), for "Try for $0.00".
+        var free: String?
     }
 
     func loadPlans() async {
@@ -117,10 +142,7 @@ final class Entitlements {
                     if let sk2 = package.storeProduct.sk2Product {
                         found.append(await Self.plan(from: sk2, period: period))
                     } else {
-                        found.append(Plan(id: package.storeProduct.productIdentifier, period: period,
-                                          price: package.storeProduct.localizedPriceString,
-                                          perMonth: period == .yearly ? package.storeProduct.localizedPricePerMonth : nil,
-                                          freeTrial: nil))
+                        found.append(await Self.plan(from: package.storeProduct, period: period))
                     }
                 }
                 plans = found
@@ -136,7 +158,8 @@ final class Entitlements {
             // `-demoPlans YES`: StoreKit's local config only serves runs started from Xcode;
             // screenshots launched with simctl get these instead.
             if plans.isEmpty, UserDefaults.standard.bool(forKey: "demoPlans") {
-                plans = [Plan(id: Self.yearlyID, period: .yearly, price: "$29.99", perMonth: "$2.50", freeTrial: "7 days"),
+                plans = [Plan(id: Self.yearlyID, period: .yearly, price: "$29.99", perMonth: "$2.50", freeTrial: "3 days", trialDays: 3,
+                              free: "$0.00"),
                          Plan(id: Self.monthlyID, period: .monthly, price: "$4.99", perMonth: nil, freeTrial: nil)]
             }
             #endif
@@ -149,14 +172,56 @@ final class Entitlements {
 
     private static func plan(from product: Product, period: Plan.Period) async -> Plan {
         var trial: String?
+        var trialDays: Int?
         if let offer = product.subscription?.introductoryOffer, offer.paymentMode == .freeTrial,
            await product.subscription?.isEligibleForIntroOffer == true {
             trial = describe(offer.period)
+            trialDays = days(offer.period)
         }
         let perMonth = period == .yearly
             ? (product.price / 12).formatted(product.priceFormatStyle)
             : nil
-        return Plan(id: product.id, period: period, price: product.displayPrice, perMonth: perMonth, freeTrial: trial)
+        return Plan(id: product.id, period: period, price: product.displayPrice, perMonth: perMonth, freeTrial: trial,
+                    trialDays: trialDays, free: Decimal(0).formatted(product.priceFormatStyle))
+    }
+
+    /// RevenueCat's StoreProduct when no StoreKit 2 product is behind it: its
+    /// `introductoryDiscount`, if this customer is still eligible for it.
+    private static func plan(from product: StoreProduct, period: Plan.Period) async -> Plan {
+        var trial: String?
+        var trialDays: Int?
+        if let intro = product.introductoryDiscount, intro.paymentMode == .freeTrial {
+            let eligibility = await Purchases.shared.checkTrialOrIntroDiscountEligibility(product: product)
+            if eligibility == .eligible {
+                let days = days(value: intro.subscriptionPeriod.value, unit: intro.subscriptionPeriod.unit)
+                trialDays = days
+                trial = "\(days) day\(days == 1 ? "" : "s")"
+            }
+        }
+        return Plan(id: product.productIdentifier, period: period, price: product.localizedPriceString,
+                    perMonth: period == .yearly ? product.localizedPricePerMonth : nil,
+                    freeTrial: trial, trialDays: trialDays, free: product.priceFormatter?.string(from: 0))
+    }
+
+    private static func days(value: Int, unit: RevenueCat.SubscriptionPeriod.Unit) -> Int {
+        switch unit {
+        case .day: value
+        case .week: value * 7
+        case .month: value * 30
+        case .year: value * 365
+        @unknown default: value
+        }
+    }
+
+    /// Whole days in a trial period (a month counts 30, a year 365).
+    static func days(_ period: Product.SubscriptionPeriod) -> Int {
+        switch period.unit {
+        case .day: period.value
+        case .week: period.value * 7
+        case .month: period.value * 30
+        case .year: period.value * 365
+        @unknown default: period.value
+        }
     }
 
     /// "7 days", "1 month".
@@ -225,6 +290,7 @@ final class Entitlements {
     private func apply(_ info: CustomerInfo) {
         guard forced == nil else { return }
         isPro = info.entitlements[Self.entitlementID]?.isActive == true
+        resolved = true
     }
 
     private func refreshStoreKit() async {
@@ -239,3 +305,6 @@ final class Entitlements {
         isPro = active
     }
 }
+
+/// Pro status as the launch gate sees it.
+enum EntitlementStatus: Equatable, Sendable { case unknown, pro, free }

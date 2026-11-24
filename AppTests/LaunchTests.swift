@@ -19,10 +19,12 @@ struct LaunchTests {
         let host = UIHostingController(rootView: RootTabView()
             .environment(EngineHub())
             .environment(Entitlements())
+            .environment(\.hardPaywall, false)  // the free tier; the gate: HardPaywallTests
             .modelContainer(container))
         window.rootViewController = host
         window.makeKeyAndVisible()
         host.view.layoutIfNeeded()
+        defer { Self.tearDown(window, keeping: container) }
         let tabs = try #require(findTabBarController(host))
         #expect(tabs.viewControllers?.count == 4)
     }
@@ -40,10 +42,12 @@ struct LaunchTests {
         let host = UIHostingController(rootView: RootTabView()
             .environment(EngineHub())
             .environment(Entitlements())
+            .environment(\.hardPaywall, false)  // the free tier; the gate: HardPaywallTests
             .modelContainer(container))
         window.rootViewController = host
         window.makeKeyAndVisible()
         host.view.layoutIfNeeded()
+        defer { Self.tearDown(window, keeping: container) }
         #expect(findTabBarController(host) == nil)
     }
 
@@ -62,11 +66,24 @@ struct LaunchTests {
         let host = UIHostingController(rootView: RootTabView()
             .environment(EngineHub())
             .environment(Entitlements())
+            .environment(\.hardPaywall, false)  // the free tier; the gate: HardPaywallTests
             .modelContainer(container))
         window.rootViewController = host
         window.makeKeyAndVisible()
         host.view.layoutIfNeeded()
+        defer { Self.tearDown(window, keeping: container) }
         #expect(findTabBarController(host) != nil)
+    }
+
+    /// Hosted roots can outlive their test (SwiftUI keeps state for a while); a @Query left
+    /// observing a freed container traps when a later test saves. Keep the containers alive
+    /// for the run and take the views off screen.
+    static var containers: [ModelContainer] = []
+
+    static func tearDown(_ window: UIWindow, keeping container: ModelContainer) {
+        window.isHidden = true
+        window.rootViewController = nil
+        containers.append(container)
     }
 
     private func findTabBarController(_ vc: UIViewController) -> UITabBarController? {
