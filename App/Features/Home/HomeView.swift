@@ -10,8 +10,14 @@ struct HomeView: View {
     }
 
     @Query(HomeView.recentGames) private var records: [GameRecord]
+    /// Every saved game, for the ladder's next bot on the Play card.
+    @Query private var allRecords: [GameRecord]
+    @Environment(\.modelContext) private var context
+    @Environment(EngineHub.self) private var hub
     @State private var path: [Route] = []
     @State private var game: PlaySetup?
+    /// Where the result panel sends the player once the game's cover has closed.
+    @State private var exit: PlayView.Exit?
 
     static var recentGames: FetchDescriptor<GameRecord> {
         var descriptor = FetchDescriptor<GameRecord>(sortBy: [SortDescriptor(\.date, order: .reverse)])
@@ -23,7 +29,7 @@ struct HomeView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Spacing.l) {
-                    NavigationLink(value: Route.botPicker) { PlayCard(next: .suggested) }
+                    NavigationLink(value: Route.botPicker) { PlayCard(next: BotLadder(records: allRecords, hub: hub).next ?? .suggested) }
                         .buttonStyle(.plain)
                     recent
                 }
@@ -39,8 +45,8 @@ struct HomeView: View {
                 }
             }
         }
-        .fullScreenCover(item: $game) { setup in
-            PlayView(setup: setup)
+        .fullScreenCover(item: $game, onDismiss: routeExit) { setup in
+            PlayView(setup: setup) { exit = $0 }
         }
         .onChange(of: game) { _, started in
             // Under the cover, go back to Home so "Done" lands on the new game in the list.
@@ -52,6 +58,21 @@ struct HomeView: View {
             if DebugReview.requested, let record = DebugReview.pick(records) { path = [.review(record)] }
         }
         #endif
+    }
+
+    /// Review game → the saved game in Review; New bot → the bot ladder.
+    private func routeExit() {
+        defer { exit = nil }
+        switch exit {
+        case .review(let id):
+            var descriptor = FetchDescriptor<GameRecord>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            if let record = try? context.fetch(descriptor).first { path = [.review(record)] }
+        case .newBot:
+            path = [.botPicker]
+        case .home, nil:
+            break
+        }
     }
 
     static func greeting(for date: Date) -> String {
