@@ -120,8 +120,10 @@ final class Entitlements {
         let perMonth: String?
         /// "7 days" when a free trial applies to this user.
         let freeTrial: String?
-        /// The trial's length in days (7), when `freeTrial` is set.
+        /// The trial's length in days (3), when `freeTrial` is set.
         var trialDays: Int?
+        /// Zero in the product's currency ("$0.00"), for "Try for $0.00".
+        var free: String?
     }
 
     func loadPlans() async {
@@ -156,8 +158,9 @@ final class Entitlements {
             // `-demoPlans YES`: StoreKit's local config only serves runs started from Xcode;
             // screenshots launched with simctl get these instead.
             if plans.isEmpty, UserDefaults.standard.bool(forKey: "demoPlans") {
-                plans = [Plan(id: Self.yearlyID, period: .yearly, price: "$29.99", perMonth: "$2.50", freeTrial: "7 days", trialDays: 7),
-                         Plan(id: Self.monthlyID, period: .monthly, price: "$4.99", perMonth: nil, freeTrial: "3 days", trialDays: 3)]
+                plans = [Plan(id: Self.yearlyID, period: .yearly, price: "$29.99", perMonth: "$2.50", freeTrial: "3 days", trialDays: 3,
+                              free: "$0.00"),
+                         Plan(id: Self.monthlyID, period: .monthly, price: "$4.99", perMonth: nil, freeTrial: nil)]
             }
             #endif
             plansFailed = plans.isEmpty
@@ -179,7 +182,7 @@ final class Entitlements {
             ? (product.price / 12).formatted(product.priceFormatStyle)
             : nil
         return Plan(id: product.id, period: period, price: product.displayPrice, perMonth: perMonth, freeTrial: trial,
-                    trialDays: trialDays)
+                    trialDays: trialDays, free: Decimal(0).formatted(product.priceFormatStyle))
     }
 
     /// RevenueCat's StoreProduct when no StoreKit 2 product is behind it: its
@@ -197,7 +200,7 @@ final class Entitlements {
         }
         return Plan(id: product.productIdentifier, period: period, price: product.localizedPriceString,
                     perMonth: period == .yearly ? product.localizedPricePerMonth : nil,
-                    freeTrial: trial, trialDays: trialDays)
+                    freeTrial: trial, trialDays: trialDays, free: product.priceFormatter?.string(from: 0))
     }
 
     private static func days(value: Int, unit: RevenueCat.SubscriptionPeriod.Unit) -> Int {
