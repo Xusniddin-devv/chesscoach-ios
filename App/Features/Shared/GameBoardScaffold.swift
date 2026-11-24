@@ -120,131 +120,6 @@ extension GameBoardScaffold where Card == EmptyView {
     }
 }
 
-// MARK: Puzzles and lessons
-
-/// The puzzle solver and the lesson player: Play's layout without the players. A flat top
-/// row (close, progress pips, title, rating) is pinned to the top; under it, centred between
-/// that row and the flat action bar exactly like Play's stack: a prompt line with the side to
-/// move, the board, the status line, and the coach's line in a band of fixed minimum height
-/// (so the board does not move when the coach speaks).
-struct TrainingBoardScaffold<Header: View, Board: View, Coach: View, Actions: View>: View {
-    let prompt: String
-    let side: Piece.Color
-    let status: String?
-    var statusAccessory: BoardStatusAccessory? = nil
-    @ViewBuilder let header: Header
-    @ViewBuilder let board: Board
-    @ViewBuilder let coach: Coach
-    @ViewBuilder let actions: Actions
-
-    /// Room kept for the coach's bubble (about three lines at 52 pt avatar).
-    static var coachReserve: CGFloat { 124 }
-
-    var body: some View {
-        BoardStackLayout(margin: DS.Spacing.s, covered: 0) {
-            PromptLine(text: prompt, side: side)
-            board.layoutValue(key: BoardSlot.self, value: true)
-            StatusLine(text: status, accessory: statusAccessory) {}
-            coach
-                .frame(maxWidth: .infinity, minHeight: Self.coachReserve, alignment: .topLeading)
-                .padding(.horizontal, DS.Spacing.sm)
-                .padding(.top, DS.Spacing.xs)
-        }
-        .safeAreaBar(edge: .top) { header }
-        .safeAreaBar(edge: .bottom) { actions.frame(maxWidth: .infinity) }
-    }
-}
-
-/// "White to move · find the fork": a small disc in the side's colour and one line.
-private struct PromptLine: View {
-    let text: String
-    let side: Piece.Color
-
-    var body: some View {
-        HStack(spacing: DS.Spacing.s) {
-            Circle()
-                .fill(side == .white ? DS.Color.boardLight : DS.Color.ink)
-                .overlay(Circle().stroke(DS.Color.textSecondary.opacity(0.6), lineWidth: 1))
-                .frame(width: 12, height: 12)
-                .accessibilityHidden(true)
-            Text(text)
-                .font(DS.Font.headline)
-                .foregroundStyle(DS.Color.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-                .contentTransition(.opacity)
-            Spacer(minLength: 0)
-        }
-        .frame(height: 30)
-        .padding(.horizontal, DS.Spacing.m)
-        .padding(.bottom, DS.Spacing.s)
-    }
-}
-
-/// The flat top row of the puzzle and lesson screens: close (Icons8), progress pips, then a
-/// small title and a mono figure on the right (puzzle rating, lesson move count).
-struct TrainingTopBar: View {
-    /// One state per pip: nil open, true done well, false missed.
-    let pips: [Bool?]
-    let current: Int?
-    let title: String
-    var figure: String? = nil
-    var figureLabel: String? = nil
-    let onClose: () -> Void
-
-    var body: some View {
-        HStack(spacing: DS.Spacing.sm) {
-            Button(action: onClose) {
-                Image("Icons/close")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 22, height: 22)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(DS.Color.text)
-            .accessibilityLabel("Close")
-            if pips.count > 1 {
-                HStack(spacing: 4) {
-                    ForEach(Array(pips.enumerated()), id: \.offset) { index, state in
-                        Capsule()
-                            .fill(color(state, isCurrent: index == current))
-                            .frame(width: pips.count > 6 ? 12 : 18, height: 4)
-                    }
-                }
-                .accessibilityElement()
-                .accessibilityLabel("\(pips.compactMap { $0 }.count) of \(pips.count) done")
-            }
-            Spacer(minLength: DS.Spacing.s)
-            Text(title)
-                .font(DS.Font.subheadline)
-                .foregroundStyle(DS.Color.textSecondary)
-                .lineLimit(1)
-            if let figure {
-                Text(verbatim: figure)
-                    .font(DS.Font.numeral)
-                    .foregroundStyle(DS.Color.text)
-                    .accessibilityLabel(figureLabel ?? figure)
-            }
-        }
-        .padding(.leading, DS.Spacing.xs)
-        .padding(.trailing, DS.Spacing.m)
-        .frame(height: 44)
-        .frame(maxWidth: .infinity)
-        .background(DS.Color.background)
-    }
-
-    private func color(_ state: Bool?, isCurrent: Bool) -> Color {
-        switch state {
-        case true?: DS.Color.text
-        case false?: DS.Color.moveClass(.mistake)
-        case nil: isCurrent ? DS.Color.accent : DS.Color.surface2
-        }
-    }
-}
-
 // MARK: Geometry
 
 /// Where the board stack goes in a region of `width` × `height`: the board's side and the
@@ -438,8 +313,6 @@ struct GameAction: View {
     let title: String
     let icon: String
     var isOn = false
-    /// The screen's next step once there is one (puzzles' and lessons' Next): an accent cell.
-    var prominent = false
     let action: () -> Void
 
     var body: some View {
@@ -459,7 +332,7 @@ struct GameAction: View {
             .frame(height: 52)
             .contentShape(Rectangle())
         }
-        .buttonStyle(GameActionStyle(isOn: isOn, prominent: prominent))
+        .buttonStyle(GameActionStyle(isOn: isOn))
         .accessibilityLabel(title)
         .accessibilityAddTraits(isOn ? .isSelected : [])
     }
@@ -467,19 +340,16 @@ struct GameAction: View {
 
 private struct GameActionStyle: ButtonStyle {
     let isOn: Bool
-    var prominent = false
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(prominent ? DS.Color.onAccent : isOn ? DS.Color.accent : DS.Color.text)
+            .foregroundStyle(isOn ? DS.Color.accent : DS.Color.text)
             .opacity(isEnabled ? 1 : 0.3)
             .background {
                 RoundedRectangle(cornerRadius: DS.Radius.medium)
-                    .fill(prominent ? (configuration.isPressed ? DS.Color.accentPressed : DS.Color.accent)
-                          : configuration.isPressed ? DS.Color.surface2 : .clear)
+                    .fill(configuration.isPressed ? DS.Color.surface2 : .clear)
             }
-            .animation(.snappy(duration: 0.2), value: prominent)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)
     }

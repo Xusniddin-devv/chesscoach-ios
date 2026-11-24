@@ -13,9 +13,6 @@ struct PuzzleSessionSetup: Identifiable, Hashable {
     let puzzles: [Puzzle]
     /// Puzzle id → "bank" | "blunder" (missing = "bank").
     var sources: [String: String] = [:]
-    /// The theme the player chose (practice by theme, Fix it): the prompt may name it.
-    /// Otherwise themes stay hidden until the puzzle is over (they give the answer away).
-    var theme: String? = nil
 }
 
 /// Drives the solver screen: wraps `PuzzleSolver`, keeps the piece tracker in step, plays
@@ -31,8 +28,6 @@ final class PuzzleSessionModel {
     /// Every puzzle in the queue has been played.
     private(set) var finished = false
     private(set) var solvedCount = 0
-    /// The first outcome of each puzzle in the queue (nil: not finished yet), for the pips.
-    private(set) var outcomes: [Bool?]
 
     private var context: ModelContext?
     private var recorded = false
@@ -46,7 +41,6 @@ final class PuzzleSessionModel {
         let first = setup.puzzles.first ?? Puzzle(id: "", fen: Rules.startFen, moves: [], rating: 0, themes: [])
         solver = PuzzleSolver(puzzle: first)
         tracker = PieceTracker(fen: first.fen)
-        outcomes = Array(repeating: nil, count: setup.puzzles.count)
     }
 
     func attach(_ context: ModelContext) { self.context = context }
@@ -69,26 +63,6 @@ final class PuzzleSessionModel {
         }
         return tint
     }
-
-    /// The verdict on the board, like Review: the solving move's destination gets the Best
-    /// badge, a wrong move's destination a Mistake badge.
-    var badges: [Square: MoveClass] {
-        switch solver.status {
-        case .solved:
-            guard let move = solver.lastMove else { return [:] }
-            return [Square(String(move.dropFirst(2).prefix(2))): .best]
-        case .failed:
-            guard let wrong = solver.wrongMove else { return [:] }
-            return [Square(String(wrong.dropFirst(2).prefix(2))): .mistake]
-        default:
-            return [:]
-        }
-    }
-
-    /// From the player's own game (vs a bank puzzle).
-    var isOwnMistake: Bool { setup.sources[puzzle.id] == "blunder" }
-
-    var isOver: Bool { solver.status == .solved || solver.status == .failed }
 
     var arrows: [(Square, Square, Color)] {
         guard showingSolution, let move = solver.expectedMove else { return [] }
@@ -172,7 +146,6 @@ final class PuzzleSessionModel {
         let id = puzzle.id
         if !recorded {
             recorded = true
-            if outcomes.indices.contains(index) { outcomes[index] = solved && solver.solvedClean }
             TrainingStore.recordOutcome(puzzleId: id, source: setup.sources[id] ?? "bank",
                                         clean: solver.solvedClean, solved: solved, in: context)
         } else if solved {
