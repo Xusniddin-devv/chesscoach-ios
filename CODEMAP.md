@@ -49,7 +49,9 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Header (streak, rating → goal), coach line from real data, sparring link, Continue strip (analysis board + recent games → Review; freeplay excluded: `recentGames`) | `App/Features/Home/HomeView.swift` (thumbs: `GameThumb` in `ProfileView.swift`) |
-| Today's plan as a 3-token path (practice steps, bot as boss), Start, next week | `App/Features/Home/TodayPlanCard.swift`, `ChessCore/Onboarding/TrainingPlan.swift` |
+| Today's plan as a 3-token path (practice steps, bot as boss), Start, next week; `PlanPath` / `StepToken` shared with onboarding's week | `App/Features/Home/TodayPlanCard.swift`, `ChessCore/Onboarding/TrainingPlan.swift` |
+| Background analysis (quick pass, full upgrades, plan rebuild), engine holds (`.holdsEngine()`) | `App/Services/BackgroundAnalysis.swift`, `ChessCore/Analysis/AnalysisQueue.swift`, `StockfishKit/StockfishEngine.swift` (`analyzeInBackground`) |
+| Platform evals / accuracies (chess.com review, Lichess server analysis) | `ChessCore/Import/PlatformEvals.swift`, `GameSnapshot.platformAccuracy` |
 
 ## Analysis board (Freeplay) and position editor
 
@@ -120,7 +122,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Flow (welcome, platform, username, import + analysis, reveal, goal, plan, new player) | `App/Features/Onboarding/*` (`OnboardingFlow`, `OnboardingModel`, steps) |
+| Flow (welcome, chat-style account finder, ~10 s import + background, reveal, goal, week as a token path, new player) | `App/Features/Onboarding/*` (`OnboardingFlow`, `OnboardingModel`, `FindStep`, `ImportStep`, `QuestionStep`, `PlanStep`) |
 | chess.com / Lichess clients, PGN → snapshot (`source: chesscom|lichess`) | `ChessCore/Import/*` |
 | Onboarding analysis, coach lines, goal model, 7-day plan | `ChessCore/Onboarding/*` |
 
