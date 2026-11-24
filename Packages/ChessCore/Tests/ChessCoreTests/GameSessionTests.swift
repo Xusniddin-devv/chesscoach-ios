@@ -220,9 +220,16 @@ func takeBackDiscardsInFlightGrade(engineHonorsCancellation: Bool) async {
     session.start()
     #expect(session.userMove("a7a8n"))
     #expect(session.sans.last == "a8=N")
-    #expect(await eventually { engine.requests.count == 2 && session.phase == .userTurn })
-    #expect(engine.requests.last == gradeRequest(["a7a8n"], startFen: fen))
-    #expect(engine.requests.last?.moves.last == "a7a8n")
+    // Silent mode grades the promotion while the bot replies, and the bot's reply prefetches
+    // the next grade's "before" position: the grade's second request and the prefetch run
+    // concurrently, so their order (and a moment with only two requests) is not fixed.
+    // Wait for all three and compare them as a set.
+    #expect(await eventually { engine.requests.count == 3 && session.phase == .userTurn })
+    #expect(Set(engine.requests) == [
+        gradeRequest([], startFen: fen),                  // grade: before the promotion
+        gradeRequest(["a7a8n"], startFen: fen),           // grade: after it (UCI with the piece)
+        gradeRequest(["a7a8n", "e8d7"], startFen: fen),   // prefetch after the bot's reply
+    ])
     #expect(engine.opponentCalls.first == OpponentCall(startFen: fen, moves: ["a7a8n"], elo: 600))
     #expect(session.tracker.pieces.contains { $0.square == .a8 && $0.piece.kind == .knight })
 }
