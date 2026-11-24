@@ -38,12 +38,25 @@ public struct GameSnapshot: Codable, Sendable, Equatable {
     public var schemaVersion: Int
     public var analysis: GameAnalysis?
     public var openingName: String?
+    /// Where the game came from: nil for games against our bots, `Source.freeplay` for the
+    /// analysis board (owner-less: no opponent, never rated, never counted in stats).
+    public var source: String?
+
+    public enum Source {
+        public static let freeplay = "freeplay"
+    }
+
+    /// An analysis-board game: both colours moved by the user. Excluded from the rating,
+    /// Profile, the ladder and Home's recent games.
+    public var isFreeplay: Bool { source == Source.freeplay }
 
     public init(id: UUID, date: Date, botId: String, userColor: Piece.Color, mode: PlayMode,
                 startFen: String, moves: [String], sans: [String], result: GameResult,
                 verdicts: [Verdict], analysisVersion: Int, playerRatingUsed: Int,
                 schemaVersion: Int = GameSnapshot.currentSchemaVersion,
-                analysis: GameAnalysis? = nil, openingName: String? = nil) {
+                analysis: GameAnalysis? = nil, openingName: String? = nil,
+                source: String? = nil) {
+        self.source = source
         self.analysis = analysis
         self.openingName = openingName
         self.schemaVersion = schemaVersion
@@ -83,6 +96,7 @@ extension GameSnapshot {
         // A broken or newer analysis block is dropped: the game stays viewable and can be re-analysed.
         analysis = (try? c.decodeIfPresent(GameAnalysis.self, forKey: .analysis)) ?? nil
         openingName = try? c.decodeIfPresent(String.self, forKey: .openingName)
+        source = try? c.decodeIfPresent(String.self, forKey: .source)
     }
 }
 

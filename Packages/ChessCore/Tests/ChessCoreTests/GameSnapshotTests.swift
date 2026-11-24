@@ -242,3 +242,13 @@ private func decode(_ json: [String: Any]) throws -> GameSnapshot {
     #expect(decoded.analysis == nil)
     #expect(decoded.moves == sampleSnapshot().moves)
 }
+
+@Test func snapshotSourceIsOptionalAndRoundTrips() throws {
+    var snapshot = sampleSnapshot()
+    #expect(snapshot.source == nil)
+    #expect(!snapshot.isFreeplay)
+    snapshot.source = GameSnapshot.Source.freeplay
+    let decoded = try decodeSnapshot(encodeSnapshot(snapshot))
+    #expect(decoded.isFreeplay)
+    #expect(decoded == snapshot)
+}
