@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "icons": {
+    "pack": "ios_filled",
+    "sizes": [24, 27],
+    "color": "template (tinted by DS.Color tokens)",
+    "source": "PNG 500 px via get_icon_png_url, vectorised with potrace (owner decision 2026-11-24); assets App/Resources/Assets.xcassets/Icons/<name>",
+    "items": {
+      "tab-home": { "id": "2797", "commonName": "home" },
+      "tab-puzzle": { "id": "2790", "commonName": "puzzle" },
+      "tab-learn": { "id": "38390", "commonName": "open-book" },
+      "tab-profile": { "id": "10290", "commonName": "pawn" },
+      "resign": { "id": "2755", "commonName": "flag" },
+      "hint": { "id": "2979", "commonName": "idea" },
+      "back": { "id": "39789", "commonName": "chevron-left" },
+      "forward": { "id": "39790", "commonName": "chevron-right" },
+      "flip": { "id": "21890", "commonName": "sorting-arrows" },
+      "moves": { "id": "8800", "commonName": "list" },
+      "close": { "id": "8112", "commonName": "delete-sign" },
+      "return": { "id": "7709", "commonName": "undo" },
+      "lock": { "id": "2862", "commonName": "lock" }
+    }
+  }
+}
