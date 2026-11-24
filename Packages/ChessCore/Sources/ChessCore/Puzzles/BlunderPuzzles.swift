@@ -62,8 +62,8 @@ public enum BlunderPuzzles {
            let before = Rules.fen(startFen: snapshot.startFen, moves: Array(snapshot.moves.prefix(moveIndex - 1))),
            Rules.apply(uci: snapshot.moves[moveIndex - 1], to: before)?.fenAfter == facts.fenBefore {
             return Puzzle(id: id, fen: before, moves: [snapshot.moves[moveIndex - 1]] + line,
-                          rating: rating, themes: themes, hasSetupMove: true)
+                          rating: rating, themes: themes, hasSetupMove: true, endsAfterKeyMove: true)
         }
-        return Puzzle(id: id, fen: facts.fenBefore, moves: line, rating: rating, themes: themes, hasSetupMove: false)
+        return Puzzle(id: id, fen: facts.fenBefore, moves: line, rating: rating, themes: themes, hasSetupMove: false, endsAfterKeyMove: true)
     }
 }

@@ -108,7 +108,10 @@ final class PuzzleSessionModel {
     var badges: [Square: MoveClass] {
         switch solver.status {
         case .solved:
-            guard let move = solver.lastMove else { return [:] }
+            // The demonstration after an own-mistake solve moves lastMove on; the badge stays on the key move.
+            guard let move = puzzle.endsAfterKeyMove && solver.played.indices.contains(puzzle.firstSolverIndex)
+                ? solver.played[puzzle.firstSolverIndex] : solver.lastMove
+            else { return [:] }
             let brilliant = solver.solvedClean && !isOwnMistake && puzzle.rating >= Self.playerRating + 200
             return [Square(String(move.dropFirst(2).prefix(2))): brilliant ? .brilliant : .best]
         case .failed:
@@ -157,11 +160,27 @@ final class PuzzleSessionModel {
             tracker.apply(uci, fenBefore: before)
             solvedCount += 1
             record(solved: true)
+            playDemo()
         case .wrong:
             tracker.apply(uci, fenBefore: before)
             record(solved: false)
         }
         return true
+    }
+
+    /// Own-mistake puzzles end at the key move; the engine's line after it plays out on its own.
+    private func playDemo() {
+        guard puzzle.endsAfterKeyMove else { return }
+        let gen = generation
+        Task {
+            while gen == generation {
+                try? await Task.sleep(for: Self.replyDelay)
+                guard gen == generation else { return }
+                let before = solver.fen
+                guard let move = solver.playDemo() else { return }
+                tracker.apply(move, fenBefore: before)
+            }
+        }
     }
 
     func hint() { solver.showHint() }

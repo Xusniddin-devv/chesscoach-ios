@@ -45,9 +45,7 @@ private func snapshot(_ verdicts: [Verdict], userColor: Piece.Color = .white) ->
     solver.playSetup()
     #expect(solver.submit("f3g5") == .wrong) // the original mistake
     solver.retry()
-    do { let r = solver.submit("d2d4"); #expect(r == .correct(reply: "e5d4")) }
-    solver.playReply()
-    do { let r = solver.submit("f3d4"); #expect(r == .solved) }
+    do { let r = solver.submit("d2d4"); #expect(r == .solved) } // only the key move is required
 }
 
 @Test func onlyTheUsersMistakesBecomePuzzles() {
@@ -95,7 +93,8 @@ private func snapshot(_ verdicts: [Verdict], userColor: Piece.Color = .white) ->
 /// Owner report: solved the key move, went wrong on the second one, and the band named the
 /// key move again ("[d4] was the move" with the pawn already on d4), every retry.
 @Test func aFailureOnALaterMoveNamesThatMoveNotTheKeyMove() throws {
-    let p = try #require(BlunderPuzzles.from(snapshot: snapshot([knightBlunder()])).first)
+    var p = try #require(BlunderPuzzles.from(snapshot: snapshot([knightBlunder()])).first)
+    p.endsAfterKeyMove = false               // a full multi-move line, as in the bank
     var solver = PuzzleSolver(puzzle: p)
     solver.playSetup()
     #expect(solver.expectedSan == "d4")
@@ -128,4 +127,31 @@ private func snapshot(_ verdicts: [Verdict], userColor: Piece.Color = .white) ->
     let empty = Puzzle(id: "e", fen: Rules.startFen, moves: ["e2e4"], rating: 800, themes: [])
     #expect(!empty.isServable)  // a setup move and nothing to solve
     #expect(PuzzleBank.all.allSatisfy { $0.isServable })
+}
+
+/// Only the key move of an own-mistake puzzle is checked: the engine line after it is not
+/// verified unique, so a different (equally good) later move must never be marked wrong.
+@Test func anOwnMistakePuzzleIsSolvedAfterTheKeyMoveAndDemonstratesTheRest() throws {
+    let p = try #require(BlunderPuzzles.from(snapshot: snapshot([knightBlunder()])).first)
+    #expect(p.endsAfterKeyMove)
+    #expect(p.solverMoveCount == 1)
+    var solver = PuzzleSolver(puzzle: p)
+    solver.playSetup()
+    #expect(solver.submit("d2d4") == .solved)
+    #expect(solver.status == .solved)
+    #expect(solver.solvedClean)
+    #expect(solver.playDemo() == "e5d4")
+    #expect(solver.playDemo() == "f3d4")
+    #expect(solver.playDemo() == nil)
+    #expect(solver.status == .solved)
+}
+
+@Test func aBankPuzzleKeepsItsFullLine() throws {
+    let bank = try #require(PuzzleBank.all.first { $0.solverMoveCount > 1 })
+    #expect(!bank.endsAfterKeyMove)
+    var solver = PuzzleSolver(puzzle: bank)
+    solver.playSetup()
+    guard case .correct = solver.submit(bank.moves[bank.firstSolverIndex]) else { Issue.record("key move should continue"); return }
+    #expect(solver.status == .replying)
+    #expect(solver.playDemo() == nil)
 }

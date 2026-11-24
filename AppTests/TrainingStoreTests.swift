@@ -115,4 +115,28 @@ struct PuzzleSessionGuardTests {
         #expect(model.solver.expectedSan == "Nxd4")
         #expect(!model.solver.failedOnKeyMove)
     }
+
+    @Test func anOwnMistakeSolvesOnTheKeyMoveAndThenDemonstratesTheLine() async throws {
+        let p = Puzzle(id: "own", fen: fen, moves: ["d2d4", "e5d4", "f3d4"], rating: 800, themes: [],
+                       hasSetupMove: false, endsAfterKeyMove: true)
+        let model = PuzzleSessionModel(setup: PuzzleSessionSetup(kind: .review, title: "t", puzzles: [p], sources: ["own": "blunder"]))
+        model.start()
+        #expect(model.move("d2d4"))
+        #expect(model.solver.status == .solved)
+        try await Task.sleep(for: PuzzleSessionModel.replyDelay * 3 + .milliseconds(600))
+        #expect(model.solver.played == ["d2d4", "e5d4", "f3d4"])
+        #expect(model.solver.status == .solved)
+    }
+
+    @Test func anOwnMistakeSolvesOnTheKeyMoveThenDemonstratesTheLine() async throws {
+        let p = Puzzle(id: "own", fen: fen, moves: ["d2d4", "e5d4", "f3d4"], rating: 800, themes: [],
+                       hasSetupMove: false, endsAfterKeyMove: true)
+        let model = PuzzleSessionModel(setup: PuzzleSessionSetup(kind: .review, title: "t", puzzles: [p], sources: ["own": "blunder"]))
+        model.start()
+        #expect(model.move("d2d4"))
+        #expect(model.solver.status == .solved)
+        try await Task.sleep(for: PuzzleSessionModel.replyDelay * 3 + .milliseconds(500))
+        #expect(model.solver.status == .solved)
+        #expect(model.solver.played == ["d2d4", "e5d4", "f3d4"])
+    }
 }

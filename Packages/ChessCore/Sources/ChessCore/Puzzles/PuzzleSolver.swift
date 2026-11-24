@@ -86,7 +86,7 @@ public struct PuzzleSolver: Sendable, Equatable {
               let applied = Rules.apply(uci: uci, to: fen) else { return .illegal }
         if uci == expected || isAlternativeMate(uci, applied: applied, expected: expected) {
             _ = advance(uci, applied: applied)
-            if uci != expected || index >= puzzle.moves.count {
+            if uci != expected || index >= puzzle.moves.count || puzzle.endsAfterKeyMove {
                 status = .solved
                 return .solved
             }
@@ -108,6 +108,14 @@ public struct PuzzleSolver: Sendable, Equatable {
         guard status == .replying, let move = puzzle.moves[safe: index], advance(move) else { return nil }
         status = index >= puzzle.moves.count ? .solved : .solving
         hintShown = false
+        return move
+    }
+
+    /// After a solve of an own-mistake puzzle: plays the next move of the engine line as a
+    /// demonstration (nothing is asked of the solver); nil when there is none left.
+    @discardableResult
+    public mutating func playDemo() -> String? {
+        guard status == .solved, puzzle.endsAfterKeyMove, let move = puzzle.moves[safe: index], advance(move) else { return nil }
         return move
     }
 

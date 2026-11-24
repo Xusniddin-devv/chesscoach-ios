@@ -13,14 +13,20 @@ public struct Puzzle: Codable, Sendable, Equatable, Identifiable, Hashable {
     public var rating: Int
     public var themes: [String]
     public var hasSetupMove: Bool
+    /// Own-mistake puzzles: only the key move is checked. The rest of `moves` (reply and
+    /// continuation) is an engine line that is not verified unique, so it is demonstrated, never
+    /// required. Bank puzzles keep their full lines (false).
+    public var endsAfterKeyMove: Bool
 
-    public init(id: String, fen: String, moves: [String], rating: Int, themes: [String], hasSetupMove: Bool = true) {
+    public init(id: String, fen: String, moves: [String], rating: Int, themes: [String],
+                hasSetupMove: Bool = true, endsAfterKeyMove: Bool = false) {
         self.id = id
         self.fen = fen
         self.moves = moves
         self.rating = rating
         self.themes = themes
         self.hasSetupMove = hasSetupMove
+        self.endsAfterKeyMove = endsAfterKeyMove
     }
 
     /// Index in `moves` of the solver's first move.
@@ -47,11 +53,11 @@ public struct Puzzle: Codable, Sendable, Equatable, Identifiable, Hashable {
     }
 
     /// Number of moves the solver has to find.
-    public var solverMoveCount: Int { (moves.count - firstSolverIndex + 1) / 2 }
+    public var solverMoveCount: Int { endsAfterKeyMove ? 1 : (moves.count - firstSolverIndex + 1) / 2 }
 }
 
 extension Puzzle {
-    private enum CodingKeys: String, CodingKey { case id, fen, moves, rating, themes, hasSetupMove }
+    private enum CodingKeys: String, CodingKey { case id, fen, moves, rating, themes, hasSetupMove, endsAfterKeyMove }
 
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -61,5 +67,6 @@ extension Puzzle {
         rating = try c.decodeIfPresent(Int.self, forKey: .rating) ?? 0
         themes = try c.decodeIfPresent([String].self, forKey: .themes) ?? []
         hasSetupMove = try c.decodeIfPresent(Bool.self, forKey: .hasSetupMove) ?? true
+        endsAfterKeyMove = try c.decodeIfPresent(Bool.self, forKey: .endsAfterKeyMove) ?? false
     }
 }
