@@ -42,6 +42,8 @@ struct ProfileView: View {
                 .padding(.horizontal, Self.margin)
                 .padding(.bottom, DS.Spacing.xl)
             }
+            // Clear the floating tab bar: the last section never ends under it.
+            .contentMargins(.bottom, DS.Spacing.l, for: .scrollContent)
             .scrollIndicators(.hidden)
             .scrollPosition($scroll)
             .background(DS.Color.background)
@@ -332,7 +334,11 @@ private struct MoveQualityRibbon: View {
         let count: (ProfileModel.MoveQuality) -> Int
     }
 
-    /// Top to bottom.
+    /// Capped so the ribbon reads as a strip of games, not tall slabs.
+    static let height: CGFloat = 96
+    static let columnWidth: CGFloat = 26
+
+    /// Top to bottom. Flat class colours, no gradient.
     private static let segments = [
         Segment(name: "Blunder", color: DS.Color.moveClass(.blunder), count: \.blunders),
         Segment(name: "Mistake", color: DS.Color.moveClass(.mistake), count: \.mistakes),
@@ -342,7 +348,7 @@ private struct MoveQualityRibbon: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .bottom, spacing: columns.count > 7 ? 6 : 8) {
+            HStack(alignment: .bottom, spacing: 8) {
                 ForEach(columns) { column in
                     GeometryReader { geo in
                         VStack(spacing: 0) {
@@ -356,12 +362,13 @@ private struct MoveQualityRibbon: View {
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .frame(maxWidth: 44)
+                    .frame(width: Self.columnWidth)
                     .accessibilityElement()
                     .accessibilityLabel("\(column.good) good, \(column.inaccuracies) inaccuracies, \(column.mistakes) mistakes, \(column.blunders) blunders")
                 }
             }
-            .frame(height: 120)
+            .frame(height: Self.height, alignment: .bottomLeading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 14) {
                 ForEach(Self.segments.reversed(), id: \.name) { segment in
                     HStack(spacing: 5) {
