@@ -4,7 +4,9 @@ import ChessCore
 import StockfishKit
 
 /// DEBUG-only launch arguments for Review screenshots:
-///   -debugReview latest        opens the most recent saved game in Review (from Home)
+///   -debugReview latest        opens the most recent saved game in Review (from Home);
+///                              `training` opens the most recent Training game
+///   -debugReviewStep 1         once analysed, steps through every ply (‹ › path) first
 ///   -debugReviewPly blunder    once analysed, selects the user's first blunder (else any
 ///                              blunder, else the first negative move) and shows the best
 ///                              move; a number selects that ply
@@ -14,11 +16,31 @@ import StockfishKit
 enum DebugReview {
     static var requested: Bool { UserDefaults.standard.string(forKey: "debugReview") != nil }
 
+    /// The record `-debugReview` asks for, newest first.
+    static func pick(_ records: [GameRecord]) -> GameRecord? {
+        guard UserDefaults.standard.string(forKey: "debugReview") == "training" else { return records.first }
+        return records.first { $0.snapshot?.mode == .training }
+    }
+
     private static func log(_ s: String) { print("REVIEW \(s)") }
 
     static func apply(to model: ReviewModel) async {
         guard requested, let analysis = model.analysis else { return }
         log("analysed \(analysis.verdicts.count)")
+        if UserDefaults.standard.string(forKey: "debugReviewStep") != nil {
+            model.select(ply: 0)
+            while model.canStepForward {
+                try? await Task.sleep(for: .milliseconds(120))
+                model.step(1)
+            }
+            log("stepped to \(model.selectedPly)")
+            while model.canStepBack && model.selectedPly > analysis.verdicts.count - 6 {
+                try? await Task.sleep(for: .milliseconds(120))
+                model.step(-1)
+            }
+            log("stepped back to \(model.selectedPly)")
+            try? await Task.sleep(for: .seconds(1))  // let the strip's last glide finish
+        }
         guard let choice = UserDefaults.standard.string(forKey: "debugReviewPly") else { return }
         let verdicts = analysis.verdicts
         let user = model.snapshot.userColor

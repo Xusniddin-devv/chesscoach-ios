@@ -56,6 +56,10 @@ struct MoveStrip: View {
 
     static let height: CGFloat = 36
 
+    /// A ply's scroll anchor. Not the bare ply number: the move groups' `ForEach` ids are move
+    /// numbers (Ints too), and `scrollTo(16)` could land on move 16 instead of ply 16.
+    static func scrollID(_ ply: Int) -> String { "ply-\(ply)" }
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
@@ -80,9 +84,16 @@ struct MoveStrip: View {
             }
             .scrollIndicators(.hidden)
             .frame(height: Self.height)
-            .onAppear { proxy.scrollTo(currentPly, anchor: .center) }
-            .onChange(of: currentPly) { _, ply in
-                withAnimation(.snappy) { proxy.scrollTo(ply, anchor: .center) }
+            .onAppear { if let currentPly { proxy.scrollTo(Self.scrollID(currentPly), anchor: .center) } }
+            .onChange(of: currentPly) { old, ply in
+                guard let ply else { return }
+                // A step glides; a jump (the move list, a far tap) goes straight there, so it
+                // never loses to a glide still running from earlier steps.
+                if let old, abs(ply - old) <= 2 {
+                    withAnimation(.snappy) { proxy.scrollTo(Self.scrollID(ply), anchor: .center) }
+                } else {
+                    proxy.scrollTo(Self.scrollID(ply), anchor: .center)
+                }
             }
         }
         .accessibilityElement(children: .contain)
@@ -117,7 +128,7 @@ struct MoveStrip: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .id(item.ply)
+        .id(Self.scrollID(item.ply))
         .accessibilityLabel((item.moveClass.map { "\(item.san), \($0.label)" } ?? item.san)
                             + (item.isBranch ? ", your line" : ""))
         .accessibilityAddTraits(current ? .isSelected : [])

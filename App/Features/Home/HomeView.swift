@@ -49,7 +49,7 @@ struct HomeView: View {
         #if DEBUG
         .task {
             DebugLaunch.apply(path: { path = [.botPicker] }, play: { game = $0 })
-            if DebugReview.requested, let latest = records.first { path = [.review(latest)] }
+            if DebugReview.requested, let record = DebugReview.pick(records) { path = [.review(record)] }
         }
         #endif
     }

@@ -128,7 +128,7 @@ Plan 2 layout (owner: "the board is on the top side and the bottom is blank spac
 
 ## Review (refs: `references/review/`)
 
-Screens: `screens/plan2-review-analysing.png`, `-blunder.png`, `-branch.png`, `-moves.png`. Pushed from Home's recent games (and Profile's history); tab bar hidden, system back button, inline title "vs Rookie Ron" with the opening name as the subtitle.
+Screens: `screens/plan2-review-analysing.png`, `-blunder.png`, `-branch.png`, `-moves.png`; end-to-end check on a Training game: `screens/plan2-verify-review.png`, `-verify-branch.png`. Pushed from Home's recent games (and Profile's history); tab bar hidden, system back button, inline title "vs Rookie Ron" with the opening name as the subtitle.
 
 - **Scaffold**: the Play layout (`GameBoardScaffold`). Action bar: move list `list.bullet` (inside a branch: back to the game `arrow.uturn.backward`) · best move `lightbulb` / `lightbulb.fill` when shown (enabled on negative moves) · `chevron.left` `chevron.right` · flip.
 - **Analysis**: runs once per game (depth 14, MultiPV 2, both colours) the first time the game is opened, then stored in the record. Status line "Analysing 13 / 25" with a 96 pt accent progress capsule on the right; moves can be stepped meanwhile, the board is read-only. Error: "Analysis stopped" + accent "Retry", inline.
