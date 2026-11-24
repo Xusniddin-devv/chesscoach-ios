@@ -22,7 +22,7 @@ Type scale (`DS.Font`, sizes at the default Dynamic Type size):
 | `body` | `.body` | 17 regular | Coach explanation, body copy |
 | `subheadline` | `.subheadline` | 15 regular | Bot blurb, secondary lines (60 % text) |
 | `caption` | `.caption` | 12 regular | Dates, small meta |
-| `label` | `.caption2` | 11 semibold, UPPERCASE, tracking 0.8 | Section labels ("RECENT GAMES", "ACCURACY", "MODE") |
+| `label` | `.caption2` | 11 semibold | Small labels. **No all-caps tracked labels** (de-slop): `SectionLabel` is 13 pt semibold secondary, sentence case ("Recent games", "Mode") |
 | `numeralLarge` | `.largeTitle` mono | 34 semibold | Accuracy on Game over, streak count |
 | `numeral` | `.headline` mono | 17 medium | Elo, stat values, score line "1 – 0" |
 | `clock` | `.title3` mono | 20 semibold | Chess clocks (when timed games arrive) |
@@ -46,7 +46,7 @@ Reference: card radii of ~20 in `home/mobbin-apple-fitness-summary.jpg` and `hom
 
 ## Icons
 
-SF Symbols **only where Apple uses them**: the tab bar (Home `house.fill`, Puzzles `puzzlepiece.fill`, Learn `book.fill`, Profile `person.fill`) and toolbar / navigation-bar buttons (close `xmark`, resign `flag`, flip board `arrow.up.arrow.down`, hint `lightbulb`). Everywhere else: text labels, numerals, move-class glyph badges and our own piece / avatar art. No icon grids, no icon per stat row, no emoji (the approved mockup's 🔥 in the streak pill is replaced by a numeral — see Home).
+**One pack: Icons8 "iOS 27 Filled" (`ios_filled`)**, locked in `icons8.json` (de-slop pass, 2026-11-24). PNGs fetched at 500 px and vectorised with potrace (owner decision), imported as SVG template assets `Icons/<name>` (Preserves Vector Data) so tokens tint them. Tab bar: `tab-home` (home), `tab-puzzle` (puzzle), `tab-learn` (open book), `tab-profile` (pawn — your piece). Game action bars: `resign` (flag), `close`, `hint` (idea bulb, also Review's Best), `back` / `forward` (chevrons), `flip` (sorting arrows), `moves` (list), `return` (undo, back to the game from a branch); `lock` on locked ladder bots. System navigation chrome (back button, sheets) keeps its SF glyphs. Everywhere else: text labels, numerals, move-class glyph badges and our own piece / avatar art. No icon grids, no icon per stat row, no emoji. Attribution "Icons by Icons8 (icons8.com)" goes in Licenses (merge with feat/settings-paywall).
 
 ## Move-class palette
 
@@ -119,23 +119,23 @@ Plan 2 layout (owner: "the board is on the top side and the bottom is blank spac
 - Full screen, tab bar and navigation bar hidden. Top → bottom, as **one centred stack**: move strip, opponent bar, board, user bar, status line. The stack is centred between the top safe area and the action bar, so the free space splits evenly above and below (`BoardStackGeometry`, measured, no fixed offsets).
 - **Board**: as wide as the screen allows — full width minus 8 pt each side, the eval bar in the left margin — and only smaller when the height runs out (small phones). `Radius.small` outer corners, no frame or shadow. Eval bar: 6 pt vertical bar 1 pt left of the board's edge (it follows the board when it shrinks), white/ink split, Training only. Coordinates inside edge squares in `label` size, colour = the opposite square colour. Legal-move dots: ink at 22 % opacity, 30 % of square; captures: 4 pt ring. Last move: accent at 30 % on from/to. Verdict: class `squareTint` on the destination + `MoveBadge` overlapping the destination's top-right corner by 6 pt. Best-move arrow: accent at 85 %.
 - **Move strip** (36 pt): one horizontal, scrollable line "1. e4 e5 2. Nf3 …", move numbers in mono secondary, SAN in `subheadline`; the current ply is semibold with a 2 pt accent underline and stays scrolled into view. A graded user move carries its class glyph in the class colour (Training; Silent shows grades only after the game). Before the first move: "No moves yet". Tapping a ply shows that position.
-- **Player bars** (44 pt each, directly above and below the board): 32 pt avatar tile (bot: board-dark tile; user: accent tile with initial), name `headline`, Elo `numeral` secondary, captured pieces on the right as 22 pt piece images (same-kind pieces overlap) + material lead "+2" in mono.
+- **Player bars** (44 pt each, directly above and below the board): 32 pt avatar on the board-dark tile — the bot's figure, and for the user **their tier's cream piece** (`RatingTier`: Pawn < 800 … King ≥ 2100, the Pawn until there is an estimate; no letter tile), name `headline`, Elo `numeral` secondary, captured pieces on the right as 22 pt piece images (same-kind pieces overlap) + material lead "+2" in mono, for both bars.
 - **Status line** (one quiet `subheadline` secondary line): the opening's name (lichess openings, `OpeningBook.deepest`) through move 12; then "Pip is thinking…", "Checking your move…" or the last grade "Nf3 · Best ★" (Training). Game over: the reason. Engine failure: "The engine stopped." with an accent "Retry" on the right.
 - **History** (read-only): ‹ › or a tap in the strip shows an earlier position; the board is not interactive, the viewed move's grade is marked on the board, and a "Back to live" chip (`surface2` capsule) sits at the right of the status line. If the bot moves meanwhile the view stays where it is and the chip gets a 6 pt accent dot. The user's own move, a Training interrupt or the end of the game return to live.
-- **Action bar**: system Liquid Glass capsules in a `safeAreaBar`, SF Symbols only, neutral glyphs: resign `flag` (close `xmark` before the first move and after the game) · hint `lightbulb` (Training) · `chevron.left` `chevron.right` sharing one capsule · flip `arrow.up.arrow.down`. Disabled buttons stay in place at 30 % (hint off the user's turn or while viewing history; ‹ at the start; › when live).
-- **Coach card** on a training interrupt: slides up **in place of the action bar** (the bar fades out), opaque `surface` with a 1 pt `surface2` hairline, top corners `Radius.large`, bottom corners concentric with the screen's. It never covers the board: when it would, the board shrinks by up to 8 % in place, then the stack moves up into its free space, then the board shrinks the rest (animated); the user bar and status line under it fade out. Content unchanged: class pill (class fill, ink text, `label` style "?? BLUNDER"), explanation in `body`, Take back (`SecondaryButton`) + Show best (`PrimaryButton`) side by side, Continue as a plain text button under them. Not glass: it is content (anti-slop rule).
+- **Action bar** (de-slop, Liquid Glass ruling): **flat** `GameActionBar` on `surface` running to the bottom edge, 1 pt `surface2` hairline on top, equal cells of a 24 pt Icons8 icon over an 11 pt medium label: Resign (Close before the first move and after the game) · Hint (Training) · Back · Forward · Flip. Pressed: `surface2` cell + 0.96 press-in; disabled: in place at 30 %; a toggle that is on (Review's Best): accent. No glass on game screens (refs: `references/deslop/notes.md`).
+- **Coach card** on a training interrupt: slides up **in place of the action bar** (the bar fades out), opaque `surface` with a 1 pt `surface2` hairline, top corners `Radius.large`, bottom corners concentric with the screen's. It never covers the board: when it would, the board shrinks by up to 8 % in place, then the stack moves up into its free space, then the board shrinks the rest (animated); the user bar and status line under it fade out. Content: verdict header (the real `MoveBadge` disc + class name in its colour, sentence case "Blunder"), explanation in `body`, Take back (`SecondaryButton`) + Show best (`PrimaryButton`) side by side, Continue as a plain text button under them. Not glass: it is content (anti-slop rule).
 - Danger red appears only in the blunder pill/badge/tint/strip glyph — never as a screen background.
 
 ## Review (refs: `references/review/`)
 
 Screens: `screens/plan2-review-analysing.png`, `-blunder.png`, `-branch.png`, `-moves.png`; end-to-end check on a Training game: `screens/plan2-verify-review.png`, `-verify-branch.png`. Pushed from Home's recent games (and Profile's history); tab bar hidden, system back button, inline title "vs Rookie Ron" with the opening name as the subtitle.
 
-- **Scaffold**: the Play layout (`GameBoardScaffold`). Action bar: move list `list.bullet` (inside a branch: back to the game `arrow.uturn.backward`) · best move `lightbulb` / `lightbulb.fill` when shown (enabled on negative moves) · `chevron.left` `chevron.right` · flip.
+- **Scaffold**: the Play layout (`GameBoardScaffold`). Flat action bar: Moves (inside a branch: Game, back to the game) · Best (accent when shown; enabled on negative moves) · Back · Forward · Flip.
 - **Analysis**: runs once per game (depth 14, MultiPV 2, both colours) the first time the game is opened, then stored in the record. Status line "Analysing 13 / 25" with a 96 pt accent progress capsule on the right; moves can be stepped meanwhile, the board is read-only. Error: "Analysis stopped" + accent "Retry", inline.
-- **Player bars**: each side's accuracy at the trailing edge, `subheadline` mono semibold on a `surface2` tile (`Radius.small`).
+- **Accuracy**: in the navigation subtitle as plain text, "You 50.6 · Rookie Ron 91.6" (locale decimal), once analysed; the opening name / date before. No accuracy chips in the bars.
 - **Board**: the selected move's destination in its class tint + `MoveBadge`; best-move arrow (accent) when toggled on a negative move; eval bar from the analysis' win %.
 - **Strip**: every move of both sides carries its class glyph.
-- **Comment card** above the action bar for every graded move: class pill + one sentence ("Nf3 is the best move.", "Rookie Ron played Bxg5, a book move."); the user's own inaccuracy / mistake / miss / blunder gets the full `explain` text. Opaque `surface`, 1 pt `surface2` hairline, `Radius.large`. The stack keeps 146 pt for it at all times so the board never resizes while stepping (a taller card moves the stack up, it does not shrink the board); the status line sits in that room when there is no card (start position, analysing, checking a branch move).
+- **Comment card** above the action bar for every graded move, in the coach card's language (same verdict header, body, surface + hairline): one sentence ("Nf3 is the best move.", "Rookie Ron played Bxg5, a book move."); the user's own inaccuracy / mistake / miss / blunder gets the full `explain` text. Opaque `surface`, 1 pt `surface2` hairline, `Radius.large`. The stack keeps 146 pt for it at all times so the board never resizes while stepping (a taller card moves the stack up, it does not shrink the board); the status line sits in that room when there is no card (start position, analysing, checking a branch move).
 - **Branches**: a move on the board that differs from the game starts a line from the shown position; its moves sit on `surface2` tiles in the strip, are graded live and in order (`LineGrader`), and are never saved. A move that equals the line's next move just steps forward.
 - **Move list** (sheet, medium / large): ACCURACY (You / bot), class count rows per side (only classes that occur), then the moves in rows of two with class glyphs; the selected move on a `surface2` tile.
 
@@ -150,22 +150,25 @@ Screens: `screens/plan2-profile-empty.png`, `screens/plan2-profile.png`, `screen
 - Sections without data are left out (no placeholder chart or empty cards); an empty profile is the Pawn hero and "Play a bot and your games show up here."
 - The estimate also sets the player's level (`EngineHub.playerRating`): Training thresholds and explanation wording (words below 1200), default 800 until 3 games.
 
-## Bot picker (refs: `references/bot-picker/`)
+## Bot picker → sparring ladder (refs: `references/bot-picker/`, Chessigma notes)
 
-- Pushed from Home, large title "Choose a bot".
-- **List**: one `surface` container (`Radius.large`) with 8 rows and hairline separators (Meta AI voice list, Character AI). Row: 40 pt avatar tile, name `headline` + Elo in `numeral` secondary on the same line, blurb in `subheadline` secondary, max 2 lines. Selected row: `surface2` background + 2 pt accent ring around the avatar tile; no checkmark icon. All 8 visible by scrolling — no carousel (rejects the Dribbble 3D carousel).
-- Default selection: the bot whose Elo is closest to `PlayerProfile.defaultRating` (800 → Rookie Ron).
-- **Settings** pinned in the bottom bar above the Play button, so they are always visible while the list scrolls (Apple Games setup rows): `label` "MODE" + system segmented picker Training / Silent with one one-line secondary sentence for the selected mode (Runna); `label` "PLAY AS" + segmented White / Black / Random.
-- **Start**: `PrimaryButton` "Play Rookie Ron" at the bottom of that pinned bar.
+- Pushed from Home, large title "Sparring".
+- **Ladder** (`BotLadder`, ChessCore): the 8 bots in order as characters, 52 pt figures on board-dark tiles joined by a 2 pt rail (lit `textSecondary` up to the last beaten bot, `surface2` beyond). Each rung: name `headline` + Elo mono secondary, then its state: "Beaten · 2 wins" (wins from saved games), **"Next up"** in accent for the first open unbeaten bot (also the default selection and Home's "Next up"), the blurb for other open bots, or a 13 pt lock + "Beat Cadet to unlock" with the figure desaturated at 35 %. Pip, Rookie Ron and Cadet are always open; a bot also opens when the previous one is beaten or the player's estimate is within 100 of it. Locked rows can't be selected. Selected row: `surface` rounded row + 2 pt accent ring on the figure.
+- **Settings** pinned in the bottom bar above the Play button (Mode Training / Silent with one sentence; Play as White / Black / Random), labels sentence case.
+- **Start**: `PrimaryButton` "Play Rookie Ron".
 
-## Game over (refs: `references/game-over/`)
+## Game over — result panel (refs: `references/game-over/`, `references/deslop/notes.md`)
 
-- System sheet (glass) over the final position, so the board stays visible above it. Plan 2: one height detent measured from its content (result, accuracy, stats rows, buttons), so the stats rows never sit under the buttons (`screens/plan1-gameover.png` clipped "Blunders"); content taller than the screen scrolls.
-- Top: result word in `largeTitle` ("You won" / "You lost" / "Draw"), reason in `subheadline` secondary ("Checkmate", "Resigned", "Stalemate"), score line "You 1 – 0 Pip" in `numeral` mono (football mono score).
-- **Accuracy**: `numeralLarge` "87.4" with `label` "ACCURACY", inside a flat 270° accent arc (Acorns arc, score-ring shot) — stroke only, no gradient. While grades are still pending: `label` "ANALYSING 3 MOVES" + system progress, numeral shows "—".
-- **Stats rows** (Uxcel label/value rows): Best / Mistakes / Blunders counts, label left, mono value right, no per-row icons.
-- **Buttons**: Play again (`PrimaryButton`) + Done (`SecondaryButton`), stacked (Quizlet).
-- Win only: a 1.2 s flat confetti burst (rectangles in accent, board light, board dark) drawn with SwiftUI `Canvas`. Loss and draw use the same layout without confetti (Duolingo loss screen — no shaming art).
+De-slop pass (owner: "AI slop in match score modal"). Screen: `screens/plan4-deslop-gameover.png`.
+
+- Sheet over the final position, **opaque `surface`** (content, not glass), one height detent from its content, close button top-right, buttons pinned at the bottom.
+- **Header** (FotMob / Fixtured pattern): your tier piece | score | bot figure, 64 pt tiles, name + tier name / Elo under each; the winner's tile gets a 2 pt accent ring. Centre: "1 – 0" (from your side) in 40 pt heavy, one small line under it: "You won by checkmate" / "Pip won by checkmate" / "You resigned" / "Draw by stalemate". No result word block, no mono score line.
+- **Accuracy**: one plain heavy 34 pt number per side under its player, "Accuracy" small in the middle. No ring gauge.
+- **Move quality**: per side, chips of the real badge disc + count (only classes that occur, brilliant → blunder) on `background` capsules, centred under that side.
+- The bot is not graded live, so the panel runs the full analysis (`GameAnalyzer`, Review depth 14) as soon as the live grades are in; the bot side shows "Checking Pip's moves" + a thin progress line until it lands, then both sides switch to the analysis' numbers. The analysis is saved with the game (Review opens without analysing). Rematch / New bot / close cancel it (saved without; Review analyses later); Review game waits for it ("Analysing… 64%").
+- **Key moment**: the move with the biggest win-% drop (≥ 10, either side once analysed) on a 112 pt mini board with its badge, "Key moment · move 14", the verdict header and the coach's line (Review's comment wording). Hidden in a clean game.
+- **Buttons**: Review game (`PrimaryButton`), Rematch + New bot (`SecondaryButton`s side by side). New bot opens the ladder; Review game opens the saved game in Review.
+- Win only: a quiet confetti burst (36 flat pieces, 60 % opacity, 1.8 s, once) clipped to the header, behind it. Nothing with Reduce Motion.
 
 ---
 

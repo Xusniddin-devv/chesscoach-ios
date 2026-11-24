@@ -14,7 +14,8 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Tabs (Home, Puzzles, Learn, Profile); player rating sync from saved games | `App/AppShell/RootTabView.swift` |
 | Shared engine access, sessions, review models, player rating + wording | `App/EngineHub.swift` |
 | Design tokens (colours, type, spacing, radii) | `App/DesignSystem/Tokens.swift` |
-| Buttons, labels, avatar tiles, move badge, pill | `App/DesignSystem/Components/*` |
+| Buttons, labels, avatar tiles (bots, user tier piece), move badge, pill | `App/DesignSystem/Components/*` |
+| Icons (Icons8 iOS Filled, potrace SVG templates) | `App/Resources/Assets.xcassets/Icons/`, lock `icons8.json` |
 | Saved game record (SwiftData), in-place update | `App/Persistence/GameRecord.swift` |
 | Puzzles / Learn placeholders | `App/Features/Placeholders/ComingSoonView.swift` |
 
@@ -31,7 +32,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Centred stack: strip, bars, board, status line, glass action bar, bottom card | `App/Features/Shared/GameBoardScaffold.swift` (`BoardStackGeometry`) |
+| Centred stack: strip, bars, board, status line, flat action bar (`GameActionBar`, `GameAction`), bottom card | `App/Features/Shared/GameBoardScaffold.swift` (`BoardStackGeometry`) |
 | Move strip (SAN, class glyphs, branch tiles) | `App/Features/Shared/MoveStrip.swift` |
 | Player bars (avatar, Elo, captured, lead, accuracy) | `App/Features/Shared/PlayerBar.swift`, `App/Features/Shared/BoardMaterial.swift` |
 | Saved-game row (Home) | `App/Features/Shared/GameRow.swift` |
@@ -47,12 +48,12 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Bot picker (bot, mode, colour) | `App/Features/Play/BotPickerView.swift` |
+| Bot picker = sparring ladder (bot, mode, colour); ladder rules | `App/Features/Play/BotPickerView.swift`, `ChessCore/Play/BotLadder.swift` |
 | Game screen, action bar, saving | `App/Features/Play/PlayView.swift`, `App/Features/Play/PlayModel.swift` |
 | Game logic: board, grading queue, bot moves, interrupts, take-back | `ChessCore/Play/GameSession.swift` |
 | Bots, bot strength / pacing, Training thresholds | `ChessCore/Play/Bots.swift`, `ChessCore/Play/Levels.swift`, `ChessCore/Play/PlayerProfile.swift` |
 | Coach card (Training interrupt) | `App/Features/Play/CoachCard.swift` |
-| Game over sheet, confetti, user accuracy | `App/Features/Play/GameOverSheet.swift`, `ConfettiBurst.swift`, `UserAccuracy.swift` |
+| Game-over result panel (players, accuracy, class chips, key moment), summary analysis, confetti | `App/Features/Play/GameOverSheet.swift`, `PlayModel.swift` (summary), `ConfettiBurst.swift`, `UserAccuracy.swift`, `ChessCore/Analysis/GameSummary.swift` |
 | DEBUG autoplay / launch arguments | `App/Features/Play/DebugAutoplay.swift` |
 
 ## Review
