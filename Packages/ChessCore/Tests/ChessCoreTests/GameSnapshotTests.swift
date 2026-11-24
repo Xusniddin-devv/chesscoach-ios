@@ -252,3 +252,15 @@ private func decode(_ json: [String: Any]) throws -> GameSnapshot {
     #expect(decoded.isFreeplay)
     #expect(decoded == snapshot)
 }
+
+@Test func freeplayIsNotAnImportAndImportsAreNotFreeplay() {
+    var snapshot = sampleSnapshot()
+    snapshot.source = GameSnapshot.Source.freeplay
+    #expect(snapshot.isFreeplay && !snapshot.isImported)
+    for platform in [GameSnapshot.Source.chesscom, GameSnapshot.Source.lichess] {
+        snapshot.source = platform
+        #expect(snapshot.isImported && !snapshot.isFreeplay)
+    }
+    snapshot.source = nil
+    #expect(!snapshot.isImported && !snapshot.isFreeplay)
+}
