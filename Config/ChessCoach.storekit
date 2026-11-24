@@ -75,6 +75,11 @@
           "familyShareable" : false,
           "groupNumber" : 2,
           "internalID" : "6755000002",
+          "introductoryOffer" : {
+            "internalID" : "6755000012",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
           "localizations" : [
             {
               "description" : "Everything in Coach Pro, billed monthly.",
