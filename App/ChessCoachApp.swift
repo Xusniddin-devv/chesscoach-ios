@@ -24,11 +24,13 @@ struct ChessCoachApp: App {
                 .environment(entitlements)
                 .environment(analysis)
                 .environment(autoSync)
+                // Pro status on its own task: the launch gate stays blank until it answers, so it
+                // must not wait for the engine to load its nets (seconds on a cold start).
+                .task { await entitlements.start() }
                 .task {
                     await hub.configure()
                     analysis.attach(container.mainContext)
                     if UserDefaults.standard.bool(forKey: Pref.hasOnboarded) { analysis.resumeStoredWork() }
-                    await entitlements.start()
 #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("-engineBenchmark") {
                         await EngineBenchmark.runHeadless()
