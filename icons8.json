@@ -119,6 +119,30 @@
         "id": "10290",
         "commonName": "pawn",
         "note": "same art as tab-profile"
+      },
+      "piece-king": {
+        "id": "10288",
+        "commonName": "king"
+      },
+      "piece-queen": {
+        "id": "10289",
+        "commonName": "queen"
+      },
+      "piece-rook": {
+        "id": "10302",
+        "commonName": "rook"
+      },
+      "piece-bishop": {
+        "id": "10298",
+        "commonName": "bishop"
+      },
+      "piece-knight": {
+        "id": "10297",
+        "commonName": "knight"
+      },
+      "piece-pawn": {
+        "id": "10290",
+        "commonName": "pawn"
       }
     },
     "brandExceptions": {

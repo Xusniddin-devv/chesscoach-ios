@@ -1,13 +1,13 @@
 import SwiftUI
 import ChessCore
 
-/// "12 day streak": capsule on `surface2`, numeral in mono accent, words in sentence case
-/// (decisions.md: no all-caps tracked labels). No flame emoji.
+/// "12 day streak": capsule on `surface2`, numeral in mono accent, the words in sentence
+/// case (no all-caps tracked label). No flame emoji.
 struct StreakPill: View {
     let count: Int
 
     var body: some View {
-        HStack(spacing: DS.Spacing.s) {
+        HStack(spacing: 6) {
             Text(count, format: .number.grouping(.never))
                 .font(DS.Font.numeral)
                 .foregroundStyle(DS.Color.accent)
@@ -95,32 +95,72 @@ struct Chip: View {
     }
 }
 
-/// The verdict card under the board in Puzzles and Learn: a dot + word, one sentence, actions.
-struct ResultCard<Actions: View>: View {
-    let title: String
-    let message: String
-    let positive: Bool
-    @ViewBuilder var actions: () -> Actions
+/// An Icons8 template icon from the asset catalog (`Icons/<name>`), tinted by the
+/// foreground style. The one icon pack used across the app.
+struct IconImage: View {
+    let name: String
+    var size: CGFloat = 20
+
+    init(_ name: String, size: CGFloat = 20) {
+        self.name = name
+        self.size = size
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-            HStack(spacing: DS.Spacing.s) {
-                Circle()
-                    .fill(positive ? DS.Color.accent : DS.Color.danger)
-                    .frame(width: 10, height: 10)
-                Text(title).font(DS.Font.title)
-            }
-            if !message.isEmpty {
-                Text(message)
-                    .font(DS.Font.body)
+        Image("Icons/\(name)")
+            .renderingMode(.template)
+            .resizable()
+            .interpolation(.high)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A section title on the tab screens (Profile's style): 20 pt semibold, sentence case.
+struct ScreenSectionTitle: View {
+    let text: String
+    var trailing: String? = nil
+
+    init(_ text: String, trailing: String? = nil) {
+        self.text = text
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(text)
+                .font(.system(size: 20, weight: .semibold))
+                .tracking(-0.3)
+                .foregroundStyle(DS.Color.text)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            if let trailing {
+                Text(verbatim: trailing)
+                    .font(DS.Font.subheadline.monospacedDigit())
                     .foregroundStyle(DS.Color.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
-            actions()
         }
-        .padding(DS.Spacing.m)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
+    }
+}
+
+/// Progress as board squares (Profile's tier track): one cell per item, done cells alternate
+/// board light and dark, open ones are `surface2`.
+struct SquareProgress: View {
+    let done: Int
+    let total: Int
+    var cell: CGFloat = 12
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<total, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(i < done ? (i % 2 == 0 ? DS.Color.boardLight : DS.Color.boardDark) : DS.Color.surface2)
+                    .frame(width: cell, height: cell)
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("\(done) of \(total) done")
     }
 }
 

@@ -313,6 +313,8 @@ struct GameAction: View {
     let title: String
     let icon: String
     var isOn = false
+    /// The screen's next step once there is one (e.g. Next after a puzzle): an accent cell.
+    var prominent = false
     let action: () -> Void
 
     var body: some View {
@@ -332,7 +334,7 @@ struct GameAction: View {
             .frame(height: 52)
             .contentShape(Rectangle())
         }
-        .buttonStyle(GameActionStyle(isOn: isOn))
+        .buttonStyle(GameActionStyle(isOn: isOn, prominent: prominent))
         .accessibilityLabel(title)
         .accessibilityAddTraits(isOn ? .isSelected : [])
     }
@@ -340,15 +342,17 @@ struct GameAction: View {
 
 private struct GameActionStyle: ButtonStyle {
     let isOn: Bool
+    var prominent = false
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(isOn ? DS.Color.accent : DS.Color.text)
+            .foregroundStyle(prominent ? DS.Color.onAccent : isOn ? DS.Color.accent : DS.Color.text)
             .opacity(isEnabled ? 1 : 0.3)
             .background {
                 RoundedRectangle(cornerRadius: DS.Radius.medium)
-                    .fill(configuration.isPressed ? DS.Color.surface2 : .clear)
+                    .fill(prominent ? (configuration.isPressed ? DS.Color.accentPressed : DS.Color.accent)
+                          : configuration.isPressed ? DS.Color.surface2 : .clear)
             }
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.snappy(duration: 0.15), value: configuration.isPressed)

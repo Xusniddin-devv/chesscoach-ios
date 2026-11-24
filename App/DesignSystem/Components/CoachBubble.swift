@@ -158,7 +158,8 @@ struct CoachText: View {
     static func segments(_ s: String) -> [Segment] {
         var out: [Segment] = []
         var rest = Substring(s)
-        let pattern = /\[([a-h][1-8])\]/
+        // A square ("[e4]") or a move in SAN ("[Nf5+]", "[exd5]", "[O-O]") becomes a chip.
+        let pattern = /\[((?:[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?|O-O(?:-O)?)[+#]?)\]/
         while let match = rest.firstMatch(of: pattern) {
             let before = rest[rest.startIndex..<match.range.lowerBound]
             if !before.isEmpty { out.append(.words(String(before))) }
@@ -193,8 +194,11 @@ struct CoachText: View {
 enum SquareChip {
     @MainActor private static var cache: [String: UIImage] = [:]
 
-    static func isLight(_ square: String) -> Bool {
-        guard let f = square.first?.asciiValue, let r = square.last?.wholeNumberValue else { return true }
+    /// The colour of the chip's square: a square's own colour, a move's destination colour.
+    static func isLight(_ token: String) -> Bool {
+        let squares = token.matches(of: /[a-h][1-8]/).map { String($0.output) }
+        guard let square = squares.last,
+              let f = square.first?.asciiValue, let r = square.last?.wholeNumberValue else { return true }
         return (Int(f - 97) + r) % 2 == 0
     }
 

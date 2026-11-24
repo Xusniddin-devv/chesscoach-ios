@@ -132,7 +132,8 @@ struct TodayPlanCard: View {
         case .puzzles:
             if remaining == 0 { paywall = .unlimitedPuzzles; return }
             let puzzles = task.puzzleIds.compactMap(PuzzleBank.puzzle(id:)).prefix(remaining ?? .max)
-            session = PuzzleSessionSetup(kind: .practice, title: task.motif?.shortName ?? "Puzzles", puzzles: Array(puzzles))
+            session = PuzzleSessionSetup(kind: .practice, title: task.motif?.shortName ?? "Puzzles", puzzles: Array(puzzles),
+                                         theme: task.motif.flatMap { PuzzleBank.themes(for: $0).first })
         case .ownMistakes:
             if remaining == 0 { paywall = .unlimitedPuzzles; return }
             let done = Set(progress.filter(attemptedToday).map(\.puzzleId))

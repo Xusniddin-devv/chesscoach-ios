@@ -13,6 +13,8 @@ struct PuzzleSessionSetup: Identifiable, Hashable {
     let puzzles: [Puzzle]
     /// Puzzle id → "bank" | "blunder" (missing = "bank").
     var sources: [String: String] = [:]
+    /// The theme the player chose (practice by theme, Fix it); else the puzzle's own.
+    var theme: String? = nil
 }
 
 /// Drives the solver screen: wraps `PuzzleSolver`, keeps the piece tracker in step, plays
@@ -28,6 +30,10 @@ final class PuzzleSessionModel {
     /// Every puzzle in the queue has been played.
     private(set) var finished = false
     private(set) var solvedCount = 0
+    /// The first outcome of each puzzle in the queue (nil: not finished yet), for the bar.
+    private(set) var outcomes: [Bool?]
+    /// The puzzle rating change from this puzzle's first outcome (nil for own-mistake puzzles).
+    private(set) var ratingDelta: Int?
 
     private var context: ModelContext?
     private var recorded = false
@@ -41,6 +47,17 @@ final class PuzzleSessionModel {
         let first = setup.puzzles.first ?? Puzzle(id: "", fen: Rules.startFen, moves: [], rating: 0, themes: [])
         solver = PuzzleSolver(puzzle: first)
         tracker = PieceTracker(fen: first.fen)
+        outcomes = Array(repeating: nil, count: setup.puzzles.count)
+    }
+
+    /// The player's puzzle rating (Elo from first outcomes), seeded from the practice level.
+    static var playerRating: Int {
+        get {
+            let d = UserDefaults.standard
+            if d.object(forKey: Pref.puzzleRating) != nil { return d.integer(forKey: Pref.puzzleRating) }
+            return d.object(forKey: "puzzles.rating") != nil ? d.integer(forKey: "puzzles.rating") : PlayerProfile.defaultRating
+        }
+        set { UserDefaults.standard.set(newValue, forKey: Pref.puzzleRating) }
     }
 
     func attach(_ context: ModelContext) { self.context = context }
@@ -62,6 +79,32 @@ final class PuzzleSessionModel {
             tint[Square(String(wrong.dropFirst(2).prefix(2)))] = DS.Color.danger
         }
         return tint
+    }
+
+    /// From the player's own game (vs a bank puzzle).
+    var isOwnMistake: Bool { setup.sources[puzzle.id] == "blunder" }
+
+    var isOver: Bool { solver.status == .solved || solver.status == .failed }
+
+    /// The verdict on the board, like Review: the solving move gets Best (Brilliant for a
+    /// clean solve well above the player's rating), a wrong move gets Mistake.
+    var badges: [Square: MoveClass] {
+        switch solver.status {
+        case .solved:
+            guard let move = solver.lastMove else { return [:] }
+            let brilliant = solver.solvedClean && !isOwnMistake && puzzle.rating >= Self.playerRating + 200
+            return [Square(String(move.dropFirst(2).prefix(2))): brilliant ? .brilliant : .best]
+        case .failed:
+            guard let wrong = solver.wrongMove else { return [:] }
+            return [Square(String(wrong.dropFirst(2).prefix(2))): .mistake]
+        default:
+            return [:]
+        }
+    }
+
+    /// The task in the puzzle's own words: the chosen theme, else its first practice theme.
+    var theme: String? {
+        setup.theme ?? PuzzleBank.practiceThemes.first { puzzle.themes.contains($0) }
     }
 
     var arrows: [(Square, Square, Color)] {
@@ -126,6 +169,7 @@ final class PuzzleSessionModel {
         generation += 1
         index = i
         recorded = false
+        ratingDelta = nil
         showingSolution = false
         solver = PuzzleSolver(puzzle: setup.puzzles[i])
         tracker = PieceTracker(fen: solver.fen)
@@ -146,6 +190,12 @@ final class PuzzleSessionModel {
         let id = puzzle.id
         if !recorded {
             recorded = true
+            if outcomes.indices.contains(index) { outcomes[index] = solved && solver.solvedClean }
+            if !isOwnMistake {
+                let before = Self.playerRating
+                Self.playerRating = PuzzleRating.updated(before, puzzle: puzzle.rating, solved: solved && solver.solvedClean)
+                ratingDelta = Self.playerRating - before
+            }
             TrainingStore.recordOutcome(puzzleId: id, source: setup.sources[id] ?? "bank",
                                         clean: solver.solvedClean, solved: solved, in: context)
         } else if solved {

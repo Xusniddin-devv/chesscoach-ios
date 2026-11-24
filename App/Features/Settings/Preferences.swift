@@ -12,6 +12,8 @@ enum Pref {
     static let defaultMode = "pref.defaultMode"
     /// Set when onboarding finishes (or is skipped); Reset all data clears it.
     static let hasOnboarded = "hasOnboarded"
+    /// The player's puzzle rating (Elo from first outcomes).
+    static let puzzleRating = "puzzles.elo"
 
     enum Default {
         static let sound = true
@@ -30,7 +32,7 @@ enum Pref {
         var moveWording: MoveWording { self == .words ? .words : .notation }
     }
 
-    static var all: [String] { [sound, haptics, voice, coordinates, wording, defaultMode, hasOnboarded, "puzzles.rating"] }
+    static var all: [String] { [sound, haptics, voice, coordinates, wording, defaultMode, hasOnboarded, "puzzles.rating", puzzleRating, "learn.track"] }
 
     /// A Bool preference with its default when never set.
     static func bool(_ key: String, default value: Bool = true) -> Bool {

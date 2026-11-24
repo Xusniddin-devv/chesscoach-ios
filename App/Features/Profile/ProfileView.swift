@@ -56,6 +56,7 @@ struct ProfileView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(value: Route.settings) {
                         Image("Icons/settings").renderingMode(.template)
+                            .foregroundStyle(DS.Color.text)  // a quiet control, not an accent key
                     }
                     .accessibilityLabel("Settings")
                 }
@@ -77,7 +78,7 @@ struct ProfileView: View {
         .fullScreenCover(item: $fixSession) { PuzzleSessionView(setup: $0) }
         .paywall(isPresented: $paywall, feature: .unlimitedPuzzles)
         #if DEBUG
-        .task { if ["settings", "paywall"].contains(UserDefaults.standard.string(forKey: "debugOpen")) { path = [.settings] } }
+        .task { if ["settings", "paywall", "licenses"].contains(UserDefaults.standard.string(forKey: "debugOpen")) { path = [.settings] } }
         .task {
             // `-debugFix 1`: "Fix it" for the top habit (screenshots).
             guard UserDefaults.standard.string(forKey: "debugFix") != nil,
@@ -110,7 +111,8 @@ struct ProfileView: View {
         let own = Set(snapshots.filter { !$0.isFreeplay }.flatMap { BlunderPuzzles.from(snapshot: $0) }.map(\.id))
         fixSession = PuzzleSessionSetup(
             kind: .review, title: motif.title, puzzles: puzzles,
-            sources: Dictionary(puzzles.map { ($0.id, own.contains($0.id) ? "blunder" : "bank") }, uniquingKeysWith: { a, _ in a }))
+            sources: Dictionary(puzzles.map { ($0.id, own.contains($0.id) ? "blunder" : "bank") }, uniquingKeysWith: { a, _ in a }),
+            theme: PuzzleBank.themes(for: motif).first)
     }
 
     private func sectionTitle(_ text: String) -> some View {
