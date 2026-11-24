@@ -61,11 +61,11 @@ enum Pref {
 }
 
 enum AppInfo {
-    /// The app's public GPLv3 source. PLACEHOLDER until the public repo exists.
+    /// The app's public GPLv3 source.
     static let sourceURL = URL(string: "https://github.com/Xusniddin-devv/chesscoach-ios")!
-    /// PLACEHOLDER pages until the owner publishes real ones.
-    static let termsURL = URL(string: "https://xq-chesscoach.netlify.app/terms")!
-    static let privacyURL = URL(string: "https://xq-chesscoach.netlify.app/privacy")!
+    /// Served by GitHub Pages from the repo's gh-pages branch.
+    static let termsURL = URL(string: "https://xusniddin-devv.github.io/chesscoach-ios/terms/")!
+    static let privacyURL = URL(string: "https://xusniddin-devv.github.io/chesscoach-ios/privacy/")!
 
     static var version: String {
         let info = Bundle.main.infoDictionary
