@@ -127,7 +127,8 @@ struct DaySquare: View {
     }
 }
 
-/// One task: Icons8 glyph on a tile, title, one line, and a completion ring (or chevron).
+/// One task: its Icons8 glyph (no tile), title, one line; done = struck through with the
+/// Icons8 check in accent.
 struct PlanTaskRow: View {
     let task: PlanTask
     let done: Bool
@@ -135,10 +136,9 @@ struct PlanTaskRow: View {
 
     var body: some View {
         HStack(spacing: DS.Spacing.sm) {
-            Glyph(name: Self.glyph(task.kind), size: 20)
+            Glyph(name: Self.glyph(task.kind), size: 22)
                 .foregroundStyle(done ? DS.Color.textSecondary : DS.Color.text)
-                .frame(width: 40, height: 40)
-                .background(DS.Color.surface2, in: RoundedRectangle(cornerRadius: DS.Radius.small))
+                .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)
                     .font(DS.Font.headline)
@@ -151,15 +151,13 @@ struct PlanTaskRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: DS.Spacing.s)
-            if showsChevron && !done {
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(DS.Color.textSecondary)
-            } else if done {
-                DoneRing(done: true, size: 20)
+            if done {
+                Glyph(name: "check", size: 18).foregroundStyle(DS.Color.accent)
+            } else if showsChevron {
+                Glyph(name: "forward", size: 14).foregroundStyle(DS.Color.textSecondary)
             }
         }
-        .padding(.vertical, DS.Spacing.s)
+        .padding(.vertical, DS.Spacing.sm)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

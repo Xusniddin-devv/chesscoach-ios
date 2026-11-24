@@ -2,8 +2,9 @@ import SwiftUI
 import SwiftData
 import ChessCore
 
-/// Greeting, the one accent "Play a bot" card, the analysis board, and the last five games
-/// against the bots (analysis-board lines are not games: they stay out of the list).
+/// Greeting with the streak; the play entry — the one accent "Play a bot" card next to a
+/// quiet analysis-board tile; today's plan led by the coach (flat, no card); the last five
+/// games (bots and imports; analysis-board lines are not games and stay out of the list).
 struct HomeView: View {
     private enum Route: Hashable {
         case botPicker
@@ -17,6 +18,7 @@ struct HomeView: View {
     @Query(sort: \GameRecord.date, order: .reverse) private var allRecords: [GameRecord]
     @Environment(\.modelContext) private var context
     @Environment(EngineHub.self) private var hub
+    @Query private var streaks: [StreakState]
     @State private var path: [Route] = []
     @State private var game: PlaySetup?
     /// Where the result panel sends the player once the game's cover has closed.
@@ -43,22 +45,35 @@ struct HomeView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: DS.Spacing.l) {
-                    NavigationLink(value: Route.botPicker) { PlayCard(next: BotLadder(records: allRecords, hub: hub).next ?? .suggested) }
-                        .buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 0) {
                     let line = Self.latestFreeplay(allRecords)
-                    NavigationLink(value: Route.freeplay(line?.record)) { AnalysisBoardCard(line: line?.snapshot) }
-                        .buttonStyle(.plain)
+                    HStack(spacing: DS.Spacing.sm) {
+                        NavigationLink(value: Route.botPicker) { PlayCard(next: BotLadder(records: allRecords, hub: hub).next ?? .suggested) }
+                            .buttonStyle(.plain)
+                        NavigationLink(value: Route.freeplay(line?.record)) { AnalysisBoardTile(line: line?.snapshot) }
+                            .buttonStyle(.plain)
+                            .frame(width: 124)
+                    }
+                    .frame(height: 164)
+                    .padding(.top, DS.Spacing.s)
                     TodayPlanCard { bot in
                         game = PlaySetup(bot: bot, mode: .training, color: .random)
                     }
+                    .padding(.top, 30)
                     recent
+                        .padding(.top, 30)
                 }
-                .padding(.horizontal, DS.Spacing.m)
+                .padding(.horizontal, 20)
                 .padding(.bottom, DS.Spacing.l)
             }
+            .contentMargins(.bottom, DS.Spacing.xl, for: .scrollContent)
+            .scrollIndicators(.hidden)
             .background(DS.Color.background)
             .navigationTitle(Self.greeting(for: .now))
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { StreakPill(count: streak) }
+                    .sharedBackgroundVisibility(.hidden)
+            }
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .botPicker: BotPickerView { game = $0 }
@@ -100,6 +115,11 @@ struct HomeView: View {
         }
     }
 
+    private var streak: Int {
+        let best = streaks.map(\.streak).max { ($0.lastDay ?? .distantPast, $0.count) < ($1.lastDay ?? .distantPast, $1.count) }
+        return (best ?? Streak()).current(now: .now)
+    }
+
     static func greeting(for date: Date) -> String {
         switch Calendar.current.component(.hour, from: date) {
         case 5..<12: "Good morning"
@@ -111,10 +131,7 @@ struct HomeView: View {
     @ViewBuilder
     private var recent: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s) {
-            Text("Recent games")
-                .font(DS.Font.title)
-                .foregroundStyle(DS.Color.text)
-                .accessibilityAddTraits(.isHeader)
+            ScreenSectionTitle("Recent games")
             // An unreadable record is skipped here; `GameRecord.snapshot` logs it.
             let games = Self.recentGames(allRecords).map { ($0.record, $0.snapshot) }
             if games.isEmpty {
@@ -139,9 +156,9 @@ struct HomeView: View {
     }
 }
 
-/// The analysis board's entry: a quiet `surface` card (the Play card stays the one accent),
-/// the current line's position on a mini board, and what continuing means.
-private struct AnalysisBoardCard: View {
+/// The analysis board's entry next to the Play card: a quiet `surface` tile (the Play card
+/// stays the one accent) with the current line's position and what tapping does.
+private struct AnalysisBoardTile: View {
     let line: GameSnapshot?
 
     private var fen: String {
@@ -150,32 +167,33 @@ private struct AnalysisBoardCard: View {
     }
 
     private var subline: String {
-        guard let line, !line.moves.isEmpty else { return "Move both sides. Every move gets a grade." }
+        guard let line, !line.moves.isEmpty else { return "Both sides" }
         let moves = (line.moves.count + 1) / 2
-        let count = "\(moves) \(moves == 1 ? "move" : "moves")"
-        return "Continue · " + (line.openingName.map { "\($0) · \(count)" } ?? count)
+        return "Continue · \(moves) \(moves == 1 ? "move" : "moves")"
     }
 
     var body: some View {
-        HStack(spacing: DS.Spacing.m) {
-            VStack(alignment: .leading, spacing: DS.Spacing.xs) {
-                Text("Analysis board")
-                    .font(DS.Font.headline)
-                    .foregroundStyle(DS.Color.text)
-                Text(subline)
-                    .font(DS.Font.subheadline)
-                    .foregroundStyle(DS.Color.textSecondary)
-                    .lineLimit(2)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 6) {
             MiniBoardView(fen: fen)
-                .frame(width: 64, height: 64)
+                .frame(width: 92, height: 92)
+            Spacer(minLength: 0)
+            Text("Analysis board")
+                .font(DS.Font.subheadline.weight(.semibold))
+                .foregroundStyle(DS.Color.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            Text(subline)
+                .font(DS.Font.caption)
+                .foregroundStyle(DS.Color.textSecondary)
+                .lineLimit(1)
         }
-        .padding(DS.Spacing.m)
+        .padding(DS.Spacing.sm)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
         .contentShape(RoundedRectangle(cornerRadius: DS.Radius.large))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(line.map { _ in "Analysis board, \(subline)" } ?? "Analysis board")
     }
 }
 
@@ -201,11 +219,11 @@ private struct PlayCard: View {
                 .resizable()
                 .interpolation(.high)
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 64, height: 64)
+                .frame(width: 84, height: 84)
                 .accessibilityHidden(true)
         }
         .padding(DS.Spacing.m)
-        .frame(height: 132)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DS.Color.accent, in: RoundedRectangle(cornerRadius: DS.Radius.large))
         .contentShape(RoundedRectangle(cornerRadius: DS.Radius.large))
         .accessibilityElement(children: .combine)

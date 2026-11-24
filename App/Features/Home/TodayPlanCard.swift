@@ -42,49 +42,51 @@ struct TodayPlanCard: View {
 
     private var dayStart: Date { Calendar.current.startOfDay(for: .now) }
 
+    /// Flat on the background (no card): the coach with the day's focus, the tasks as rows
+    /// between hairlines, the goal line under them.
     private func card(plan: TrainingPlan, day: PlanDay) -> some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-            HStack(alignment: .center, spacing: DS.Spacing.sm) {
-                DaySquare(index: day.index, emphasised: true, done: day.tasks.allSatisfy(isDone))
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Today's plan")
-                        .font(DS.Font.caption)
+        let doneCount = day.tasks.filter(isDone).count
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .bottom, spacing: DS.Spacing.sm) {
+                CoachAvatar(pose: doneCount == day.tasks.count ? .pleased : .neutral, size: 56)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Today · day \(day.index + 1) of \(plan.days.count)")
+                        .font(DS.Font.subheadline.monospacedDigit())
                         .foregroundStyle(DS.Color.textSecondary)
                     Text(day.focus)
-                        .font(DS.Font.title)
+                        .font(.system(size: 22, weight: .bold))
+                        .tracking(-0.3)
                         .foregroundStyle(DS.Color.text)
+                        .lineLimit(2)
                 }
-                Spacer()
-                Text("Day \(day.index + 1) of \(plan.days.count)")
-                    .font(DS.Font.caption.monospacedDigit())
-                    .foregroundStyle(DS.Color.textSecondary)
+                .padding(.bottom, 6)
+                Spacer(minLength: 0)
+                SquareProgress(done: doneCount, total: day.tasks.count, cell: 10)
+                    .padding(.bottom, 12)
             }
             VStack(spacing: 0) {
                 ForEach(Array(day.tasks.enumerated()), id: \.element.id) { i, task in
-                    if i > 0 { Divider().overlay(DS.Color.surface2).padding(.leading, 52) }
                     Button { start(task) } label: {
                         PlanTaskRow(task: task, done: isDone(task), showsChevron: true)
                     }
                     .buttonStyle(.plain)
+                    .overlay(alignment: .top) { Rectangle().fill(DS.Color.surface2).frame(height: 1) }
                 }
             }
+            .padding(.top, DS.Spacing.s)
             if let goal = goalLine {
-                Divider().overlay(DS.Color.surface2)
                 goal
+                    .padding(.top, DS.Spacing.s)
             }
         }
-        .padding(DS.Spacing.m)
-        .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
     }
 
     private func weekDone(_ plan: TrainingPlan) -> some View {
         VStack(alignment: .leading, spacing: DS.Spacing.sm) {
             CoachBubble(pose: .pleased, text: "That's the week. Want the next one, built from what you played?",
-                        avatarSize: 64, animated: false, fill: DS.Color.surface2)
+                        avatarSize: 64, animated: false)
             SecondaryButton(title: "Build next week") { rebuild(from: plan) }
         }
-        .padding(DS.Spacing.m)
-        .background(DS.Color.surface, in: RoundedRectangle(cornerRadius: DS.Radius.large))
     }
 
     /// "Goal 1200 by March · 260 to go".
@@ -95,12 +97,11 @@ struct TodayPlanCard: View {
         return AnyView(
             HStack(spacing: 0) {
                 Text("Goal ")
-                Text(verbatim: "\(goal)\(by)").foregroundStyle(DS.Color.accent).fontWeight(.semibold)
+                Text(verbatim: "\(goal)\(by)").foregroundStyle(DS.Color.text).fontWeight(.semibold)
                 Text(toGo == 0 ? " · reached" : " · \(toGo) to go")
             }
             .font(DS.Font.subheadline.monospacedDigit())
             .foregroundStyle(DS.Color.textSecondary)
-            .padding(.top, DS.Spacing.xs)
         )
     }
 
