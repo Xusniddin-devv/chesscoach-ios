@@ -1,4 +1,5 @@
 import ChessCore
+import Foundation
 @testable import StockfishKit
 import Testing
 
@@ -106,10 +107,66 @@ extension GlobalEngineSuite {
             #expect(await e.lastPositionCommand == "position fen \(Rules.startFen) moves e2e4 e7e5")
         }
 
+        @Test func nodeLimitedRequestSendsGoNodes() async throws {
+            let e = StockfishEngine.shared
+            let r = try await e.analyze(.init(startFen: Rules.startFen, moves: ["e2e4"], depth: 0, multiPV: 1, nodes: 20_000))
+            #expect(await e.lastGoCommand == "go nodes 20000")
+            #expect(r.bestMove.isEmpty == false && r.lines.count == 1)
+        }
+
+        @Test func foregroundRequestStopsABackgroundSearchAtOnce() async throws {
+            let e = StockfishEngine.shared
+            let starts = await e.startCount
+            let preemptions = await e.preemptions
+            let background = Task {
+                try await e.analyzeInBackground(.init(startFen: Rules.startFen, moves: ["c2c4"], depth: 40, multiPV: 1))
+            }
+            try await Task.sleep(for: .milliseconds(300))  // the deep background search is running
+            let clock = ContinuousClock()
+            let started = clock.now
+            let r = try await e.analyze(.init(startFen: Rules.startFen, moves: ["d2d4"], depth: 6, multiPV: 1))
+            let waited = clock.now - started
+            #expect(r.bestMove.isEmpty == false)
+            #expect(waited < .seconds(1))  // a stopped search + a depth-6 one, not a depth-40 one
+            await #expect(throws: EngineYielded.self) { try await background.value }
+            #expect(await e.preemptions == preemptions + 1)
+            #expect(await e.startCount == starts)  // a yield never restarts the engine
+            // The background lane works again once the engine is free.
+            let again = try await e.analyzeInBackground(.init(startFen: Rules.startFen, moves: ["c2c4"], depth: 0, multiPV: 1, nodes: 5_000))
+            #expect(again.bestMove.isEmpty == false)
+        }
+
+        @Test func waitingForegroundRequestsGoBeforeWaitingBackgroundOnes() async throws {
+            let e = StockfishEngine.shared
+            let order = OrderLog()
+            let running = Task { try await e.analyze(.init(startFen: Rules.startFen, moves: ["a2a4"], depth: 22, multiPV: 1)) }
+            try await Task.sleep(for: .milliseconds(30))
+            let bg = Task {
+                _ = try? await e.analyzeInBackground(.init(startFen: Rules.startFen, moves: ["h2h4"], depth: 0, multiPV: 1, nodes: 2_000))
+                order.add("bg")
+            }
+            try await Task.sleep(for: .milliseconds(30))
+            let fg = Task {
+                _ = try await e.analyze(.init(startFen: Rules.startFen, moves: ["b2b4"], depth: 4, multiPV: 1))
+                order.add("fg")
+            }
+            _ = try await running.value
+            _ = try await fg.value
+            await bg.value
+            #expect(order.items == ["fg", "bg"])
+        }
+
         @Test func sendsBareFenWithoutMoves() async throws {
             let e = StockfishEngine.shared
             _ = try await e.analyze(.init(startFen: Rules.startFen, moves: [], depth: 3, multiPV: 1))
             #expect(await e.lastPositionCommand == "position fen \(Rules.startFen)")
         }
     }
+}
+
+final class OrderLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _items: [String] = []
+    var items: [String] { lock.withLock { _items } }
+    func add(_ s: String) { lock.withLock { _items.append(s) } }
 }

@@ -7,13 +7,21 @@
 //
 // Requests run one at a time in arrival order (an internal FIFO), so no command but the
 // search itself is ever in flight: `setoption`, `position` and `go` are only sent once the
-// previous `bestmove` has arrived (see the blocking rule in stockfish_bridge.h). Each search
-// first sends the nets (Stockfish exits the process on `go` without them) and waits for
-// `readyok`.
+// previous `bestmove` has arrived (see the blocking rule in stockfish_bridge.h). The nets are
+// set once per engine start (Stockfish exits the process on `go` without them); resending
+// `EvalFile` before every search cost ~0.3-0.7 s each (measured), so it isn't. Each search
+// waits for `readyok` after its options.
 //
 // Cancelling a caller never cuts an exchange short: it sends `stop` (allowed mid-search), the
 // engine output is still read up to `bestmove`, and the caller gets `CancellationError`. The
 // engine keeps running; only `EngineError`s restart it.
+//
+// Background lane (`analyzeInBackground`, used by the app's analysis queue): foreground
+// requests are served before waiting background ones, and a foreground request that arrives
+// while a background search runs stops it at once (`stop`); the background caller gets
+// `EngineYielded` and asks again later. So a foreground user waits for at most the few
+// milliseconds a stopped search needs to print `bestmove`. Background results bypass the
+// one-entry cache so they never evict the position a foreground screen is looking at.
 
 import ChessCore
 import Foundation
@@ -35,10 +43,18 @@ public actor StockfishEngine: ChessEngine {
     private var threads = 1
     private var hashMB = 64
     private var optionsChanged = true
+    /// The nets were set on this engine run (setting `EvalFile` again costs a reload check of
+    /// several hundred ms per search, so they go once per start).
+    private var netsSent = false
     private var running = false
 
     private var busy = false
     private var waiting: [CheckedContinuation<Void, Never>] = []
+    private var backgroundWaiting: [CheckedContinuation<Void, Never>] = []
+    /// The current holder came through the background lane.
+    private var holderIsBackground = false
+    /// A foreground request stopped the background holder's search.
+    private var preempted = false
 
     private var cache = AnalysisCache()
 
@@ -46,6 +62,10 @@ public actor StockfishEngine: ChessEngine {
     private(set) var searchCount = 0
     /// The last `position` command sent (test hook).
     private(set) var lastPositionCommand: String?
+    /// The last `go` command sent (test hook).
+    private(set) var lastGoCommand: String?
+    /// Background searches stopped by a foreground request (test hook).
+    private(set) var preemptions = 0
     /// The `setoption` commands sent before the last search (test hook).
     private(set) var lastSearchOptions: [String] = []
     /// Number of engine starts (test hook).
@@ -90,20 +110,35 @@ public actor StockfishEngine: ChessEngine {
         await acquire()
         defer { release() }
         if let cached = cache.get(request) { return cached }
+        let result = try await runAnalysis(request)
+        cache.put(request, result)
+        return result
+    }
 
+    /// Low priority: waits behind every foreground request and is stopped by one that arrives
+    /// mid-search (`EngineYielded`). Not cached.
+    public func analyzeInBackground(_ request: AnalysisRequest) async throws -> AnalysisResult {
+        await acquire(background: true)
+        defer { release() }
+        if preempted { throw EngineYielded() }
+        let result = try await runAnalysis(request)
+        if preempted { throw EngineYielded() }  // a stopped search is not an answer
+        return result
+    }
+
+    private func runAnalysis(_ request: AnalysisRequest) async throws -> AnalysisResult {
+        let go = request.nodes.map { "go nodes \($0)" } ?? "go depth \(request.depth)"
         let lines = try await search(
             startFen: request.startFen, moves: request.moves,
             options: ["Skill Level": "20", "MultiPV": "\(request.multiPV)"],
-            go: "go depth \(request.depth)")
+            go: go)
         var deepest: [Int: PVLine] = [:]
         for line in lines.compactMap(UCIParser.info) where line.depth >= deepest[line.multipv]?.depth ?? 0 {
             deepest[line.multipv] = line
         }
-        let result = AnalysisResult(
+        return AnalysisResult(
             bestMove: lines.last.flatMap(UCIParser.bestMove) ?? "",
             lines: deepest.values.sorted { $0.multipv < $1.multipv })
-        cache.put(request, result)
-        return result
     }
 
     public func opponentMove(startFen: String, moves: [String], elo: Int) async throws -> String {
@@ -135,20 +170,39 @@ public actor StockfishEngine: ChessEngine {
 
     // MARK: - FIFO
 
-    private func acquire() async {
+    private func acquire(background: Bool = false) async {
         guard busy else {
             busy = true
+            holderIsBackground = background
+            preempted = false
             return
         }
-        await withCheckedContinuation { waiting.append($0) }
+        if background {
+            await withCheckedContinuation { backgroundWaiting.append($0) }
+        } else {
+            if holderIsBackground && !preempted {
+                // Stop the background search now; harmless if it hasn't sent `go` yet (it
+                // checks `preempted` before searching).
+                preempted = true
+                preemptions += 1
+                sf_send("stop")
+            }
+            await withCheckedContinuation { waiting.append($0) }
+        }
     }
 
-    /// Hands the engine to the next waiting request, keeping `busy` set.
+    /// Hands the engine to the next waiting request (foreground first), keeping `busy` set.
     private func release() {
-        if waiting.isEmpty {
-            busy = false
-        } else {
+        preempted = false
+        if !waiting.isEmpty {
+            holderIsBackground = false
             waiting.removeFirst().resume()
+        } else if !backgroundWaiting.isEmpty {
+            holderIsBackground = true
+            backgroundWaiting.removeFirst().resume()
+        } else {
+            busy = false
+            holderIsBackground = false
         }
     }
 
@@ -164,7 +218,7 @@ public actor StockfishEngine: ChessEngine {
             if optionsChanged {
                 commands += ["setoption name Threads value \(threads)", "setoption name Hash value \(hashMB)"]
             }
-            commands += Self.netCommands()
+            if !netsSent { commands += Self.netCommands() }
             commands += options.map { "setoption name \($0.key) value \($0.value)" }
             let position = moves.isEmpty
                 ? "position fen \(startFen)"
@@ -172,11 +226,14 @@ public actor StockfishEngine: ChessEngine {
             commands += [position, "isready"]
             _ = try await exchange(commands, until: { $0 == "readyok" })
             optionsChanged = false
+            netsSent = true
             lastPositionCommand = position
             lastSearchOptions = commands.filter { $0.hasPrefix("setoption") }
 
             try Task.checkCancellation()
+            if holderIsBackground && preempted { throw EngineYielded() }
             searchCount += 1
+            lastGoCommand = go
             let output = try await exchange([go], until: { UCIParser.bestMove($0) != nil })
             try Task.checkCancellation()  // the move of a stopped search is not an answer
             return output
@@ -200,6 +257,7 @@ public actor StockfishEngine: ChessEngine {
             sf_send("uci")
             _ = try await Self.readToEnd(lines, until: { $0 == "uciok" })
             _ = try await exchange(Self.netCommands() + ["isready"], until: { $0 == "readyok" })
+            netsSent = true
         } catch {
             stop()  // a half-started engine is quit, so the next request starts it again
             throw error
@@ -222,6 +280,7 @@ public actor StockfishEngine: ChessEngine {
         sf_quit()
         Self.output.close()
         running = false
+        netsSent = false
         cache = AnalysisCache()
     }
 
