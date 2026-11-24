@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let log = Logger(subsystem: "uz.xq.chessc", category: "puzzles")
 
 /// Turns the user's own mistakes into puzzles: the position before the bad move, with the
 /// engine's best move (and best line, up to 3 plies) as the solution.
@@ -12,6 +15,11 @@ public enum BlunderPuzzles {
         return verdicts
             .filter { $0.mover == snapshot.userColor && classes.contains($0.classification) }
             .compactMap { puzzle(from: $0, snapshot: snapshot) }
+            .filter { puzzle in
+                guard !puzzle.isServable else { return true }
+                log.error("Dropped own-mistake puzzle \(puzzle.id, privacy: .public): line \(puzzle.moves.joined(separator: " "), privacy: .public) not playable from \(puzzle.fen, privacy: .public)")
+                return false
+            }
     }
 
     /// Profile's "Fix it" for one habit: the user's own positions with that motif first (newest

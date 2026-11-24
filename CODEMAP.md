@@ -107,10 +107,10 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Puzzles tab (coach + streak hook, daily, own mistakes, rating ruler, theme rows, free allowance) | `App/Features/Puzzles/PuzzlesView.swift` (`RatingRuler`) |
-| Solver screen + model (setup move, replies, verdict band, badges, SRS + streak + puzzle rating) | `App/Features/Puzzles/PuzzleSessionView.swift`, `PuzzleSessionModel.swift` |
+| Solver screen + model (setup move, replies, verdict band naming the missed step's move `PuzzleSolver.expectedSan`, badges, SRS + streak + puzzle rating); unplayable puzzles dropped in `PuzzleSessionSetup.init` | `App/Features/Puzzles/PuzzleSessionView.swift`, `PuzzleSessionModel.swift` |
 | Shared training frame (progress segments, coach narration, chunky buttons, verdict band, "Which move?" pills) | `App/Features/Shared/TrainingFrame.swift` |
 | Solution explanation (chips), puzzle rating (Elo, first outcomes) | `ChessCore/Puzzles/PuzzleExplainer.swift`, `ChessCore/Puzzles/PuzzleRating.swift` |
-| Puzzle format, solver rules, bank (6,000 Lichess CC0), daily, own-mistake puzzles | `ChessCore/Puzzles/*`, `Resources/puzzles.json`, `scripts/gen-puzzles.sh` |
+| Puzzle format, playability guard (`Puzzle.isServable`), solver rules, bank (6,000 Lichess CC0), daily, own-mistake puzzles | `ChessCore/Puzzles/*`, `Resources/puzzles.json`, `scripts/gen-puzzles.sh` |
 | Spaced repetition, day streak | `ChessCore/Training/SRS.swift`, `Streak.swift` |
 
 ## Learn

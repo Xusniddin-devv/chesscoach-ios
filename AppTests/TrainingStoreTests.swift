@@ -82,3 +82,37 @@ struct TrainingStoreTests {
         #expect(!LessonAllowance.isLocked(index: 5, isPro: true))
     }
 }
+
+/// Owner report: the solver named a move already on the board ("[Qd6] was the move") after a
+/// miss on a later move, and an unplayable puzzle must never reach the solver.
+@MainActor
+struct PuzzleSessionGuardTests {
+    private let fen = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3"
+
+    @Test func aSessionDropsPuzzlesWhoseLineIsNotPlayable() {
+        let good = Puzzle(id: "good", fen: fen, moves: ["d2d4", "e5d4", "f3d4"], rating: 800, themes: [], hasSetupMove: false)
+        // The key move is already on the board: Black to move, the pawn sits on d4.
+        let stale = Puzzle(id: "stale", fen: "r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3",
+                           moves: ["d2d4"], rating: 800, themes: [], hasSetupMove: false)
+        let setup = PuzzleSessionSetup(kind: .review, title: "Your mistakes", puzzles: [stale, good],
+                                       sources: ["stale": "blunder", "good": "blunder"])
+        #expect(setup.puzzles.map(\.id) == ["good"])
+        let model = PuzzleSessionModel(setup: setup)
+        model.start()
+        #expect(model.puzzle.id == "good")
+        #expect(model.outcomes.count == 1)
+    }
+
+    @Test func aMissOnTheSecondMoveNamesTheSecondMove() async throws {
+        let p = Puzzle(id: "two", fen: fen, moves: ["d2d4", "e5d4", "f3d4"], rating: 800, themes: [], hasSetupMove: false)
+        let model = PuzzleSessionModel(setup: PuzzleSessionSetup(kind: .review, title: "t", puzzles: [p], sources: ["two": "blunder"]))
+        model.start()
+        #expect(model.move("d2d4"))
+        try await Task.sleep(for: PuzzleSessionModel.replyDelay + .milliseconds(300))
+        #expect(model.solver.status == .solving)
+        #expect(model.move("f3g5"))  // wrong: Nxd4 was due
+        #expect(model.solver.status == .failed)
+        #expect(model.solver.expectedSan == "Nxd4")
+        #expect(!model.solver.failedOnKeyMove)
+    }
+}

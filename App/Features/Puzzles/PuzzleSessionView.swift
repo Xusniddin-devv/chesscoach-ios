@@ -137,8 +137,10 @@ struct PuzzleSessionView: View {
         case .solved:
             lines.append(PuzzleExplainer.line(for: puzzle) ?? "**That's it.**")
         case .failed:
+            // The explainer is about the key move; a later miss gets the arrow only.
+            let explained = solver.failedOnKeyMove ? PuzzleExplainer.line(for: puzzle) : nil
             lines.append(model.showingSolution
-                         ? (PuzzleExplainer.line(for: puzzle) ?? "The arrow shows the move.")
+                         ? (explained ?? "The arrow shows the move.")
                          : "That lets the chance go. Look at what the last move left open.")
         default:
             break
@@ -165,7 +167,9 @@ struct PuzzleSessionView: View {
                                 primary: next, onPrimary: { withAnimation(.snappy) { model.next() } })
         case .failed:
             let points = model.ratingDelta.map { " · " + Self.signed($0) } ?? ""
-            let answer = expectedSan(model).map { "[\($0)] was \(Self.answerName(forTheme: model.theme))." } ?? ""
+            // A miss after the key move names that step's move; the theme names only the key move.
+            let name = solver.failedOnKeyMove ? Self.answerName(forTheme: model.theme) : "the move"
+            let answer = solver.expectedSan.map { "[\($0)] was \(name)." } ?? ""
             return TrainingBand(
                 id: "failed-\(model.puzzle.id)-\(model.showingSolution)", kind: .failure, title: "Not quite\(points)",
                 detail: model.showingSolution ? "The arrow shows it. Play it on the board." : answer,
@@ -184,14 +188,9 @@ struct PuzzleSessionView: View {
     /// "+8", "−6" (a real minus sign).
     static func signed(_ n: Int) -> String { n >= 0 ? "+\(n)" : "\u{2212}\(abs(n))" }
 
-    private func expectedSan(_ model: PuzzleSessionModel) -> String? {
-        let puzzle = model.puzzle
-        guard let fen = puzzle.solvingFen, puzzle.moves.indices.contains(puzzle.firstSolverIndex) else { return nil }
-        return Rules.apply(uci: puzzle.moves[puzzle.firstSolverIndex], to: fen)?.san
-    }
-
     #if DEBUG
-    /// `-debugPuzzleSolve solve|fail|solution|hint`: plays the first puzzle (screenshots).
+    /// `-debugPuzzleSolve solve|fail|late|solution|hint`: plays the first puzzle (screenshots);
+    /// `late` finds the key move, then misses the next one.
     private static func debugSolve(_ model: PuzzleSessionModel) async {
         guard let mode = UserDefaults.standard.string(forKey: "debugPuzzleSolve") else { return }
         try? await Task.sleep(for: .seconds(1.5))
@@ -203,6 +202,13 @@ struct PuzzleSessionView: View {
             }
         case "hint":
             model.hint()
+        case "late":
+            if let key = model.solver.expectedMove { _ = model.move(key) }
+            try? await Task.sleep(for: .seconds(1))
+            if model.solver.status == .solving,
+               let wrong = Rules.legalMoves(fen: model.solver.fen).first(where: { $0 != model.solver.expectedMove }) {
+                _ = model.move(wrong)
+            }
         default:
             if let wrong = Rules.legalMoves(fen: model.solver.fen).first(where: { $0 != model.solver.expectedMove }) {
                 _ = model.move(wrong)

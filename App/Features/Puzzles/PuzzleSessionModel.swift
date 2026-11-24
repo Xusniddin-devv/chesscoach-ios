@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Observation
+import os
 import ChessCore
 
 /// What the solver screen plays: a queue of puzzles and where each came from.
@@ -15,6 +16,22 @@ struct PuzzleSessionSetup: Identifiable, Hashable {
     var sources: [String: String] = [:]
     /// The theme the player chose (practice by theme, Fix it); else the puzzle's own.
     var theme: String? = nil
+
+    /// Puzzles whose line isn't playable from their position (`Puzzle.isServable`) are
+    /// dropped here, the one door every session goes through, and logged.
+    init(kind: Kind, title: String, puzzles: [Puzzle], sources: [String: String] = [:], theme: String? = nil) {
+        self.kind = kind
+        self.title = title
+        self.puzzles = puzzles.filter { puzzle in
+            guard !puzzle.isServable else { return true }
+            Self.log.error("Dropped unplayable puzzle \(puzzle.id, privacy: .public) (\(sources[puzzle.id] ?? "bank", privacy: .public)): \(puzzle.moves.joined(separator: " "), privacy: .public) from \(puzzle.fen, privacy: .public)")
+            return false
+        }
+        self.sources = sources
+        self.theme = theme
+    }
+
+    private static let log = Logger(subsystem: "uz.xq.chessc", category: "puzzles")
 }
 
 /// Drives the solver screen: wraps `PuzzleSolver`, keeps the piece tracker in step, plays

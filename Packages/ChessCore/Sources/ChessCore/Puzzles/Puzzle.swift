@@ -37,6 +37,15 @@ public struct Puzzle: Codable, Sendable, Equatable, Identifiable, Hashable {
         return hasSetupMove ? stm.opposite : stm
     }
 
+    /// Safe to serve: there is a solver move, and every move is legal in turn from `fen`, so
+    /// the key move is legal in (and not already played on) the position the solver faces.
+    /// A puzzle that fails this is dropped, never shown.
+    public var isServable: Bool {
+        guard moves.count > firstSolverIndex, let solving = solvingFen,
+              Rules.apply(uci: moves[firstSolverIndex], to: solving) != nil else { return false }
+        return Rules.fen(startFen: fen, moves: moves) != nil
+    }
+
     /// Number of moves the solver has to find.
     public var solverMoveCount: Int { (moves.count - firstSolverIndex + 1) / 2 }
 }

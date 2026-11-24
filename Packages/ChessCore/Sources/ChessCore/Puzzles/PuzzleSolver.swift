@@ -52,6 +52,18 @@ public struct PuzzleSolver: Sendable, Equatable {
         status == .solving || status == .failed ? puzzle.moves[safe: index] : nil
     }
 
+    /// `expectedMove` in SAN, from the position it is played in. After a failure that is the
+    /// step that went wrong (a later move of a multi-move puzzle), not the key move.
+    public var expectedSan: String? {
+        guard let move = expectedMove,
+              let fen = Rules.fen(startFen: puzzle.fen, moves: status == .failed ? Array(played.dropLast()) : played)
+        else { return nil }
+        return Rules.apply(uci: move, to: fen)?.san
+    }
+
+    /// The failed attempt went wrong on the puzzle's first solver move (the key move).
+    public var failedOnKeyMove: Bool { status == .failed && index == puzzle.firstSolverIndex }
+
     /// Hint: the from-square of the expected move.
     public var hintSquare: Square? {
         guard hintShown, let move = expectedMove else { return nil }

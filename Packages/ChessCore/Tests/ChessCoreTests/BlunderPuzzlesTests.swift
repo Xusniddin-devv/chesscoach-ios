@@ -91,3 +91,41 @@ private func snapshot(_ verdicts: [Verdict], userColor: Piece.Color = .white) ->
     let picked = BlunderPuzzles.fixIt(.hangingPiece, snapshots: [line], rating: 800, count: 3)
     #expect(!picked.contains { $0.id.hasPrefix(gameId.uuidString) })
 }
+
+/// Owner report: solved the key move, went wrong on the second one, and the band named the
+/// key move again ("[d4] was the move" with the pawn already on d4), every retry.
+@Test func aFailureOnALaterMoveNamesThatMoveNotTheKeyMove() throws {
+    let p = try #require(BlunderPuzzles.from(snapshot: snapshot([knightBlunder()])).first)
+    var solver = PuzzleSolver(puzzle: p)
+    solver.playSetup()
+    #expect(solver.expectedSan == "d4")
+    _ = solver.submit("d2d4")
+    solver.playReply()                       // ...exd4
+    #expect(solver.submit("f3g5") == .wrong) // not Nxd4
+    #expect(solver.expectedMove == "f3d4")
+    #expect(solver.expectedSan == "Nxd4")
+    #expect(!solver.failedOnKeyMove)
+    solver.retry()
+    #expect(solver.expectedSan == "d4")
+    #expect(solver.submit("b1c3") == .wrong)
+    #expect(solver.expectedSan == "d4")
+    #expect(solver.failedOnKeyMove)
+}
+
+/// A puzzle whose first solver move is not legal where the solver starts (the piece is
+/// already on the target square, or the line is from another position) is never built.
+@Test func aPuzzleWhoseKeyMoveIsNotLegalWhereTheSolverStartsIsDropped() {
+    var v = knightBlunder()
+    v.facts.fenBefore = "r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq - 0 3"  // d4 already played
+    #expect(BlunderPuzzles.from(snapshot: snapshot([v])).isEmpty)
+
+    let ok = Puzzle(id: "ok", fen: knightFen, moves: ["d2d4", "e5d4", "f3d4"], rating: 800, themes: [], hasSetupMove: false)
+    #expect(ok.isServable)
+    let reflected = Puzzle(id: "r", fen: v.facts.fenBefore, moves: ["d2d4"], rating: 800, themes: [], hasSetupMove: false)
+    #expect(!reflected.isServable)
+    let setupThenIllegal = Puzzle(id: "s", fen: Rules.startFen, moves: ["e2e4", "e2e4"], rating: 800, themes: [])
+    #expect(!setupThenIllegal.isServable)
+    let empty = Puzzle(id: "e", fen: Rules.startFen, moves: ["e2e4"], rating: 800, themes: [])
+    #expect(!empty.isServable)  // a setup move and nothing to solve
+    #expect(PuzzleBank.all.allSatisfy { $0.isServable })
+}
