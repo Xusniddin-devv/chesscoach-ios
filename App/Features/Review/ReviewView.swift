@@ -5,7 +5,7 @@ import ChessCore
 /// accuracy in the header, the selected move's class on the board, the eval bar, and the
 /// coach's comment on the selected move in a card above the action bar (the full
 /// explanation for the user's negative moves). The action bar: move list
-/// (back to the game inside a branch) · best move · ‹ › · flip. Moves played on the board
+/// (back to the game inside a branch) · Guess the move · best move · ‹ › · flip. Moves played on the board
 /// try a line (a branch), graded live.
 struct ReviewView: View {
     let record: GameRecord
@@ -13,6 +13,7 @@ struct ReviewView: View {
     @Environment(EngineHub.self) private var hub
     @State private var model: ReviewModel?
     @State private var showingMoves = false
+    @State private var guessing = false
 
     var body: some View {
         Group {
@@ -30,6 +31,7 @@ struct ReviewView: View {
             #if DEBUG
             if let model { await DebugReview.apply(to: model) }
             if UserDefaults.standard.string(forKey: "debugReviewList") != nil { showingMoves = true }
+            if UserDefaults.standard.string(forKey: "debugGuess") != nil, model?.analysis != nil { guessing = true }
             #endif
         }
         .onDisappear { model?.cancel() }
@@ -73,6 +75,15 @@ struct ReviewView: View {
                 }
             })
         .animation(.snappy(duration: 0.25), value: model.explanation)
+        .navigationDestination(isPresented: $guessing) {
+            if let analysis = model.analysis {
+                GuessView(model: GuessModel(
+                    snapshot: model.snapshot, analysis: analysis, opponentName: model.botName,
+                    userAvatar: model.userAvatar, opponentAvatar: model.bot?.avatarAsset, engine: hub.engine)) {
+                    guessing = false
+                }
+            }
+        }
         .sheet(isPresented: $showingMoves) {
             ReviewMoveList(model: model) { ply in
                 withAnimation(.snappy) {
@@ -125,6 +136,10 @@ struct ReviewView: View {
                 GameAction(title: "Moves", icon: "moves") { showingMoves = true }
                     .disabled(model.snapshot.moves.isEmpty)
             }
+            // Guessing scores against the saved analysis: there once the game is analysed.
+            GameAction(title: "Guess", icon: "guess") { guessing = true }
+                .disabled(model.analysis == nil || model.snapshot.moves.isEmpty)
+                .accessibilityLabel("Guess the move")
             GameAction(title: "Best", icon: "hint", isOn: model.showsBest && model.canShowBest) {
                 withAnimation(.snappy) { model.showsBest.toggle() }
             }

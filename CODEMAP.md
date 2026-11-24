@@ -42,7 +42,22 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Greeting, Play card, recent games → Review | `App/Features/Home/HomeView.swift` |
+| Greeting, Play card, Analysis board card, recent games → Review (freeplay excluded: `recentGames`) | `App/Features/Home/HomeView.swift` |
+
+## Analysis board (Freeplay) and position editor
+
+| Feature | Files |
+|---|---|
+| Board screen: both colours, live grades, eval bar, best arrow, Deep (depth 20), take back, autosave (`source: freeplay`) | `App/Features/Freeplay/FreeplayView.swift`, `App/Features/Freeplay/FreeplayModel.swift` |
+| Visual position editor (tray, castling, side to move, inline validation) | `App/Features/Freeplay/PositionEditorView.swift` |
+| Editor position + FEN, castling availability; legality rules | `ChessCore/Setup/BoardSetup.swift`, `ChessCore/Setup/PositionValidator.swift` |
+
+## Guess the move
+
+| Feature | Files |
+|---|---|
+| Flow (pick side, guess, reveal, score screen), entry from Review's action bar | `App/Features/Guess/GuessModel.swift`, `App/Features/Guess/GuessView.swift`, `App/Features/Review/ReviewView.swift` |
+| Scoring (best 3 / ≤50 cp 2 / ≤150 cp 1) from the saved analysis, engine search when needed | `ChessCore/Analysis/GuessScoring.swift` |
 
 ## Play
 
@@ -92,7 +107,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Legal moves, SAN, FEN, game state (via ChessKit) | `ChessCore/Rules/Rules.swift` |
-| Saved game format (lenient decoding) | `ChessCore/Persistence/GameSnapshot.swift` |
+| Saved game format (lenient decoding; optional `source`, `isFreeplay`) | `ChessCore/Persistence/GameSnapshot.swift` |
 | Engine protocol, requests, results | `ChessCore/Engine/EngineTypes.swift` |
 | Stockfish process bridge, UCI, cache | `Packages/StockfishKit/Sources/StockfishKit/*`, `Sources/StockfishCore/bridge.cpp` |
 | Engine benchmark (DEBUG, Profile tab) | `App/Debug/EngineBenchmarkView.swift` |
@@ -104,4 +119,4 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 |---|---|
 | ChessCore (Swift Testing, `swift test`) | `Packages/ChessCore/Tests/ChessCoreTests/*` (fake engine: `Support/FakeEngine.swift`) |
 | StockfishKit | `Packages/StockfishKit/Tests/StockfishKitTests/*` |
-| App (simulator) | `AppTests/*` — Play flow, Review, Profile, scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
+| App (simulator) | `AppTests/*` — Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |

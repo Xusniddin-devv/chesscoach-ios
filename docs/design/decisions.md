@@ -46,7 +46,7 @@ Reference: card radii of ~20 in `home/mobbin-apple-fitness-summary.jpg` and `hom
 
 ## Icons
 
-**One pack: Icons8 "iOS 27 Filled" (`ios_filled`)**, locked in `icons8.json` (de-slop pass, 2026-11-24). PNGs fetched at 500 px and vectorised with potrace (owner decision), imported as SVG template assets `Icons/<name>` (Preserves Vector Data) so tokens tint them. Tab bar: `tab-home` (home), `tab-puzzle` (puzzle), `tab-learn` (open book), `tab-profile` (pawn — your piece). Game action bars: `resign` (flag), `close`, `hint` (idea bulb, also Review's Best), `back` / `forward` (chevrons), `flip` (sorting arrows), `moves` (list), `return` (undo, back to the game from a branch); `lock` on locked ladder bots. System navigation chrome (back button, sheets) keeps its SF glyphs. Everywhere else: text labels, numerals, move-class glyph badges and our own piece / avatar art. No icon grids, no icon per stat row, no emoji. Attribution "Icons by Icons8 (icons8.com)" goes in Licenses (merge with feat/settings-paywall).
+**One pack: Icons8 "iOS 27 Filled" (`ios_filled`)**, locked in `icons8.json` (de-slop pass, 2026-11-24). PNGs fetched at 500 px and vectorised with potrace (owner decision), imported as SVG template assets `Icons/<name>` (Preserves Vector Data) so tokens tint them. Tab bar: `tab-home` (home), `tab-puzzle` (puzzle), `tab-learn` (open book), `tab-profile` (pawn — your piece). Game action bars: `resign` (flag), `close`, `hint` (idea bulb, also Review's Best), `back` / `forward` (chevrons), `flip` (sorting arrows), `moves` (list), `return` (undo, back to the game from a branch); `lock` on locked ladder bots; `edit` (pencil, Freeplay's Edit), `eraser` (editor tray), `guess` (help — question in a circle, Review's Guess). System navigation chrome (back button, sheets) keeps its SF glyphs. Everywhere else: text labels, numerals, move-class glyph badges and our own piece / avatar art. No icon grids, no icon per stat row, no emoji. Attribution "Icons by Icons8 (icons8.com)" goes in Licenses (merge with feat/settings-paywall).
 
 ## Move-class palette
 
@@ -169,6 +169,35 @@ De-slop pass (owner: "AI slop in match score modal"). Screen: `screens/plan4-des
 - **Key moment**: the move with the biggest win-% drop (≥ 10, either side once analysed) on a 112 pt mini board with its badge, "Key moment · move 14", the verdict header and the coach's line (Review's comment wording). Hidden in a clean game.
 - **Buttons**: Review game (`PrimaryButton`), Rematch + New bot (`SecondaryButton`s side by side). New bot opens the ladder; Review game opens the saved game in Review.
 - Win only: a quiet confetti burst (36 flat pieces, 60 % opacity, 1.8 s, once) clipped to the header, behind it. Nothing with Reduce Motion.
+
+## Analysis board — Freeplay (refs: `references/freeplay/notes.md`)
+
+Screen: `screens/plan4-freeplay.png`. Pushed from Home's "Analysis board" card (a quiet `surface` card: title, "Continue · Italian Game · 4 moves" or "Move both sides. Every move gets a grade.", a 64 pt `MiniBoardView` of the line's position; the Play card stays the one accent). Inline title "Analysis board", the opening (or "Start position" / "Your position") as the subtitle, tab bar hidden.
+
+- **Scaffold**: the Play layout. Bars are the two colours ("White" / "Black", the king on the board-dark tile, captured pieces + lead). Eval bar always on (the shown position's own search, depth 14; the last eval holds while the next search runs).
+- **Moves**: either side moves on the board; every move is graded live and in order (`LineGrader`, depth 14, the Review semantics), badge on the destination + glyph in the strip. A move at an earlier position replaces the rest of the line (no variations); the line's own next move just steps forward.
+- **Status line**: "Nf3 · Best ★", "Bxf7+ · Mistake ? · best O-O", "Checking Nf3…", "White to move", or the result ("Checkmate · White wins").
+- **Flat action bar**: Edit (position editor, Icons8 `edit`) · Best (a mode: the arrow of the engine's best move in the shown position stays on from move to move; accent when on) · Take back (`return`) · Back · Forward · Flip.
+- **Deep**: a text toggle in the navigation bar (navigation layer, so system glass is fine there): accent "Deep" = depth 20 for the eval bar and the best move; grades stay at 14 so they match Review.
+- **Autosave**: an owner-less `GameRecord` (`source: "freeplay"`, `botId` empty, `userColor` White as the nominal colour, Silent), updated in place after every move and when grades land; an empty fresh board is not saved. Freeplay lines never count: Profile (`ProfileModel`), the rating, the ladder's wins and Home's recent games skip `isFreeplay`.
+
+## Position editor (refs: `references/freeplay/notes.md`)
+
+Screen: `screens/plan4-editor.png`. Full-screen cover from Freeplay's Edit; inline title "Edit position", close (system xmark) left, Flip right. No FEN anywhere.
+
+- Board on top (takes the room the controls leave). Under it one `surface` tray: two rows of six pieces (White, Black: K Q R B N P) and a tall eraser cell; the selected tool sits on `surface2` with a 2 pt accent ring. Tap a square to place the tool's piece (the same piece again removes it); a king moves instead of doubling; drag pieces around the board, off the board to remove, or from the tray onto a square.
+- "White to move | Black to move" (system segmented control). "White can castle [Kingside] [Queenside]" and the same for Black: on = light chip with ink text, off = `surface2`; a right whose king or rook is off its home square is greyed out (the choice is kept and returns when the piece does).
+- "Clear board" · "Start position" as quiet `surface2` buttons; one inline message line: the first `PositionValidator` problem with a small inaccuracy-yellow dot ("Add a black king.", "Only one white king, please.", "Black's king is in check, so it has to be Black to move.", "Pawns can't stand on the first or last rank.", "White has more than 16 pieces.") or a quiet hint. "Analyse this position" (`PrimaryButton`, 40 % while invalid) starts a new Freeplay line from it.
+
+## Guess the move
+
+Screens: `screens/plan4-guess.png`, `screens/plan4-guess-result.png`. From Review's flat bar ("Guess", Icons8 `help`; enabled once the game is analysed), pushed; title "Guess the move", subtitle "You as White · 3 / 18".
+
+- **Pick a side**: a card in place of the action bar (the coach card's language): "Whose moves will you guess?", one line on the points, two side options (avatar, name, "White · 18 moves"; selected = `surface2` + accent ring), Start.
+- **Guessing**: the board shows the position before each of that side's moves (the other side's moves play themselves, last move highlighted); flat bar End · Skip · Flip; status "Move 12 · what would you play?".
+- **Reveal**: card in place of the bar: three rows with the real badge discs — "Your move", "You played" / "Pip played", "Best" — and the points on the right in 40 pt heavy ("+3" in accent, else text). On the board each move is an arrow in its class colour (one arrow when moves coincide) and the guess's badge sits on its destination. "Next move" / "See your score".
+- **Scoring** (`GuessScoring`): the saved best move 3, within 50 cp 2, within 150 cp 1, else 0. The game's own move and the saved best need no engine; any other move is searched (depth 14, MultiPV 3) and classified like a played move.
+- **Score screen**: "Your score", the points in 96 pt heavy (−4 tracking) with "of 27" beside it, one sentence ("You found the best move 4 times. Your moves in the game would have scored 15."), "Move by move" as a grid of result chips (badge disc, your move, points; 3 in accent) on `surface` capsules. Back to review (`PrimaryButton`), Try again (`SecondaryButton`). No gauge, no confetti, no headline exclamation.
 
 ---
 
