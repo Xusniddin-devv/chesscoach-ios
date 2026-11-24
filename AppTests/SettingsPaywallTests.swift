@@ -19,6 +19,9 @@ struct SettingsPaywallTests {
         #expect(Entitlements(apiKey: "").backend == .storeKit)
         #expect(Entitlements(apiKey: nil).backend == .storeKit)
         #expect(Entitlements(apiKey: "$(REVENUECAT_API_KEY)").backend == .storeKit)
+        // A placeholder or a secret key in Secrets.xcconfig must not reach RevenueCat (archive builds).
+        #expect(Entitlements(apiKey: "YOUR_KEY_HERE").backend == .storeKit)
+        #expect(Entitlements(apiKey: "sk_secret").backend == .storeKit)
     }
 
     @Test func everyProFeatureHasAPitch() {

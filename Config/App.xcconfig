@@ -6,8 +6,9 @@
 // xcodebuild command line; never commit it here.
 REVENUECAT_API_KEY =
 
-// Set to 1 (Secrets.xcconfig) once the signing team has the iCloud capability for
-// iCloud.uz.xq.chessc; 0 keeps the store local even when an iCloud account exists.
+// CLOUDKIT_SYNC: 1 opens the store with CloudKit mirroring (iCloud.uz.xq.chessc, see
+// App/Services/ModelStore.swift); 0 keeps it local. Defaults to 1. Set CLOUDKIT_SYNC = 0 in
+// Config/Secrets.xcconfig for a signing team without the iCloud capability.
 CLOUDKIT_SYNC = 1
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(CLOUDKIT_SYNC_FLAG_$(CLOUDKIT_SYNC))
 CLOUDKIT_SYNC_FLAG_1 = CLOUDKIT_SYNC

@@ -26,7 +26,13 @@ targets:
     type: application
     platform: iOS
     sources:
-      - App
+      # PrivacyInfo.xcprivacy (privacy manifest) is listed on its own so it is always a
+      # bundle resource; App Store Connect refuses uploads without it (ITMS-91053).
+      - path: App
+        excludes:
+          - PrivacyInfo.xcprivacy
+      - path: App/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - package: ChessCore
       - package: StockfishKit
@@ -67,6 +73,8 @@ targets:
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Your spoken move is turned into text on this iPhone. Nothing is sent anywhere."
         CODE_SIGN_ENTITLEMENTS: App/ChessCoach.entitlements
         CURRENT_PROJECT_VERSION: "1"
+        # Only HTTPS (Apple's exempt encryption): no export-compliance question per build.
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
   ChessCoachTests:
     type: bundle.unit-test
     platform: iOS

@@ -38,8 +38,10 @@ final class Entitlements {
 
     init(apiKey: String? = Bundle.main.object(forInfoDictionaryKey: "RevenueCatAPIKey") as? String) {
         let key = (apiKey ?? "").trimmingCharacters(in: .whitespaces)
-        // An unexpanded "$(REVENUECAT_API_KEY)" also means "no key".
-        if key.isEmpty || key.hasPrefix("$(") {
+        // Only a public Apple SDK key ("appl_…") configures RevenueCat. Empty, an unexpanded
+        // "$(REVENUECAT_API_KEY)", a placeholder or a secret key all mean StoreKit 2 only, so an
+        // archive without Config/Secrets.xcconfig still sells through StoreKit.
+        if !key.hasPrefix("appl_") {
             backend = .storeKit
         } else {
             backend = .revenueCat
@@ -121,7 +123,7 @@ final class Entitlements {
                 for product in products {
                     found.append(await Self.plan(from: product, period: product.id == Self.yearlyID ? .yearly : .monthly))
                 }
-                plans = found.sorted { a, _ in a.period == .yearly }
+                plans = found.sorted { $0.period == .yearly && $1.period != .yearly }  // yearly first
             }
             #if DEBUG
             // `-demoPlans YES`: StoreKit's local config only serves runs started from Xcode;
