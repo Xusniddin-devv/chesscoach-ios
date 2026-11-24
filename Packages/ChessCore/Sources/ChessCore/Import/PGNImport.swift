@@ -138,7 +138,8 @@ public enum PGNImporter {
 
     /// The legal move written `san`: only moves to the SAN's destination square are tried.
     static func uci(san: String, fen: String) -> String? {
-        let clean = san.filter { !"+#!?".contains($0) }.replacingOccurrences(of: "0-0", with: "O-O")
+        var clean = san.filter { !"+#!?".contains($0) }
+        if clean == "0-0" || clean == "0-0-0" { clean = clean.replacingOccurrences(of: "0", with: "O") }
         let legal = Rules.legalMoves(fen: fen)
         let candidates: [String]
         if clean.hasPrefix("O-O") {

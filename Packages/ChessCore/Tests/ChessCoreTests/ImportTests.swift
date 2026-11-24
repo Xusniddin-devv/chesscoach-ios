@@ -129,6 +129,14 @@ final class Counter: @unchecked Sendable {
 }
 
 @Suite struct PGNImportTests {
+    @Test func zeroDigitCastlingConverts() {
+        let longFen = "r3kbnr/pppqpppp/2n5/3p1b2/3P1B2/2N5/PPPQPPPP/R3KBNR w KQkq - 6 5"
+        #expect(PGNImporter.uci(san: "0-0-0", fen: longFen) == "e1c1")
+        let shortFen = "rnbqk2r/pppp1ppp/5n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"
+        #expect(PGNImporter.uci(san: "0-0", fen: shortFen) == "e1g1")
+        #expect(PGNImporter.uci(san: "0-0+", fen: shortFen) == "e1g1")
+    }
+
     @Test func tokensDropCommentsVariationsNAGsAndNumbers() {
         let text = "1. e4 {[%clk 0:03:00]} 1... e5 2.Nf3 (2. f4 exf4) Nc6 $1 3. Bb5 a6?! ; note\n"
         #expect(PGNGame.tokens(text) == ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6?!"])

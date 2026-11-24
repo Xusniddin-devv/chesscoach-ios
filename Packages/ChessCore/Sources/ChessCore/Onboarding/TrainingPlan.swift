@@ -80,6 +80,7 @@ public struct TrainingPlan: Codable, Sendable, Equatable {
 
     /// Day index for `date` (0 on the creation day), or nil after the week.
     public func dayIndex(on date: Date, calendar: Calendar = .current) -> Int? {
+        guard !days.isEmpty else { return nil }
         let start = calendar.startOfDay(for: created)
         let day = calendar.dateComponents([.day], from: start, to: calendar.startOfDay(for: date)).day ?? 0
         return (0..<days.count).contains(day) ? day : (day < 0 ? 0 : nil)

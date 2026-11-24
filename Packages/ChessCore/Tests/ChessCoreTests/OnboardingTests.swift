@@ -134,6 +134,13 @@ private func analysed(_ verdicts: [Verdict], user: Piece.Color = .white, acc: Do
         #expect(plan.dayIndex(on: now.addingTimeInterval(8 * 86_400)) == nil)
     }
 
+    @Test func emptyPlanHasNoDay() {
+        var plan = TrainingPlan.make(weaknesses: [], rating: 500, ownMistakes: 0)
+        plan.days = []
+        #expect(plan.dayIndex(on: plan.created) == nil)
+        #expect(plan.dayIndex(on: plan.created.addingTimeInterval(-3 * 86_400)) == nil)
+    }
+
     @Test func noOwnMistakesStartsWithBankPuzzles() {
         let plan = TrainingPlan.make(weaknesses: [], rating: 500, ownMistakes: 0)
         #expect(plan.days[0].tasks.first?.kind == .puzzles)

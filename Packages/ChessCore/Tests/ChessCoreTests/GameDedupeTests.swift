@@ -1,0 +1,31 @@
+import Foundation
+import Testing
+@testable import ChessCore
+
+/// Sync can leave two rows for one game (same stable id); one copy is kept.
+@Suite struct GameDedupeTests {
+    private func copy(_ id: UUID, moves: Int = 2, pass: AnalysisPass? = nil) -> GameSnapshot {
+        let analysis = pass.map {
+            GameAnalysis(depth: 14, verdicts: [], whiteWin: [], accuracyWhite: 80, accuracyBlack: 70, pass: $0)
+        }
+        return GameSnapshot(id: id, date: .now, botId: "chesscom", userColor: .white, mode: .silent,
+                            startFen: Rules.startFen, moves: Array(repeating: "e2e4", count: moves),
+                            sans: [], result: .whiteWins, verdicts: [], analysisVersion: 1,
+                            playerRatingUsed: 900, analysis: analysis, source: "chesscom")
+    }
+
+    @Test func fullAnalysisBeatsQuickBeatsNone() {
+        let id = UUID()
+        #expect(GameDedupe.keeper([copy(id), copy(id, pass: .quick), copy(id, pass: .full)]) == 2)
+        #expect(GameDedupe.keeper([copy(id), copy(id, pass: .quick)]) == 1)
+    }
+
+    @Test func tiesKeepTheFirstCopy() {
+        let id = UUID()
+        #expect(GameDedupe.keeper([copy(id, pass: .full), copy(id, pass: .full)]) == 0)
+        #expect(GameDedupe.keeper([copy(id), copy(id)]) == 0)
+        // An analysis-board line that grew on one device: the longer copy wins.
+        #expect(GameDedupe.keeper([copy(id, moves: 2), copy(id, moves: 5)]) == 1)
+        #expect(GameDedupe.keeper([]) == nil)
+    }
+}
