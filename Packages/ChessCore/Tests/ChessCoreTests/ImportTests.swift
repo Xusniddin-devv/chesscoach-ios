@@ -56,6 +56,9 @@ private func chessComRoutes() -> FixtureHTTP {
         #expect(p.ratings["rapid"] == 2838 && p.ratings["blitz"] == 3442)
         #expect(p.currentRating == 2838)
         #expect(p.currentRatingKey == "rapid")
+        // Games across every time control's record; the account's opening date.
+        #expect(p.gameCount == 73 + 11 + 4 + 205 + 69 + 220 + 17389 + 2576 + 1202 + 36294 + 5577 + 4400)
+        #expect(p.joined == Date(timeIntervalSince1970: 1389043258))
     }
 
     @Test func chessComUnknownUserIsNotFound() async {
@@ -80,7 +83,7 @@ private func chessComRoutes() -> FixtureHTTP {
         #expect(pgns.count == 5)
         #expect(counter.value == 5)
         // November's last game (newest) comes first.
-        let first = try #require(PGNGame.parse(pgns[0]))
+        let first = try #require(PGNGame.parse(pgns[0].pgn))
         let novemberLast = try JSONDecoder().decode(MonthProbe.self, from: fixture("chesscom-games-2026-11.json")).games.last!.pgn
         #expect(first == PGNGame.parse(novemberLast))
         // The broken September archive was never needed.
@@ -95,7 +98,7 @@ private func chessComRoutes() -> FixtureHTTP {
     @Test func lichessProfileAndNDJSONGames() async throws {
         let http = FixtureHTTP()
         http.route("https://lichess.org/api/user/DrNykterstein", file: "lichess-user.json")
-        http.route("https://lichess.org/api/games/user/DrNykterstein?max=12&moves=true&pgnInJson=true&clocks=false&evals=false",
+        http.route("https://lichess.org/api/games/user/DrNykterstein?max=12&moves=true&pgnInJson=true&clocks=false&evals=true&accuracy=true",
                    file: "lichess-games.ndjson")
         let client = LichessClient(http: http)
         let p = try await client.profile("DrNykterstein")
@@ -103,6 +106,7 @@ private func chessComRoutes() -> FixtureHTTP {
         // Rapid has no games on this account (Lichess still reports a provisional 2500): skipped.
         #expect(p.ratings["rapid"] == nil && p.ratings["blitz"] == 3194)
         #expect(p.currentRating == 3194 && p.currentRatingKey == "blitz")
+        #expect(p.gameCount == 10455)
         let pgns = try await client.recentGames("DrNykterstein", limit: 2)
         #expect(pgns.count == 2)
         #expect(http.requests.last?.1 == "application/x-ndjson")

@@ -46,8 +46,21 @@ public struct GameSnapshot: Codable, Sendable, Equatable {
     /// Imported games: the game's page on the platform.
     public var externalURL: String?
 
+    /// Imported games: the accuracies the platform itself computed (chess.com game review,
+    /// Lichess server analysis), when it had them. Never estimated by this app.
+    public var platformAccuracy: PlatformAccuracy?
+
     /// True for games brought in from chess.com or Lichess.
     public var isImported: Bool { source != nil }
+
+    /// No analysis yet, or only a quick one: Review (and the idle queue) analyse it at full depth.
+    public var needsFullAnalysis: Bool { analysis?.isFull != true }
+
+    /// The user's accuracy to show: the platform's own number first, else this app's analysis.
+    public var userAccuracy: Double? {
+        if let a = platformAccuracy?.accuracy(for: userColor) { return a }
+        return analysis.map { userColor == .white ? $0.accuracyWhite : $0.accuracyBlack }
+    }
 
     public init(id: UUID, date: Date, botId: String, userColor: Piece.Color, mode: PlayMode,
                 startFen: String, moves: [String], sans: [String], result: GameResult,
@@ -55,7 +68,8 @@ public struct GameSnapshot: Codable, Sendable, Equatable {
                 schemaVersion: Int = GameSnapshot.currentSchemaVersion,
                 analysis: GameAnalysis? = nil, openingName: String? = nil,
                 source: String? = nil, opponentName: String? = nil, opponentRating: Int? = nil,
-                externalURL: String? = nil) {
+                externalURL: String? = nil, platformAccuracy: PlatformAccuracy? = nil) {
+        self.platformAccuracy = platformAccuracy
         self.source = source
         self.opponentName = opponentName
         self.opponentRating = opponentRating
@@ -103,6 +117,32 @@ extension GameSnapshot {
         opponentName = try? c.decodeIfPresent(String.self, forKey: .opponentName)
         opponentRating = try? c.decodeIfPresent(Int.self, forKey: .opponentRating)
         externalURL = try? c.decodeIfPresent(String.self, forKey: .externalURL)
+        platformAccuracy = (try? c.decodeIfPresent(PlatformAccuracy.self, forKey: .platformAccuracy)) ?? nil
+    }
+}
+
+/// Accuracies a platform reported for one game (either side may be missing).
+public struct PlatformAccuracy: Codable, Sendable, Equatable {
+    public var white: Double?
+    public var black: Double?
+    /// "chesscom" or "lichess".
+    public var source: String
+
+    public init(white: Double?, black: Double?, source: String) {
+        self.white = white
+        self.black = black
+        self.source = source
+    }
+
+    public func accuracy(for color: Piece.Color) -> Double? {
+        color == .white ? white : black
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        white = try? c.decodeIfPresent(Double.self, forKey: .white)
+        black = try? c.decodeIfPresent(Double.self, forKey: .black)
+        source = (try? c.decodeIfPresent(String.self, forKey: .source)) ?? ""
     }
 }
 

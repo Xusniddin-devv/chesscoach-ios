@@ -1,7 +1,8 @@
 import Foundation
 
 /// Lichess public API (no token): `api/user/{u}` for the account and its perfs,
-/// `api/games/user/{u}?max=N&moves=true&pgnInJson=true` as NDJSON for the games.
+/// `api/games/user/{u}?max=N&moves=true&pgnInJson=true&evals=true&accuracy=true` as NDJSON for
+/// the games; games analysed on Lichess carry per-ply evals and each side's accuracy.
 public struct LichessClient: GameImportClient {
     public let http: any HTTPClient
     public let base: URL
@@ -24,11 +25,13 @@ public struct LichessClient: GameImportClient {
             if let perf = user.perfs?[key], let rating = perf.rating, (perf.games ?? 1) > 0 { ratings[key] = rating }
         }
         return PlatformProfile(platform: .lichess, username: user.username ?? name, realName: nil,
-                               title: user.title, avatarURL: nil, ratings: ratings)
+                               title: user.title, avatarURL: nil, ratings: ratings,
+                               gameCount: user.count?.all,
+                               joined: user.createdAt.map { Date(timeIntervalSince1970: $0 / 1000) })
     }
 
     public func recentGames(_ username: String, limit: Int = 20,
-                            progress: @Sendable (Int) -> Void = { _ in }) async throws -> [String] {
+                            progress: @Sendable (Int) -> Void = { _ in }) async throws -> [ImportedGame] {
         guard let name = sanitizedUsername(username) else { throw ImportError.userNotFound }
         var components = URLComponents(url: base.appendingPathComponent("api/games/user/\(name)"),
                                        resolvingAgainstBaseURL: false)!
@@ -38,20 +41,24 @@ public struct LichessClient: GameImportClient {
             URLQueryItem(name: "moves", value: "true"),
             URLQueryItem(name: "pgnInJson", value: "true"),
             URLQueryItem(name: "clocks", value: "false"),
-            URLQueryItem(name: "evals", value: "false"),
+            URLQueryItem(name: "evals", value: "true"),
+            URLQueryItem(name: "accuracy", value: "true"),
         ]
         let data = try await http.fetch(components.url!, accept: "application/x-ndjson")
         return Self.parseNDJSON(data, limit: limit, progress: progress)
     }
 
     /// Standard games' PGNs from an NDJSON body, in order (Lichess sends newest first).
-    static func parseNDJSON(_ data: Data, limit: Int, progress: @Sendable (Int) -> Void = { _ in }) -> [String] {
-        var pgns: [String] = []
+    static func parseNDJSON(_ data: Data, limit: Int, progress: @Sendable (Int) -> Void = { _ in }) -> [ImportedGame] {
+        var pgns: [ImportedGame] = []
         for line in data.split(separator: UInt8(ascii: "\n")) where !line.isEmpty {
             guard let game = try? JSONDecoder().decode(Game.self, from: Data(line)),
                   (game.variant ?? "standard") == "standard",
                   let pgn = game.pgn, !pgn.isEmpty else { continue }
-            pgns.append(pgn)
+            let white = game.players?.white?.analysis?.accuracy
+            let black = game.players?.black?.analysis?.accuracy
+            let accuracy = white == nil && black == nil ? nil : PlatformAccuracy(white: white, black: black, source: "lichess")
+            pgns.append(ImportedGame(pgn: pgn, accuracy: accuracy, evals: game.analysis?.isEmpty == false ? game.analysis : nil))
             progress(pgns.count)
             if pgns.count == limit { break }
         }
@@ -64,12 +71,35 @@ public struct LichessClient: GameImportClient {
         struct Perf: Decodable { var rating: Int?; var games: Int? }
         var username: String?
         var title: String?
+        struct Count: Decodable { var all: Int? }
         var disabled: Bool?
         var perfs: [String: Perf]?
+        var count: Count?
+        var createdAt: Double?
     }
 
     private struct Game: Decodable {
+        struct Players: Decodable {
+            struct Side: Decodable {
+                struct Analysis: Decodable { var accuracy: Double? }
+                var analysis: Analysis?
+            }
+            var white: Side?
+            var black: Side?
+        }
         var variant: String?
         var pgn: String?
+        var players: Players?
+        var analysis: [PlatformEval]?
+
+        // Lenient: anything odd outside the PGN is dropped, the game is kept.
+        init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            variant = try? c.decodeIfPresent(String.self, forKey: .variant)
+            pgn = try? c.decodeIfPresent(String.self, forKey: .pgn)
+            players = (try? c.decodeIfPresent(Players.self, forKey: .players)) ?? nil
+            analysis = (try? c.decodeIfPresent([PlatformEval].self, forKey: .analysis)) ?? nil
+        }
+        private enum CodingKeys: String, CodingKey { case variant, pgn, players, analysis }
     }
 }

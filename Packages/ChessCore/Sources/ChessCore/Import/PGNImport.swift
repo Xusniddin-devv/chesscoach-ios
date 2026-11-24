@@ -124,6 +124,18 @@ public enum PGNImporter {
             externalURL: site.flatMap { $0.hasPrefix("http") ? $0 : nil })
     }
 
+    /// `snapshot(pgn:)` plus what the platform already knew: its accuracies, and a quick
+    /// analysis from its per-ply evals when they cover every ply (source marked).
+    public static func snapshot(game: ImportedGame, username: String, platform: ImportPlatform,
+                                fallbackDate: Date = .now) throws -> GameSnapshot {
+        var s = try snapshot(pgn: game.pgn, username: username, platform: platform, fallbackDate: fallbackDate)
+        s.platformAccuracy = game.accuracy
+        if let evals = game.evals {
+            s.analysis = PlatformEvals.analysis(startFen: s.startFen, moves: s.moves, evals: evals, source: platform.rawValue)
+        }
+        return s
+    }
+
     /// The legal move written `san`: only moves to the SAN's destination square are tried.
     static func uci(san: String, fen: String) -> String? {
         let clean = san.filter { !"+#!?".contains($0) }.replacingOccurrences(of: "0-0", with: "O-O")

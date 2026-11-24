@@ -1,57 +1,5 @@
 import Foundation
 
-/// What the onboarding import screen hears while games are analysed one after another.
-public enum OnboardingEvent: Sendable, Equatable {
-    /// Game `index` (0-based) of `total` started.
-    case gameStarted(index: Int, total: Int)
-    /// Position `done` of `positions` in game `index` was searched.
-    case position(index: Int, done: Int, positions: Int)
-    /// Game `index` finished; the snapshot now carries its analysis.
-    case gameFinished(index: Int, snapshot: GameSnapshot)
-    /// Game `index` could not be analysed (illegal move, engine error); it is kept unanalysed.
-    case gameFailed(index: Int)
-}
-
-/// Runs `GameAnalyzer` over imported games one at a time (one engine), reporting each step.
-/// Depth 12: onboarding wants an answer in minutes, not the review-grade depth.
-public struct OnboardingAnalysis: Sendable {
-    public static let defaultDepth = 12
-
-    public let engine: any ChessEngine
-    public let depth: Int
-
-    public init(engine: any ChessEngine, depth: Int = OnboardingAnalysis.defaultDepth) {
-        self.engine = engine
-        self.depth = depth
-    }
-
-    /// Returns every game, analysed where possible, in the input order. Cancelling stops after
-    /// the current position and returns what is done (finished games analysed, the rest not).
-    public func run(_ games: [GameSnapshot],
-                    onEvent: @Sendable (OnboardingEvent) -> Void) async -> [GameSnapshot] {
-        var out = games
-        let analyzer = GameAnalyzer(engine: engine, depth: depth)
-        for (i, game) in games.enumerated() {
-            if Task.isCancelled { break }
-            onEvent(.gameStarted(index: i, total: games.count))
-            do {
-                let analysis = try await analyzer.analyze(startFen: game.startFen, moves: game.moves) { done, total in
-                    onEvent(.position(index: i, done: done, positions: total))
-                }
-                var analysed = game
-                analysed.analysis = analysis
-                out[i] = analysed
-                onEvent(.gameFinished(index: i, snapshot: analysed))
-            } catch is CancellationError {
-                break
-            } catch {
-                onEvent(.gameFailed(index: i))
-            }
-        }
-        return out
-    }
-}
-
 /// The user's side of one analysed game.
 public struct GameSummary: Sendable, Equatable {
     public var accuracy: Double?
@@ -62,7 +10,7 @@ public struct GameSummary: Sendable, Equatable {
 
     public init(_ snapshot: GameSnapshot) {
         let verdicts = (snapshot.analysis?.verdicts ?? snapshot.verdicts).filter { $0.mover == snapshot.userColor }
-        accuracy = snapshot.analysis.map { snapshot.userColor == .white ? $0.accuracyWhite : $0.accuracyBlack }
+        accuracy = snapshot.userAccuracy
         switch snapshot.result {
         case .whiteWins: won = snapshot.userColor == .white
         case .blackWins: won = snapshot.userColor == .black
