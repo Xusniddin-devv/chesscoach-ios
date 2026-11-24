@@ -187,6 +187,8 @@ struct ProfileModel {
     }
 
     static func accuracy(of snapshot: GameSnapshot) -> Double? {
+        // Imported games: the platform's own number first (chess.com review, Lichess analysis).
+        if let platform = snapshot.platformAccuracy?.accuracy(for: snapshot.userColor) { return platform }
         if let analysis = snapshot.analysis {
             guard analysis.verdicts.contains(where: { $0.mover == snapshot.userColor }) else { return nil }
             return snapshot.userColor == .white ? analysis.accuracyWhite : analysis.accuracyBlack

@@ -40,6 +40,7 @@ struct ReviewView: View {
             if UserDefaults.standard.string(forKey: "debugGuess") != nil, model?.analysis != nil, full { guessing = true }
             #endif
         }
+        .holdsEngine()  // the background analysis queue yields while this screen uses the engine
         .onDisappear { model?.cancel() }
     }
 

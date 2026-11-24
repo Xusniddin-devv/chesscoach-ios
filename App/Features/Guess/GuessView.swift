@@ -18,6 +18,7 @@ struct GuessView: View {
             }
         }
         .background(DS.Color.background.ignoresSafeArea())
+        .holdsEngine()  // the background analysis queue yields while guesses are scored
         .navigationTitle("Guess the move")
         .navigationSubtitle(subtitle)
         .navigationBarTitleDisplayMode(.inline)

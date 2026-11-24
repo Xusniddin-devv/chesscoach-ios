@@ -75,8 +75,10 @@ final class ReviewModel {
             analysisVersion: 1, playerRatingUsed: PlayerProfile.defaultRating)
         self.snapshot = snapshot
         orientation = snapshot.userColor
+        // A quick pass (onboarding) or a Lichess-evals analysis is upgraded: Review re-analyses
+        // at full depth on open and stores that.
         if let stored = snapshot.analysis, stored.version == GameAnalysis.currentVersion,
-           stored.verdicts.count == snapshot.moves.count {
+           stored.verdicts.count == snapshot.moves.count, stored.isFull {
             analysis = stored
         }
         grader = LineGrader(engine: engine, startFen: snapshot.startFen, depth: Self.depth)

@@ -54,6 +54,7 @@ struct FreeplayView: View {
             if UserDefaults.standard.bool(forKey: "debugEditor") { editing = true }
             #endif
         }
+        .holdsEngine()  // the background analysis queue yields while this screen uses the engine
         .onDisappear {
             model?.save()
             model?.cancel()
