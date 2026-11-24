@@ -136,7 +136,7 @@ struct TodayPlanCard: View {
         case .ownMistakes:
             if remaining == 0 { paywall = .unlimitedPuzzles; return }
             let done = Set(progress.filter(attemptedToday).map(\.puzzleId))
-            let own = games.compactMap(\.snapshot).flatMap(BlunderPuzzles.from(snapshot:)).filter { !done.contains($0.id) }
+            let own = games.compactMap(\.snapshot).filter { !$0.isFreeplay }.flatMap(BlunderPuzzles.from(snapshot:)).filter { !done.contains($0.id) }
             let queue = Array(own.prefix(min(max(1, task.count), remaining ?? .max)))
             guard !queue.isEmpty else { return }
             session = PuzzleSessionSetup(kind: .review, title: "Your mistakes", puzzles: queue,
@@ -151,7 +151,7 @@ struct TodayPlanCard: View {
     }
 
     private func rebuild(from old: TrainingPlan) {
-        let snapshots = games.compactMap(\.snapshot)
+        let snapshots = games.compactMap(\.snapshot).filter { !$0.isFreeplay }
         let report = WeaknessReport(snapshots)
         let rating = profiles.first?.currentRating ?? old.rating
         let own = snapshots.flatMap(BlunderPuzzles.from(snapshot:)).count

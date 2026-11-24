@@ -14,8 +14,9 @@ struct ProfileModel {
         let accuracy: Double?
 
         var id: UUID { record.id }
-        var bot: Bot? { Bot.all.first { $0.id == snapshot.botId } }
-        var botName: String { bot?.name ?? snapshot.botId }
+        var bot: Bot? { snapshot.isImported ? nil : Bot.all.first { $0.id == snapshot.botId } }
+        /// The bot, or an imported game's human opponent.
+        var botName: String { bot?.name ?? snapshot.opponentName ?? snapshot.botId }
         var outcome: RatedGame.Outcome? { ProfileModel.outcome(of: snapshot) }
 
         /// The final position.
@@ -78,7 +79,8 @@ struct ProfileModel {
             .map { Game(record: $0.0, snapshot: $0.1, accuracy: Self.accuracy(of: $0.1)) }
         ratedGames = games.compactMap { game in
             guard let outcome = game.outcome else { return nil }
-            let elo = game.bot?.elo ?? PlayerProfile.defaultRating
+            // Imported games carry the human opponent's rating.
+            let elo = game.bot?.elo ?? game.snapshot.opponentRating ?? PlayerProfile.defaultRating
             return RatedGame(botElo: elo, outcome: outcome, accuracy: game.accuracy)
         }
         estimate = estimateRating(ratedGames)

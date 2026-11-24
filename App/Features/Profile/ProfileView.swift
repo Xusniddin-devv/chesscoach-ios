@@ -6,15 +6,19 @@ import ChessCore
 /// games as a filmstrip of final positions (→ Review), how you move (accuracy and the quality
 /// of your moves per game), and what keeps costing you (habits, shown on a real position).
 struct ProfileView: View {
-    private enum Route: Hashable { case review(GameRecord) }
+    private enum Route: Hashable { case review(GameRecord), settings }
 
     @Query(sort: \GameRecord.date, order: .reverse) private var records: [GameRecord]
+    @Query(sort: \UserProfile.updated, order: .reverse) private var profiles: [UserProfile]
+    @Query private var progress: [PuzzleProgress]
+    @Environment(Entitlements.self) private var entitlements
     @State private var path: [Route] = []
     @State private var scroll = ScrollPosition(edge: .top)
+    @State private var fixSession: PuzzleSessionSetup?
+    @State private var paywall = false
 
-    /// Opens the puzzles for a habit. Nil until the Puzzles feature is on this branch: the
-    /// "Fix it" button is hidden meanwhile (TODO: wire to Puzzles after the merge).
-    var onFix: ((Motif) -> Void)?
+    /// Puzzles in a "Fix it" session.
+    static let fixCount = 5
 
     static let margin: CGFloat = 20
 
@@ -23,14 +27,14 @@ struct ProfileView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    PieceHero(model: model)
+                    PieceHero(model: model, goal: goal(model))
                     lastGames(model)
                     if let accuracy = model.recentAccuracy {
                         howYouMove(model, accuracy: accuracy)
                     }
                     let weaknesses = model.weaknesses
                     if !weaknesses.isEmpty {
-                        costing(Array(weaknesses.prefix(3)), gradedGames: model.gradedGames)
+                        costing(Array(weaknesses.prefix(3)), model: model)
                     }
                     #if DEBUG
                     NavigationLink("Engine benchmark (debug)") { EngineBenchmarkView() }
@@ -48,6 +52,14 @@ struct ProfileView: View {
             .scrollPosition($scroll)
             .background(DS.Color.background)
             .navigationTitle("You")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: Route.settings) {
+                        Image("Icons/settings").renderingMode(.template)
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
             #if DEBUG
             .task {
                 guard UserDefaults.standard.string(forKey: "debugScroll") == "bottom" else { return }
@@ -58,9 +70,47 @@ struct ProfileView: View {
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .review(let record): ReviewView(record: record)
+                case .settings: SettingsView()
                 }
             }
         }
+        .fullScreenCover(item: $fixSession) { PuzzleSessionView(setup: $0) }
+        .paywall(isPresented: $paywall, feature: .unlimitedPuzzles)
+        #if DEBUG
+        .task { if ["settings", "paywall"].contains(UserDefaults.standard.string(forKey: "debugOpen")) { path = [.settings] } }
+        .task {
+            // `-debugFix 1`: "Fix it" for the top habit (screenshots).
+            guard UserDefaults.standard.string(forKey: "debugFix") != nil,
+                  let top = ProfileModel(records: records).weaknesses.first else { return }
+            fix(top.motif, model: ProfileModel(records: records))
+        }
+        #endif
+    }
+
+    // MARK: Goal and Fix it
+
+    /// The saved goal from onboarding, measured from the current estimate (else the
+    /// platform rating): "Goal 1200 by March · 260 to go". Nil without a goal.
+    private func goal(_ model: ProfileModel) -> PieceHero.Goal? {
+        guard let profile = profiles.first, let target = profile.goalRating else { return nil }
+        return PieceHero.Goal(target: target, by: profile.goalDate,
+                              current: model.estimate ?? profile.currentRating)
+    }
+
+    /// Five puzzles for one habit: the user's own positions first, then bank puzzles on its
+    /// themes. Uses the free daily allowance like the Puzzles tab.
+    private func fix(_ motif: Motif, model: ProfileModel) {
+        let remaining = PuzzleAllowance.remaining(progress, dailyId: PuzzleBank.daily(for: .now)?.id,
+                                                  isPro: entitlements.isPro)
+        if remaining == 0 { paywall = true; return }
+        let snapshots = records.compactMap(\.snapshot)
+        let puzzles = BlunderPuzzles.fixIt(motif, snapshots: snapshots, rating: model.trainingRating,
+                                           count: min(Self.fixCount, remaining ?? Self.fixCount))
+        guard !puzzles.isEmpty else { return }
+        let own = Set(snapshots.filter { !$0.isFreeplay }.flatMap { BlunderPuzzles.from(snapshot: $0) }.map(\.id))
+        fixSession = PuzzleSessionSetup(
+            kind: .review, title: motif.title, puzzles: puzzles,
+            sources: Dictionary(puzzles.map { ($0.id, own.contains($0.id) ? "blunder" : "bank") }, uniquingKeysWith: { a, _ in a }))
     }
 
     private func sectionTitle(_ text: String) -> some View {
@@ -131,10 +181,11 @@ struct ProfileView: View {
     // MARK: What keeps costing you
 
     @ViewBuilder
-    private func costing(_ weaknesses: [ProfileModel.Weakness], gradedGames: Int) -> some View {
+    private func costing(_ weaknesses: [ProfileModel.Weakness], model: ProfileModel) -> some View {
+        let gradedGames = model.gradedGames
         sectionTitle("What keeps costing you")
         if let top = weaknesses.first {
-            WeaknessCard(weakness: top, gradedGames: gradedGames, onFix: onFix.map { fix in { fix(top.motif) } })
+            WeaknessCard(weakness: top, gradedGames: gradedGames, fixCount: Self.fixCount) { fix(top.motif, model: model) }
         }
         VStack(spacing: 0) {
             ForEach(weaknesses.dropFirst()) { weakness in
@@ -161,7 +212,14 @@ struct ProfileView: View {
 /// "Your piece": the rating in heavy numerals, the tier's name, the tier's cream piece large
 /// on the right, and the way to the next tier as eight board squares.
 private struct PieceHero: View {
+    struct Goal {
+        let target: Int
+        let by: Date?
+        let current: Int
+    }
+
     let model: ProfileModel
+    let goal: Goal?
 
     var body: some View {
         let tier = model.tier
@@ -192,6 +250,7 @@ private struct PieceHero: View {
                         .font(.system(size: 26, weight: .bold))
                         .tracking(-0.4)
                         .foregroundStyle(DS.Color.text)
+                    if let goal { GoalLine(goal: goal).padding(.top, 4) }
                     if let next = tier.next, let points = tier.pointsToNext(from: estimate) {
                         TierTrack(filled: Int((tier.progress(of: estimate) * 8).rounded(.down)), next: next)
                             .padding(.top, 22)
@@ -226,6 +285,25 @@ private struct PieceHero: View {
         }
         .frame(height: 250, alignment: .top)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// "Goal 1200 by March · 260 to go" (onboarding's goal); "reached" once the estimate is there.
+private struct GoalLine: View {
+    let goal: PieceHero.Goal
+
+    var body: some View {
+        let toGo = goal.target - goal.current
+        HStack(spacing: 0) {
+            Text("Goal ")
+            Text(verbatim: String(goal.target)).monospacedDigit().fontWeight(.semibold).foregroundStyle(DS.Color.text)
+            if let by = goal.by { Text(" by \(by.formatted(.dateTime.month(.wide)))") }
+            Text(toGo > 0 ? " · \(toGo) to go" : " · reached")
+        }
+        .font(.system(size: 13))
+        .foregroundStyle(DS.Color.textSecondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
     }
 }
 
@@ -390,7 +468,8 @@ private struct MoveQualityRibbon: View {
 private struct WeaknessCard: View {
     let weakness: ProfileModel.Weakness
     let gradedGames: Int
-    let onFix: (() -> Void)?
+    let fixCount: Int
+    let onFix: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -412,21 +491,19 @@ private struct WeaknessCard: View {
                 }
                 FrequencyPips(on: weakness.games, of: gradedGames, maxPips: 7)
                     .padding(.top, 2)
-                if let onFix {
-                    Button(action: onFix) {
-                        Text("Fix it · 5 puzzles")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(DS.Color.onAccent)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .background(DS.Color.accent, in: RoundedRectangle(cornerRadius: 11))
-                            .background(alignment: .bottom) {
-                                RoundedRectangle(cornerRadius: 11).fill(DS.Color.accentPressed).offset(y: 3)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 6)
+                Button(action: onFix) {
+                    Text("Fix it · \(fixCount) puzzles")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DS.Color.onAccent)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(DS.Color.accent, in: RoundedRectangle(cornerRadius: 11))
+                        .background(alignment: .bottom) {
+                            RoundedRectangle(cornerRadius: 11).fill(DS.Color.accentPressed).offset(y: 3)
+                        }
                 }
+                .buttonStyle(.plain)
+                .padding(.top, 6)
             }
             Spacer(minLength: 0)
         }

@@ -28,6 +28,17 @@ struct LearnView: View {
             LessonView(lesson: lesson) { next in open = next }
                 .id(lesson.id)
         }
+        #if DEBUG
+        // `-debugLesson <track>:<n>` (e.g. openings:1) opens a lesson (screenshots).
+        .task {
+            guard let arg = UserDefaults.standard.string(forKey: "debugLesson") else { return }
+            let parts = arg.split(separator: ":")
+            let track = LessonTrack.allCases.first { "\($0)" == parts.first.map(String.init) } ?? .openings
+            let n = parts.count > 1 ? Int(parts[1]) ?? 1 : 1
+            let lessons = LessonLibrary.lessons(in: track)
+            if lessons.indices.contains(n - 1) { open = lessons[n - 1] }
+        }
+        #endif
     }
 
     private var doneIds: Set<String> { Set(completed.map(\.lessonId)) }

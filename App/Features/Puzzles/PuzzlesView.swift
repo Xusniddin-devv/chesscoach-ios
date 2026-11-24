@@ -40,6 +40,25 @@ struct PuzzlesView: View {
         }
         .fullScreenCover(item: $session) { PuzzleSessionView(setup: $0) }
         .task(id: games.count) { blunders = Self.blunderPuzzles(from: games) }
+        #if DEBUG
+        // `-debugPuzzle daily|practice|mistakes` opens a solver session (screenshots).
+        .task {
+            switch UserDefaults.standard.string(forKey: "debugPuzzle") {
+            case "daily":
+                if let p = PuzzleBank.daily(for: .now) { session = PuzzleSessionSetup(kind: .daily, title: "Daily puzzle", puzzles: [p]) }
+            case "practice":
+                let pool = PuzzleBank.puzzles(band: practiceBand, theme: theme.isEmpty ? nil : theme)
+                session = PuzzleSessionSetup(kind: .practice, title: "Practice", puzzles: Array(pool.prefix(5)))
+            case "mistakes":
+                let own = Self.blunderPuzzles(from: games)
+                if !own.isEmpty {
+                    session = PuzzleSessionSetup(kind: .review, title: "Your mistakes", puzzles: Array(own.prefix(5)),
+                                                 sources: Dictionary(own.map { ($0.id, "blunder") }, uniquingKeysWith: { a, _ in a }))
+                }
+            default: break
+            }
+        }
+        #endif
     }
 
     // MARK: Data
@@ -53,7 +72,7 @@ struct PuzzlesView: View {
     }
 
     static func blunderPuzzles(from games: [GameRecord]) -> [Puzzle] {
-        games.compactMap(\.snapshot).flatMap(BlunderPuzzles.from(snapshot:))
+        games.compactMap(\.snapshot).filter { !$0.isFreeplay }.flatMap(BlunderPuzzles.from(snapshot:))
     }
 
     /// Own mistakes not yet seen or due, then bank puzzles once failed and due again.

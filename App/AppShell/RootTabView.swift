@@ -45,6 +45,7 @@ struct RootTabView: View {
             case "learn": tab = .learn
             default: break
             }
+            if ["settings", "paywall"].contains(UserDefaults.standard.string(forKey: "debugOpen")) { tab = .profile }
         }
         #endif
     }

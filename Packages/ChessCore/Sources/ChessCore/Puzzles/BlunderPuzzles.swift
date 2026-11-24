@@ -14,6 +14,24 @@ public enum BlunderPuzzles {
             .compactMap { puzzle(from: $0, snapshot: snapshot) }
     }
 
+    /// Profile's "Fix it" for one habit: the user's own positions with that motif first (newest
+    /// game first), then other own mistakes, then bank puzzles on the matching themes near
+    /// `rating`, up to `count`. `snapshots` newest first; analysis-board lines are skipped.
+    public static func fixIt(_ motif: Motif, snapshots: [GameSnapshot], rating: Int, count: Int = 5) -> [Puzzle] {
+        let own = snapshots.filter { !$0.isFreeplay }.flatMap { from(snapshot: $0) }
+        let matching = own.filter { $0.themes.contains(motif.rawValue) }
+        var picked = Array(matching.prefix(count))
+        var ids = Set(picked.map(\.id))
+        for puzzle in own where picked.count < count && !ids.contains(puzzle.id) {
+            picked.append(puzzle)
+            ids.insert(puzzle.id)
+        }
+        if picked.count < count {
+            picked += PuzzleBank.forWeakness(motif, rating: rating, excluding: ids).prefix(count - picked.count)
+        }
+        return picked
+    }
+
     public static func id(gameId: UUID, ply: Int) -> String { "\(gameId.uuidString)-\(ply)" }
 
     static func puzzle(from verdict: Verdict, snapshot: GameSnapshot) -> Puzzle? {

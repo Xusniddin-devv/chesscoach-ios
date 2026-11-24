@@ -28,7 +28,7 @@ enum ProFeature: String, CaseIterable, Identifiable {
     case unlimitedPuzzles
     /// Learn: lessons after the first in each track.
     case allLessons
-    /// chess.com game import.
+    /// chess.com / Lichess game import (outside onboarding, which is free).
     case gameImport
     /// Guess-the-move.
     case guessTheMove
@@ -50,8 +50,8 @@ enum ProFeature: String, CaseIterable, Identifiable {
         case .fullReview: "Every move of every game graded on the board, with the better line."
         case .unlimitedPuzzles: "Keep solving after today's five, including puzzles from your own games."
         case .allLessons: "Every lesson in every track."
-        case .gameImport: "Bring your chess.com games in and review them here."
-        case .guessTheMove: "Play through master games and guess each move."
+        case .gameImport: "Bring your chess.com and Lichess games in and review them here."
+        case .guessTheMove: "Guess the moves of your games and see how close you came to the engine."
         case .deepAnalysis: "Let the engine think longer on every position."
         case .liveGrading: "See each move graded as you play it."
         }

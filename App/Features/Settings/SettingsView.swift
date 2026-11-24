@@ -4,17 +4,19 @@ import StoreKit
 import ChessCore
 
 /// Settings: play defaults, feedback, Coach Pro, about (licenses, source), data.
-/// Hosted by Profile after the merge; until then Home opens it as a sheet (`SettingsSheet`).
+/// Pushed from Profile's gear (inside Profile's navigation stack).
 /// Premoves are not offered: Play has no premove support yet (spec lists the toggle).
 struct SettingsView: View {
     @Environment(Entitlements.self) private var entitlements
     @Environment(\.modelContext) private var context
+    @Environment(EngineHub.self) private var hub
 
     @AppStorage(Pref.sound) private var sound = Pref.Default.sound
     @AppStorage(Pref.haptics) private var haptics = Pref.Default.haptics
     @AppStorage(Pref.voice) private var voice = Pref.Default.voice
     @AppStorage(Pref.coordinates) private var coordinates = Pref.Default.coordinates
-    @AppStorage(Pref.wording) private var wording = Pref.Default.wording
+    /// Only set once the player picks one; until then the level decides (`EngineHub.wording`).
+    @AppStorage(Pref.wording) private var explicitWording: Pref.Wording?
     @AppStorage(Pref.defaultMode) private var defaultMode = Pref.Default.defaultMode
 
     @State private var showingPaywall = false
@@ -60,8 +62,13 @@ struct SettingsView: View {
 
     private var games: some View {
         SettingsGroup("Your games", footer: "Reads your latest 20 chess.com or Lichess games and builds a new week of training.") {
-            Button { importing = true } label: { SettingsLinkLabel(title: "Import games") }
-                .buttonStyle(.plain)
+            // The first import (onboarding) is free; importing again is Pro.
+            ProGate(.gameImport) {
+                Button { importing = true } label: { SettingsLinkLabel(title: "Import games") }
+                    .buttonStyle(.plain)
+            } locked: {
+                UpgradeButton(.gameImport) { SettingsLinkLabel(title: "Import games", value: "Pro") }
+            }
         }
     }
 
@@ -77,7 +84,7 @@ struct SettingsView: View {
                 .labelsHidden()
             }
             SettingsRow("Show moves as") {
-                Picker("Show moves as", selection: $wording) {
+                Picker("Show moves as", selection: wording) {
                     ForEach(Pref.Wording.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
@@ -86,6 +93,13 @@ struct SettingsView: View {
             }
             SettingsToggle("Board coordinates", isOn: $coordinates)
         }
+    }
+
+    /// The picker shows what the coach uses now: the player's choice, else the level's.
+    private var wording: Binding<Pref.Wording> {
+        Binding {
+            explicitWording ?? (hub.wording == .words ? .words : .notation)
+        } set: { explicitWording = $0 }
     }
 
     private var feedback: some View {
@@ -175,23 +189,5 @@ enum DataReset {
         for model in models { try context.delete(model: model) }
         try context.save()
         for key in Pref.all { UserDefaults.standard.removeObject(forKey: key) }
-    }
-}
-
-/// Settings in its own navigation stack with Done, for presenting as a sheet.
-struct SettingsSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            SettingsView()
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { dismiss() }
-                    }
-                }
-        }
-        .tint(DS.Color.text)
-        .presentationBackground(DS.Color.background)
     }
 }

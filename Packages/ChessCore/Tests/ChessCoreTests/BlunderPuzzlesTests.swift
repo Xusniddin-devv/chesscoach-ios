@@ -72,3 +72,22 @@ private func snapshot(_ verdicts: [Verdict], userColor: Piece.Color = .white) ->
     snap.analysis = GameAnalysis(depth: 14, verdicts: [knightBlunder()], whiteWin: [], accuracyWhite: 0, accuracyBlack: 0)
     #expect(BlunderPuzzles.from(snapshot: snap).count == 1)
 }
+
+@Test func fixItPutsTheHabitsOwnPositionsFirstThenFillsFromTheBank() throws {
+    let blunder = knightBlunder()
+    let motif = try #require(blunder.motifs.first)  // Ng5 hangs the knight
+    let own = BlunderPuzzles.fixIt(motif, snapshots: [snapshot([blunder])], rating: 800, count: 5)
+    #expect(own.count == 5)
+    #expect(own.first?.id == "\(gameId.uuidString)-5")
+    // The rest come from the bank, on the habit's themes, never the same puzzle twice.
+    let themes = Set(PuzzleBank.themes(for: motif))
+    #expect(own.dropFirst().allSatisfy { !themes.isDisjoint(with: $0.themes) })
+    #expect(Set(own.map(\.id)).count == 5)
+}
+
+@Test func fixItSkipsAnalysisBoardLines() {
+    var line = snapshot([knightBlunder()])
+    line.source = GameSnapshot.Source.freeplay
+    let picked = BlunderPuzzles.fixIt(.hangingPiece, snapshots: [line], rating: 800, count: 3)
+    #expect(!picked.contains { $0.id.hasPrefix(gameId.uuidString) })
+}
