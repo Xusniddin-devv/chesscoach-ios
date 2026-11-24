@@ -38,6 +38,8 @@ enum ProFeature: String, CaseIterable, Identifiable {
     /// Profile: the habits after the top one (`WeaknessAllowance`). Freeplay's live grades
     /// stay free (ruling, decisions.md "Pro gates").
     case allWeaknesses
+    /// New chess.com / Lichess games synced from the linked account on their own.
+    case autoSync
 
     var id: String { rawValue }
 
@@ -56,6 +58,7 @@ enum ProFeature: String, CaseIterable, Identifiable {
         case .guessTheMove: "Guess the moves of your games and see how close you came to the engine."
         case .deepAnalysis: "Let the engine think longer on every position."
         case .allWeaknesses: "See every habit that keeps costing you games, not just the top one."
+        case .autoSync: "Your new chess.com and Lichess games arrive on their own, analysed and turned into puzzles."
         }
     }
 }

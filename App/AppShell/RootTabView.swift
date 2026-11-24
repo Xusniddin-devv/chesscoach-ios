@@ -8,8 +8,11 @@ struct RootTabView: View {
 
     @Environment(EngineHub.self) private var hub
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(Entitlements.self) private var entitlements
     @Environment(\.hardPaywall) private var hardPaywall
+    @Environment(GameAutoSync.self) private var autoSync: GameAutoSync?
+    @Environment(BackgroundAnalysis.self) private var analysis: BackgroundAnalysis?
     @AppStorage(Pref.hasOnboarded) private var hasOnboarded = false
     @Query private var records: [GameRecord]
     /// Onboarding saves the profile as it finishes, so a profile row means "onboarded" on
@@ -20,8 +23,23 @@ struct RootTabView: View {
     /// Set while the onboarding flow is on screen: it saves the profile before its own
     /// paywall step, and that must not swap it for the launch gate.
     @State private var onboardingInProgress = false
+    /// The user is mid-onboarding (picked an account or started the questions).
+    @State private var onboardingEngaged = false
+    @State private var launched = false
 
-    private var isOnboarded: Bool { hasOnboarded || !profiles.isEmpty }
+    private static var inTests: Bool { ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil }
+
+    private var isOnboarded: Bool {
+        Self.showsTabs(hasOnboarded: hasOnboarded, hasProfile: !profiles.isEmpty, onboardingEngaged: onboardingEngaged)
+    }
+
+    /// Onboarded here, or a profile synced from another device (new phone, reinstall) before
+    /// the user started onboarding. Once they have picked an account, a synced profile must
+    /// not cut the flow: their choice would never be saved and the old account's rating and
+    /// goal would show instead. Onboarding's save then replaces that profile.
+    static func showsTabs(hasOnboarded: Bool, hasProfile: Bool, onboardingEngaged: Bool) -> Bool {
+        hasOnboarded || (hasProfile && !onboardingEngaged)
+    }
 
     private var route: LaunchRoute {
         if Self.skipsOnboarding { return .tabs }
@@ -35,7 +53,7 @@ struct RootTabView: View {
             case .tabs:
                 tabs.transition(.opacity)
             case .onboarding:
-                OnboardingFlow {
+                OnboardingFlow(onEngagedChange: { onboardingEngaged = $0 }) {
                     withAnimation(.easeInOut(duration: 0.4)) {
                         hasOnboarded = true
                         onboardingInProgress = false
@@ -52,20 +70,34 @@ struct RootTabView: View {
         .animation(.easeInOut(duration: 0.3), value: route)
         .tint(DS.Color.accent)
         .preferredColorScheme(.dark)
-        // The player's level follows the saved games: Training thresholds and wording.
-        .task(id: GameRecord.fingerprint(records)) {
-            let profile = ProfileModel(records: records)
+        // The player's level: the platform rating for an imported player, else the saved
+        // games' estimate. Training thresholds and wording.
+        .task(id: [GameRecord.fingerprint(records), profiles.current?.platformRating ?? 0]) {
+            let profile = ProfileModel(records: records, platformRating: profiles.current?.platformRating)
             hub.playerRating = profile.trainingRating
             hub.playerTier = profile.tier
         }
         // A profile synced from another device: onboarded here too (the background full
         // pass waits for this flag).
         .onChange(of: profiles.isEmpty, initial: true) { _, empty in
-            if !empty && !hasOnboarded { hasOnboarded = true }
+            if !empty && !hasOnboarded && !onboardingEngaged { hasOnboarded = true }
         }
         // Copies of one game left by sync (a re-import on a second phone) are merged at
         // launch and whenever iCloud delivers changes.
         .task { GameRecord.mergeDuplicates(in: context) }
+        // Auto-sync of the linked account on launch and every return to the foreground
+        // (throttled inside); Pro is remembered for background refreshes.
+        .onChange(of: entitlements.isPro, initial: true) { old, pro in
+            // The store answers after launch: a launch-time `false` is not a lapse.
+            guard pro || old != pro else { return }
+            autoSync?.notePro(pro)
+            if pro { syncNow(.launch) }
+        }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            guard phase == .active else { return }
+            syncNow(launched ? .foreground : .launch)
+            launched = true
+        }
         .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in
             GameRecord.mergeDuplicates(in: context)
         }
@@ -77,6 +109,11 @@ struct RootTabView: View {
             saveIssues.report("your puzzle progress", error: CocoaError(.fileWriteUnknown), context: context)
         }
         #endif
+    }
+
+    private func syncNow(_ trigger: GameAutoSync.Trigger) {
+        guard isOnboarded, !Self.inTests, let autoSync else { return }
+        Task { await autoSync.sync(in: context, analysis: analysis, isPro: entitlements.isPro, trigger: trigger) }
     }
 
     private var tabs: some View {

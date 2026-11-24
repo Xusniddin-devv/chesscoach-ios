@@ -23,7 +23,7 @@ struct ProfileView: View {
     static let margin: CGFloat = 20
 
     var body: some View {
-        let model = ProfileModel(records: records)
+        let model = ProfileModel(records: records, platformRating: profiles.first?.platformRating)
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -50,6 +50,7 @@ struct ProfileView: View {
             .contentMargins(.bottom, DS.Spacing.l, for: .scrollContent)
             .scrollIndicators(.hidden)
             .scrollPosition($scroll)
+            .autoSyncRefreshable()
             .background(DS.Color.background)
             .navigationTitle("You")
             .toolbar {
@@ -83,19 +84,20 @@ struct ProfileView: View {
             // `-debugFix 1`: "Fix it" for the top habit (screenshots).
             guard UserDefaults.standard.string(forKey: "debugFix") != nil,
                   let top = ProfileModel(records: records).weaknesses.first else { return }
-            fix(top.motif, model: ProfileModel(records: records))
+            fix(top.motif, model: ProfileModel(records: records, platformRating: profiles.first?.platformRating))
         }
         #endif
     }
 
     // MARK: Goal and Fix it
 
-    /// The saved goal from onboarding, measured from the current estimate (else the
-    /// platform rating): "Goal 1200 by March · 260 to go". Nil without a goal.
+    /// The saved goal from onboarding, measured from the shown rating (the platform rating
+    /// for an imported player, else the estimate, else the starting guess):
+    /// "Goal 1200 by March · 260 to go". Nil without a goal.
     private func goal(_ model: ProfileModel) -> PieceHero.Goal? {
         guard let profile = profiles.first, let target = profile.goalRating else { return nil }
         return PieceHero.Goal(target: target, by: profile.goalDate,
-                              current: model.estimate ?? profile.currentRating)
+                              current: model.rating ?? profile.currentRating)
     }
 
     /// Five puzzles for one habit: the user's own positions first, then bank puzzles on its
@@ -267,21 +269,21 @@ private struct PieceHero: View {
                     .font(DS.Font.subheadline)
                     .foregroundStyle(DS.Color.textSecondary)
                     .padding(.top, DS.Spacing.s)
-                if let estimate = model.estimate {
-                    Text(estimate, format: .number.grouping(.never))
+                if let rating = model.rating {
+                    Text(rating, format: .number.grouping(.never))
                         .font(.system(size: 96, weight: .heavy))
                         .tracking(-4)
                         .foregroundStyle(DS.Color.text)
                         .padding(.top, -6)
                         .padding(.bottom, -14)  // the numerals' line box is taller than the digits
-                        .accessibilityLabel("Rating \(estimate)")
+                        .accessibilityLabel("Rating \(rating)")
                     Text(tier.name)
                         .font(.system(size: 26, weight: .bold))
                         .tracking(-0.4)
                         .foregroundStyle(DS.Color.text)
                     if let goal { GoalLine(goal: goal).padding(.top, 4) }
-                    if let next = tier.next, let points = tier.pointsToNext(from: estimate) {
-                        TierTrack(filled: Int((tier.progress(of: estimate) * 8).rounded(.down)), next: next)
+                    if let next = tier.next, let points = tier.pointsToNext(from: rating) {
+                        TierTrack(filled: Int((tier.progress(of: rating) * 8).rounded(.down)), next: next)
                             .padding(.top, 22)
                         Text("\(points) points to \(next.name)")
                             .font(.system(size: 13))
@@ -317,7 +319,7 @@ private struct PieceHero: View {
     }
 }
 
-/// "Goal 1200 by March · 260 to go" (onboarding's goal); "reached" once the estimate is there.
+/// "Goal 1200 by March · 260 to go" (onboarding's goal); "reached" once the rating is there.
 private struct GoalLine: View {
     let goal: PieceHero.Goal
 

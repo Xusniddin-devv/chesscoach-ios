@@ -105,17 +105,16 @@ struct DistributionScrubber: View {
     let current: Int
     @Binding var target: Int
 
-    private static let span = 1500
-    private var window: ClosedRange<Int> {
-        let width = RatingDistribution.bucketWidth
-        var lo = max(RatingDistribution.range.lowerBound, (current / width) * width - 300)
-        if lo + Self.span > RatingDistribution.range.upperBound { lo = RatingDistribution.range.upperBound - Self.span }
-        return lo...(lo + Self.span)
-    }
+    private static let span = GoalModel.pickerSpan
+    /// Always reaches above `current`, also past the distribution's top (a 3000+ player).
+    private var window: ClosedRange<Int> { GoalModel.pickerWindow(current: current) }
 
     var body: some View {
         let window = window
-        let bars = distribution.buckets.filter { window.contains($0.rating) && $0.rating < window.upperBound }
+        // One bar per 50 across the whole window (empty past the distribution's top).
+        let bars = stride(from: window.lowerBound, to: window.upperBound, by: RatingDistribution.bucketWidth).map {
+            (rating: $0, share: distribution.below($0 + RatingDistribution.bucketWidth) - distribution.below($0))
+        }
         let peak = bars.map(\.share).max() ?? 1
         VStack(spacing: DS.Spacing.s) {
             GeometryReader { geo in
@@ -154,8 +153,7 @@ struct DistributionScrubber: View {
                 .gesture(DragGesture(minimumDistance: 0).onChanged { value in
                     let raw = window.lowerBound + Int(value.location.x / w * CGFloat(Self.span))
                     let snapped = (raw + 25) / 50 * 50
-                    let minimum = roundDown(current) + 50
-                    target = min(max(snapped, minimum), window.upperBound)
+                    target = GoalModel.clampTarget(snapped, current: current)
                 })
             }
             .frame(height: 132)
@@ -191,8 +189,8 @@ struct DistributionScrubber: View {
         .accessibilityValue("\(target)")
         .accessibilityAdjustableAction { direction in
             switch direction {
-            case .increment: target = min(target + 50, window.upperBound)
-            case .decrement: target = max(target - 50, roundDown(current) + 50)
+            case .increment: target = GoalModel.clampTarget(target + 50, current: current)
+            case .decrement: target = GoalModel.clampTarget(target - 50, current: current)
             @unknown default: break
             }
         }

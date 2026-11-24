@@ -19,6 +19,8 @@ struct SettingsView: View {
     /// Only set once the player picks one; until then the level decides (`EngineHub.wording`).
     @AppStorage(Pref.wording) private var explicitWording: Pref.Wording?
     @AppStorage(Pref.defaultMode) private var defaultMode = Pref.Default.defaultMode
+    @AppStorage(Pref.autoSync) private var autoSync = Pref.Default.autoSync
+    @Query(sort: \UserProfile.updated, order: .reverse) private var profiles: [UserProfile]
 
     @State private var showingPaywall = false
     @State private var showingManage = false
@@ -27,6 +29,7 @@ struct SettingsView: View {
     @State private var confirmingReset = false
     @State private var resetFailed = false
     @State private var importing = false
+    @State private var confirmingUnlink = false
     @State private var showingLicenses = false
 
     var body: some View {
@@ -60,6 +63,11 @@ struct SettingsView: View {
         .fullScreenCover(isPresented: $importing) {
             OnboardingFlow(reimport: true) { importing = false }
         }
+        .confirmationDialog("Unlink \(linkedTitle)?", isPresented: $confirmingUnlink, titleVisibility: .visible) {
+            Button("Unlink", role: .destructive) { GameAutoSync.unlink(in: context) }
+        } message: {
+            Text("New games stop syncing. The games already here, and your rating, stay.")
+        }
         .confirmationDialog("Delete all games and settings?", isPresented: $confirmingReset, titleVisibility: .visible) {
             Button("Delete everything", role: .destructive, action: reset)
         } message: {
@@ -69,14 +77,48 @@ struct SettingsView: View {
 
     // MARK: Sections
 
+    /// The linked chess.com / Lichess account (onboarding's pick), when there is one.
+    private var linked: UserProfile? {
+        profiles.first.flatMap { $0.importPlatform != nil && !$0.username.isEmpty ? $0 : nil }
+    }
+
+    private var linkedTitle: String {
+        guard let linked, let platform = linked.importPlatform else { return "account" }
+        return "\(linked.username) on \(platform.title)"
+    }
+
+    private var gamesFooter: String {
+        guard let platform = linked?.importPlatform else {
+            return "Reads your latest 20 chess.com or Lichess games and builds a new week of training."
+        }
+        return entitlements.isPro && autoSync
+            ? "New \(platform.title) games arrive on their own and are analysed in the background. Pull down on Home to check now. Only your public username is sent."
+            : "Change account reads the latest 20 games of another chess.com or Lichess account."
+    }
+
     private var games: some View {
-        SettingsGroup("Your games", footer: "Reads your latest 20 chess.com or Lichess games and builds a new week of training.") {
+        SettingsGroup("Your games", footer: gamesFooter) {
+            if let linked, let platform = linked.importPlatform {
+                SettingsRow("Linked account", detail: "\(platform.title) · \(linked.username)")
+                ProGate(.autoSync) {
+                    SettingsToggle("Auto-sync games", isOn: $autoSync)
+                } locked: {
+                    UpgradeButton(.autoSync) { SettingsLinkLabel(title: "Auto-sync games", value: "Pro") }
+                }
+            }
             // The first import (onboarding) is free; importing again is Pro.
+            let title = linked == nil ? "Import games" : "Change account"
             ProGate(.gameImport) {
-                Button { importing = true } label: { SettingsLinkLabel(title: "Import games") }
+                Button { importing = true } label: { SettingsLinkLabel(title: title) }
                     .buttonStyle(.plain)
             } locked: {
-                UpgradeButton(.gameImport) { SettingsLinkLabel(title: "Import games", value: "Pro") }
+                UpgradeButton(.gameImport) { SettingsLinkLabel(title: title, value: "Pro") }
+            }
+            if linked != nil {
+                Button { confirmingUnlink = true } label: {
+                    SettingsLinkLabel(title: "Unlink account", kind: .action, color: DS.Color.textSecondary)
+                }
+                .buttonStyle(.plain)
             }
         }
     }

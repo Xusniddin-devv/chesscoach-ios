@@ -47,13 +47,13 @@ struct HomeView: View {
     }
 
     var body: some View {
-        let profile = ProfileModel(records: allRecords)
+        let profile = ProfileModel(records: allRecords, platformRating: profiles.first?.platformRating)
         let nextBot = BotLadder(records: allRecords, profile: profile).next ?? .suggested
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    HomeHeader(streak: streak, rating: profile.estimate ?? profiles.first.map(\.currentRating),
-                               hasEstimate: profile.estimate != nil || profiles.first != nil,
+                    HomeHeader(streak: streak, rating: profile.rating ?? profiles.first.map(\.currentRating),
+                               hasEstimate: profile.rating != nil || profiles.first != nil,
                                goal: profiles.first?.goalRating, goalDate: profiles.first?.goalDate,
                                played: profile.finishedCount)
                     coach(profile, nextBot: nextBot)
@@ -88,6 +88,7 @@ struct HomeView: View {
             }
             .contentMargins(.bottom, 96, for: .scrollContent)
             .scrollIndicators(.hidden)
+            .autoSyncRefreshable()
             .background(DS.Color.background)
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Route.self) { route in
@@ -159,6 +160,8 @@ struct HomeView: View {
         case .draw?: parts.append("A draw with **\(last.botName)** \(when).")
         case nil: parts.append("Your game with **\(last.botName)** is still open.")
         }
+        // A synced (or imported) game, once analysed: its mistakes are puzzles now.
+        if let line = Self.importedPuzzlesLine(last) { parts.append(line) }
         if let habit = profile.weaknesses.first {
             let recent = profile.games.prefix(5).filter { game in
                 ProfileModel.userVerdicts(game.snapshot).contains { $0.motifs.contains(habit.motif) }
@@ -170,6 +173,17 @@ struct HomeView: View {
         }
         if let hook { parts.append("Now: \(hook).") }
         return (parts.joined(separator: " "), pose)
+    }
+
+    /// "One mistake in it is now a puzzle." for an analysed chess.com / Lichess game.
+    static func importedPuzzlesLine(_ game: ProfileModel.Game) -> String? {
+        guard game.snapshot.isImported, game.snapshot.analysis != nil else { return nil }
+        let count = game.record.blunderPuzzles.count
+        switch count {
+        case 0: return nil
+        case 1: return "One mistake in it is now a puzzle."
+        default: return "\(count) mistakes in it are now puzzles."
+        }
     }
 
     // MARK: Continue

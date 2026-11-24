@@ -12,9 +12,12 @@ struct OnboardingFlow: View {
     @Environment(\.hardPaywall) private var hardPaywall
     @Query private var lessons: [LessonProgress]
     let onFinish: () -> Void
+    /// Whether the flow must stay up against a synced profile (`OnboardingModel.holdsOnboarding`).
+    var onEngagedChange: (Bool) -> Void = { _ in }
 
-    init(reimport: Bool = false, onFinish: @escaping () -> Void) {
+    init(reimport: Bool = false, onEngagedChange: @escaping (Bool) -> Void = { _ in }, onFinish: @escaping () -> Void) {
         _model = State(initialValue: OnboardingModel(reimport: reimport))
+        self.onEngagedChange = onEngagedChange
         self.onFinish = onFinish
     }
 
@@ -50,6 +53,7 @@ struct OnboardingFlow: View {
             model.background = background
             model.finishPlan = finishPlan
         }
+        .onChange(of: model.holdsOnboarding, initial: true) { _, holds in onEngagedChange(holds) }
         #if DEBUG
         .task { await OnboardingDebug.apply(model, context: context) }
         #endif

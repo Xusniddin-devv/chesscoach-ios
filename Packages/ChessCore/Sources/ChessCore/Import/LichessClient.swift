@@ -48,8 +48,30 @@ public struct LichessClient: GameImportClient {
         return Self.parseNDJSON(data, limit: limit, progress: progress)
     }
 
-    /// Standard games' PGNs from an NDJSON body, in order (Lichess sends newest first).
-    static func parseNDJSON(_ data: Data, limit: Int, progress: @Sendable (Int) -> Void = { _ in }) -> [ImportedGame] {
+    /// Auto-sync: games created since `since` (Lichess filters by `since`, newest first), up to
+    /// the first stored game.
+    public func games(_ username: String, since: Date, limit: Int,
+                      isKnown: @Sendable (ImportedGame) -> Bool) async throws -> [ImportedGame] {
+        guard let name = sanitizedUsername(username) else { throw ImportError.userNotFound }
+        var components = URLComponents(url: base.appendingPathComponent("api/games/user/\(name)"),
+                                       resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "since", value: String(Int64(since.timeIntervalSince1970.rounded(.down)) * 1000)),
+            URLQueryItem(name: "max", value: String(limit)),
+            URLQueryItem(name: "moves", value: "true"),
+            URLQueryItem(name: "pgnInJson", value: "true"),
+            URLQueryItem(name: "clocks", value: "false"),
+            URLQueryItem(name: "evals", value: "true"),
+            URLQueryItem(name: "accuracy", value: "true"),
+        ]
+        let data = try await http.fetch(components.url!, accept: "application/x-ndjson")
+        return Self.parseNDJSON(data, limit: limit, stopAt: isKnown)
+    }
+
+    /// Standard games' PGNs from an NDJSON body, in order (Lichess sends newest first), up to
+    /// the first one `stopAt` matches.
+    static func parseNDJSON(_ data: Data, limit: Int, progress: @Sendable (Int) -> Void = { _ in },
+                            stopAt: (ImportedGame) -> Bool = { _ in false }) -> [ImportedGame] {
         var pgns: [ImportedGame] = []
         for line in data.split(separator: UInt8(ascii: "\n")) where !line.isEmpty {
             guard let game = try? JSONDecoder().decode(Game.self, from: Data(line)),
@@ -58,7 +80,9 @@ public struct LichessClient: GameImportClient {
             let white = game.players?.white?.analysis?.accuracy
             let black = game.players?.black?.analysis?.accuracy
             let accuracy = white == nil && black == nil ? nil : PlatformAccuracy(white: white, black: black, source: "lichess")
-            pgns.append(ImportedGame(pgn: pgn, accuracy: accuracy, evals: game.analysis?.isEmpty == false ? game.analysis : nil))
+            let imported = ImportedGame(pgn: pgn, accuracy: accuracy, evals: game.analysis?.isEmpty == false ? game.analysis : nil)
+            if stopAt(imported) { break }
+            pgns.append(imported)
             progress(pgns.count)
             if pgns.count == limit { break }
         }

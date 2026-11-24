@@ -33,7 +33,7 @@ public struct BotLadder: Sendable, Equatable {
             let beaten = (wins[bot.id] ?? 0) > 0
             open.append(index < Self.alwaysOpen || previousBeaten || inReach || beaten)
         }
-        let nextIndex = bots.indices.first { open[$0] && (wins[bots[$0].id] ?? 0) == 0 }
+        let nextIndex = Self.nextIndex(bots: bots, open: open, wins: wins, rating: rating)
         rungs = bots.indices.map { index in
             let count = wins[bots[index].id] ?? 0
             if count > 0 { return .beaten(wins: count) }
@@ -41,6 +41,22 @@ public struct BotLadder: Sendable, Equatable {
             if open[index] { return .open }
             return .locked(requires: bots[index - 1])
         }
+    }
+
+    /// A bot this far below the player's rating teaches nothing: it is never the one to play
+    /// while a closer bot is open.
+    public static let tooEasy = 400
+
+    /// The bot to play: the first open, unbeaten one, skipping bots `tooEasy` below the rating.
+    /// A player above every bot's reach gets the strongest bot (nil once it is beaten, so
+    /// `next` stays on it).
+    private static func nextIndex(bots: [Bot], open: [Bool], wins: [String: Int], rating: Int?) -> Int? {
+        let candidates = bots.indices.filter { open[$0] && (wins[bots[$0].id] ?? 0) == 0 }
+        guard let rating else { return candidates.first }
+        if let fit = candidates.first(where: { bots[$0].elo + tooEasy >= rating }) { return fit }
+        guard let strongest = bots.indices.last else { return nil }
+        if rating > bots[strongest].elo { return candidates.contains(strongest) ? strongest : nil }
+        return candidates.last
     }
 
     public func rung(for bot: Bot) -> Rung? {

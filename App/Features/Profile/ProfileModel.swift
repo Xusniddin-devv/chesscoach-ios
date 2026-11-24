@@ -58,14 +58,19 @@ struct ProfileModel {
     /// have no opponent and are never part of the rating or the stats.
     let games: [Game]
     let ratedGames: [RatedGame]
+    /// The app's own estimate from the saved games (new players' rating).
     let estimate: Int?
+    /// The rating the app shows and trains with: the platform rating for an imported player
+    /// (`UserProfile.platformRating`), else `estimate` (`playerRating(platform:games:)`).
+    let rating: Int?
 
     static let gamesForRating = 3
     /// Games in the "How you move" window (and the one before it, for the delta).
     static let window = 10
 
     /// `records` in any order; copies of one game left by sync count once (`GameRecord.unique`).
-    init(records: [GameRecord]) {
+    /// `platformRating`: the imported player's chess.com / Lichess rating, which is shown as it is.
+    init(records: [GameRecord], platformRating: Int? = nil) {
         games = GameRecord.unique(records)
             .compactMap { record in record.snapshot.map { (record, $0) } }
             .filter { !$0.1.isFreeplay }
@@ -78,15 +83,16 @@ struct ProfileModel {
             return RatedGame(botElo: elo, outcome: outcome, accuracy: game.accuracy)
         }
         estimate = estimateRating(ratedGames)
+        rating = playerRating(platform: platformRating, games: ratedGames)
     }
 
     // MARK: Rating
 
-    /// Training thresholds and explanation wording: the estimate once there is one.
-    var trainingRating: Int { estimate ?? PlayerProfile.defaultRating }
+    /// Training thresholds and explanation wording: the rating once there is one.
+    var trainingRating: Int { rating ?? PlayerProfile.defaultRating }
 
     /// The player's piece; a Pawn until there is a rating.
-    var tier: RatingTier { estimate.map(RatingTier.init(rating:)) ?? .pawn }
+    var tier: RatingTier { rating.map(RatingTier.init(rating:)) ?? .pawn }
 
     var finishedCount: Int { ratedGames.count }
 
