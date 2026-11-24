@@ -3,6 +3,8 @@
 <plist version="1.0">
 <dict>
 	<!-- Keys the generated Info.plist cannot carry; everything else is INFOPLIST_KEY_* in project.yml. -->
+	<key>HardPaywall</key>
+	<string>$(HARD_PAYWALL)</string>
 	<key>RevenueCatAPIKey</key>
 	<string>$(REVENUECAT_API_KEY)</string>
 	<key>UIBackgroundModes</key>

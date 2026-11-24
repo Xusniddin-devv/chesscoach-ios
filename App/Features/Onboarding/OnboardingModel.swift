@@ -18,6 +18,8 @@ import StockfishKit
 final class OnboardingModel {
     enum Step: Hashable {
         case welcome, find, importing, question(Int), reveal, goal, plan
+        /// Under `HARD_PAYWALL`: the coach presents Coach Pro after the plan (no back).
+        case paywall
     }
 
     enum Lookup: Equatable {
@@ -102,6 +104,8 @@ final class OnboardingModel {
     var target = 1000
     var months = 3
     private(set) var plan: TrainingPlan?
+    /// The plan's focus came from the user's own games (not a new player's answers).
+    private(set) var planFromGames = false
 
     @ObservationIgnored private var lookupTask: Task<Void, Never>?
     @ObservationIgnored private var importTask: Task<Void, Never>?
@@ -155,7 +159,11 @@ final class OnboardingModel {
         Task { @MainActor [weak self] in self?.stepRevision &+= 1 }
     }
 
-    var canGoBack: Bool { !history.isEmpty && step != .importing }
+    var canGoBack: Bool { !history.isEmpty && step != .importing && step != .paywall }
+
+    /// What the plan's button does: save, then the paywall or straight into the app. Set by
+    /// `OnboardingFlow`; the DEBUG hooks call it too.
+    @ObservationIgnored var finishPlan: (() -> Void)?
 
     func back() {
         guard let previous = history.popLast() else { return }
@@ -544,6 +552,7 @@ final class OnboardingModel {
     func buildPlan(completedLessons: Set<String>) {
         let latest = games.isEmpty ? nil : WeaknessReport(games)
         let weaknesses = latest?.top ?? newPlayerAnswers?.weaknesses ?? []
+        planFromGames = latest?.top.isEmpty == false
         plan = TrainingPlan.make(weaknesses: weaknesses, rating: rating, ownMistakes: ownMistakePuzzles.count,
                                  completedLessons: completedLessons, preferredTrack: newPlayerAnswers?.track,
                                  frequency: frequency ?? .fewTimesAWeek)

@@ -4,6 +4,7 @@ import ChessCore
 /// The coach presents the week: day 1 open and actionable, days 2-7 as a file of squares.
 struct PlanStep: View {
     let model: OnboardingModel
+    var startTitle = "Start day 1"
     let onStart: () -> Void
 
     var body: some View {
@@ -13,7 +14,7 @@ struct PlanStep: View {
                 WeekView(plan: plan, today: 0)
             }
         } footer: {
-            PrimaryButton(title: "Start day 1", action: onStart)
+            PrimaryButton(title: startTitle, action: onStart)
         }
     }
 
