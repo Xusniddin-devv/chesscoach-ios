@@ -12,3 +12,4 @@ xcuserdata/
 
 # Local secrets (RevenueCat key etc.)
 Config/Secrets.xcconfig
+.build-dd/

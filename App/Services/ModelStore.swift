@@ -8,10 +8,13 @@ import OSLog
 /// entitlement — the same store file stays local. Models must stay CloudKit-compatible
 /// (every property defaulted, no unique constraints).
 ///
-/// MERGE: add the other branches' @Model types to `schema`.
+/// Every @Model type lives in `models` (DataReset clears the same list).
 enum ModelStore {
     static let containerID = "iCloud.uz.xq.chessc"
-    static let schema = Schema([GameRecord.self])
+    static let models: [any PersistentModel.Type] = [
+        GameRecord.self, PuzzleProgress.self, LessonProgress.self, StreakState.self,
+    ]
+    static let schema = Schema(models)
 
     private static let log = Logger(subsystem: "uz.xq.chessc", category: "persistence")
 

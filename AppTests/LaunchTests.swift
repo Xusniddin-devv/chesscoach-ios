@@ -11,7 +11,7 @@ struct LaunchTests {
         let scene = try #require(UIApplication.shared.connectedScenes.first as? UIWindowScene)
         let window = UIWindow(windowScene: scene)
         let container = try ModelContainer(
-            for: GameRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            for: GameRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let host = UIHostingController(rootView: RootTabView()
             .environment(EngineHub())
             .modelContainer(container))

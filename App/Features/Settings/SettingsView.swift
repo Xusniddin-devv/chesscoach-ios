@@ -154,10 +154,9 @@ struct SettingsView: View {
 }
 
 /// "Reset all data": every stored model and every preference. Purchases are the App Store's
-/// and stay. MERGE: add the other branches' @Model types (puzzle cards, lesson progress, …)
-/// to `models`.
+/// and stay. Every model in `ModelStore.models`.
 enum DataReset {
-    static let models: [any PersistentModel.Type] = [GameRecord.self]
+    static let models: [any PersistentModel.Type] = ModelStore.models
 
     @MainActor
     static func run(in context: ModelContext) throws {

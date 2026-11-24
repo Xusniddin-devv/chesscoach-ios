@@ -38,7 +38,8 @@ struct SettingsPaywallTests {
 
     @Test func resetDeletesGamesAndPreferences() throws {
         let container = try ModelContainer(
-            for: GameRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+            for: ModelStore.schema,
+            configurations: ModelConfiguration(schema: ModelStore.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
         let context = container.mainContext
         context.insert(try GameRecord(snapshot: GameSnapshot(
             id: UUID(), date: .now, botId: "pip", userColor: .white, mode: .silent,

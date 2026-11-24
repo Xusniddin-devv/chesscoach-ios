@@ -1,4 +1,5 @@
 import SwiftUI
+import ChessCore
 
 /// What Coach Pro unlocks (spec → Monetization, "Free vs Pro"). Each case carries the one line
 /// the paywall opens with when the user came from that feature.
@@ -131,5 +132,34 @@ struct LockedExplanation: View {
                     .foregroundStyle(DS.Color.accent)
             }
         }
+    }
+}
+
+/// Free puzzle allowance: `ProFeature.freePuzzlesPerDay` puzzles a day besides the daily one.
+enum PuzzleAllowance {
+    /// Distinct puzzles first attempted or retried today, not counting the daily puzzle.
+    static func usedToday(_ progress: [PuzzleProgress], dailyId: String?, now: Date = .now,
+                          calendar: Calendar = .current) -> Int {
+        Set(progress.filter { row in
+            row.puzzleId != dailyId && (row.lastAttempt.map { calendar.isDate($0, inSameDayAs: now) } ?? false)
+        }.map(\.puzzleId)).count
+    }
+
+    /// Puzzles left today; nil means unlimited (Pro).
+    static func remaining(_ progress: [PuzzleProgress], dailyId: String?, isPro: Bool, now: Date = .now) -> Int? {
+        isPro ? nil : max(0, ProFeature.freePuzzlesPerDay - usedToday(progress, dailyId: dailyId, now: now))
+    }
+}
+
+/// Learn allowance: the first `ProFeature.freeLessonsPerTrack` lessons of each track are free.
+enum LessonAllowance {
+    static func isLocked(index: Int, isPro: Bool) -> Bool {
+        !isPro && index >= ProFeature.freeLessonsPerTrack
+    }
+
+    static func isLocked(_ lesson: Lesson, isPro: Bool) -> Bool {
+        let track = LessonLibrary.lessons(in: lesson.track)
+        guard let i = track.firstIndex(where: { $0.id == lesson.id }) else { return false }
+        return isLocked(index: i, isPro: isPro)
     }
 }
