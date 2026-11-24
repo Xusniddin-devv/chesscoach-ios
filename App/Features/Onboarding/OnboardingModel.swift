@@ -104,8 +104,6 @@ final class OnboardingModel {
     var target = 1000
     var months = 3
     private(set) var plan: TrainingPlan?
-    /// The plan's focus came from the user's own games (not a new player's answers).
-    private(set) var planFromGames = false
 
     @ObservationIgnored private var lookupTask: Task<Void, Never>?
     @ObservationIgnored private var importTask: Task<Void, Never>?
@@ -552,7 +550,6 @@ final class OnboardingModel {
     func buildPlan(completedLessons: Set<String>) {
         let latest = games.isEmpty ? nil : WeaknessReport(games)
         let weaknesses = latest?.top ?? newPlayerAnswers?.weaknesses ?? []
-        planFromGames = latest?.top.isEmpty == false
         plan = TrainingPlan.make(weaknesses: weaknesses, rating: rating, ownMistakes: ownMistakePuzzles.count,
                                  completedLessons: completedLessons, preferredTrack: newPlayerAnswers?.track,
                                  frequency: frequency ?? .fewTimesAWeek)

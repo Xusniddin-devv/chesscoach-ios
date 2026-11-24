@@ -119,111 +119,91 @@ struct HardPaywallTests {
         return nil
     }
 
-    // MARK: Trial timeline
+    // MARK: The words (all prices and the trial from the store's product)
 
     private static var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "UTC")!
         return c
     }
-    private static let locale = Locale(identifier: "en_US")
     /// Tuesday, Nov 24 2026, noon UTC.
     private static let today = Date(timeIntervalSince1970: 1_795_521_600)
 
+    /// As the store reports them (Config/ChessCoach.storekit): yearly with a 3-day free
+    /// trial, monthly with none.
     private static let yearly = Entitlements.Plan(id: Entitlements.yearlyID, period: .yearly, price: "$29.99",
-                                                  perMonth: "$2.50", freeTrial: "7 days", trialDays: 7)
+                                                  perMonth: "$2.50", freeTrial: "3 days", trialDays: 3, free: "$0.00")
     private static let monthly = Entitlements.Plan(id: Entitlements.monthlyID, period: .monthly, price: "$4.99",
-                                                   perMonth: nil, freeTrial: nil)
+                                                   perMonth: nil, freeTrial: nil, free: "$0.00")
 
-    @Test func trialTimelineIsHonest() {
-        let t = TrialTimeline(plan: Self.yearly, todayDetail: "Day 1 of your plan", now: Self.today,
-                              calendar: Self.calendar, locale: Self.locale)
-        #expect(t.steps.map(\.kind) == [.today, .reminder, .billing])
-        #expect(t.steps.map(\.marker) == ["Today", "Day 5", "Day 7"])
-        #expect(t.steps[1].date == "Sun, Nov 29")
-        #expect(t.steps[2].date == "Tue, Dec 1")
-        #expect(t.steps[2].title == "$29.99 a year begins")
-        #expect(t.steps[2].detail == "Cancel before then and you pay nothing.")
-        #expect(t.cta == "Start my free week")
-        #expect(t.billing == "7 days free, then $29.99 a year. Cancel anytime in Settings.")
-        #expect(t.heading.contains("Coach Pro"))
+    @Test func yearlyTrialWords() {
+        let c = PaywallCopy(moment: .onboarding, plan: Self.yearly)
+        #expect(c.headline == "Your plan is ready.")
+        #expect(c.offer == "Try 3 days free.")
+        #expect(c.detail == "Then $29.99 a year.\nWe'll remind you before it ends.")
+        #expect(c.cta == "Try for $0.00")
+        #expect(PaywallCopy.switchLabel(to: Self.monthly) == "or $4.99 a month")
     }
 
-    @Test func noTrialMeansNoTrialPromise() {
-        let t = TrialTimeline(plan: Self.monthly, todayDetail: "x", now: Self.today, calendar: Self.calendar, locale: Self.locale)
-        #expect(t.steps.map(\.kind) == [.today, .renews])
-        #expect(t.cta == "Subscribe")
-        #expect(t.billing.hasPrefix("$4.99 a month"))
-        #expect(!t.billing.contains("free"))
-        // A yearly plan whose trial this account already used: no trial either.
-        let used = Entitlements.Plan(id: Entitlements.yearlyID, period: .yearly, price: "$29.99", perMonth: "$2.50", freeTrial: nil)
-        #expect(TrialTimeline(plan: used, todayDetail: "x", now: Self.today).cta == "Subscribe")
+    @Test func monthlyHasNoTrial() {
+        let c = PaywallCopy(moment: .onboarding, plan: Self.monthly)
+        #expect(c.offer == "$4.99 a month.")
+        #expect(c.cta == "Subscribe")
+        #expect(!c.detail.contains("free") && !c.detail.contains("remind"))
+        #expect(PaywallCopy.switchLabel(to: Self.yearly) == "or try 3 days free")
     }
 
-    /// The monthly plan's 3-day trial, read from the store like the yearly's 7 days.
-    @Test func threeDayTrialOnMonthly() {
-        let plan = Entitlements.Plan(id: Entitlements.monthlyID, period: .monthly, price: "$4.99", perMonth: nil,
-                                     freeTrial: "3 days", trialDays: 3)
-        let t = TrialTimeline(plan: plan, todayDetail: "x", now: Self.today, calendar: Self.calendar, locale: Self.locale)
-        #expect(t.steps.map(\.marker) == ["Today", "Day 2", "Day 3"])
-        #expect(t.steps[1].date == "Thu, Nov 26")
-        #expect(t.steps[2].date == "Fri, Nov 27")
-        #expect(t.steps[2].title == "$4.99 a month begins")
-        #expect(t.cta == "Try 3 days free")
-        #expect(t.billing == "3 days free, then $4.99 a month. Cancel anytime in Settings.")
+    /// An account that already used the yearly trial: no trial promised anywhere.
+    @Test func usedTrialPromisesNoTrial() {
+        let used = Entitlements.Plan(id: Entitlements.yearlyID, period: .yearly, price: "$29.99", perMonth: "$2.50",
+                                     freeTrial: nil, free: "$0.00")
+        let c = PaywallCopy(moment: .returning, plan: used)
+        #expect(c.headline == "Your plan is waiting.")
+        #expect(c.offer == "$29.99 a year.")
+        #expect(c.cta == "Subscribe")
+        #expect(PaywallCopy.switchLabel(to: used) == "or $29.99 a year")
+    }
+
+    /// The trial's length and the zero price come from the store.
+    @Test func trialLengthAndZeroFollowTheStore() {
+        let week = Entitlements.Plan(id: Entitlements.yearlyID, period: .yearly, price: "€29,99", perMonth: nil,
+                                     freeTrial: "7 days", trialDays: 7, free: "0,00 €")
+        let c = PaywallCopy(moment: .feature, plan: week)
+        #expect(c.offer == "Try 7 days free.")
+        #expect(c.cta == "Try for 0,00 €")
+        #expect(c.detail.hasPrefix("Then €29,99 a year."))
+    }
+
+    /// Owner's budget: at most 25 visible words besides Restore · Terms · Privacy, counting
+    /// the switch under the button.
+    @Test func atMostTwentyFiveWords() {
+        for moment in [PaywallCopy.Moment.onboarding, .returning, .feature] {
+            for (plan, other) in [(Self.yearly, Self.monthly), (Self.monthly, Self.yearly)] {
+                let c = PaywallCopy(moment: moment, plan: plan)
+                let switchWords = PaywallCopy.switchLabel(to: other).split(separator: " ").count
+                #expect(c.words + switchWords <= 25, "\(moment) \(plan.period): \(c.words + switchWords) words")
+            }
+        }
     }
 
     @Test func reminderLeads() {
-        #expect(TrialTimeline.reminderLead(trialDays: 7) == 2)
-        #expect(TrialTimeline.reminderLead(trialDays: 14) == 2)
-        #expect(TrialTimeline.reminderLead(trialDays: 3) == 1)
-        #expect(TrialTimeline.reminderLead(trialDays: 1) == nil)
-    }
-
-    @Test func oneDayTrialSkipsTheReminder() {
-        let plan = Entitlements.Plan(id: "p", period: .monthly, price: "$4.99", perMonth: nil, freeTrial: "1 day", trialDays: 1)
-        let t = TrialTimeline(plan: plan, todayDetail: "x", now: Self.today, calendar: Self.calendar, locale: Self.locale)
-        #expect(!t.steps.contains { $0.kind == .reminder })
+        #expect(TrialReminder.lead(trialDays: 3) == 1)
+        #expect(TrialReminder.lead(trialDays: 7) == 2)
+        #expect(TrialReminder.lead(trialDays: 1) == nil)
         #expect(TrialReminder.fireDate(trialDays: 1, from: Self.today) == nil)
+        // A one-day trial is too short for a reminder, so the paywall doesn't promise one.
+        let oneDay = Entitlements.Plan(id: "p", period: .yearly, price: "$29.99", perMonth: nil, freeTrial: "1 day", trialDays: 1)
+        #expect(!PaywallCopy(moment: .onboarding, plan: oneDay).detail.contains("remind"))
     }
 
-    @Test func reminderFiresTwoDaysBeforeTheTrialEnds() throws {
-        let fire = try #require(TrialReminder.fireDate(trialDays: 7, from: Self.today, calendar: Self.calendar))
-        #expect(Self.calendar.dateComponents([.day], from: Self.today, to: fire).day == 5)
+    @Test func reminderFiresADayBeforeBilling() throws {
+        let fire = try #require(TrialReminder.fireDate(trialDays: 3, from: Self.today, calendar: Self.calendar))
+        #expect(Self.calendar.dateComponents([.day], from: Self.today, to: fire).day == 2)
     }
-
-    // MARK: The coach's line
-
-    private func story(_ moment: PaywallStory.Moment, fromGames: Bool = true) -> PaywallStory {
-        PaywallStory(moment: moment, rating: 960, goal: 1500,
-                     goalDate: Self.calendar.date(from: DateComponents(year: 2027, month: 5, day: 24)),
-                     focus: .missedCapture, fromGames: fromGames,
-                     dayOne: ["5 of your own mistakes", "Queen checkmate", "Play Apex"])
-    }
-
-    @Test func onboardingLineUsesTheirResult() {
-        let line = story(.onboarding).coachLine(isPro: false, calendar: Self.calendar, locale: Self.locale)
-        #expect(line.contains("**1500 by May**"))
-        #expect(line.contains("Your games keep giving away **free material**"))
-        let newPlayer = story(.onboarding, fromGames: false).coachLine(isPro: false, calendar: Self.calendar, locale: Self.locale)
-        #expect(newPlayer.contains("We start with **free material**"))
-        #expect(story(.onboarding).todayDetail == "Day 1: 5 of your own mistakes · Queen checkmate · Play Apex")
-    }
-
-    @Test func gateAndFeatureLines() {
-        #expect(story(.returning).coachLine(isPro: false, calendar: Self.calendar, locale: Self.locale)
-            .hasPrefix("Welcome back. Your plan for **1500 by May**"))
-        #expect(story(.feature(.fullReview)).coachLine(isPro: false) == ProFeature.fullReview.pitch)
-        #expect(!story(.feature(nil)).todayDetail.hasPrefix("Day 1"))
-        #expect(story(.onboarding).coachLine(isPro: true).contains("You have **Coach Pro**"))
-        let empty = PaywallStory(moment: .returning)
-        #expect(empty.coachLine(isPro: false) == "Welcome back. Your plan is waiting.")
-    }
-
 }
 
 /// The scheme's ChessCoach.storekit through StoreKitTest (one session at a time): real
-/// products, the 7-day intro offer, a purchase unlocking Pro.
+/// products, the yearly 3-day intro offer, a purchase unlocking Pro.
 ///
 /// Known issue: from `xcodebuild test` on the iOS 26.5 simulator the session can't reach the
 /// StoreKit test daemon (`SKTestSession … SKInternalErrorDomain Code=3`) and the store
@@ -243,9 +223,9 @@ struct StoreKitPlansTests {
             let yearly = try #require(entitlements.plans.first)
             #expect(yearly.period == .yearly)
             #expect(yearly.price == "$29.99")
-            #expect(yearly.trialDays == 7)
+            #expect(yearly.trialDays == 3)
             #expect(entitlements.plans.last?.price == "$4.99")
-            #expect(entitlements.plans.last?.trialDays == 3)
+            #expect(entitlements.plans.last?.trialDays == nil)
         }
     }
 

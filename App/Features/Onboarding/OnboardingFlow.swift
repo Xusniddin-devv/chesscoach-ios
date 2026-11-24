@@ -36,7 +36,7 @@ struct OnboardingFlow: View {
                 case .plan: PlanStep(model: model, startTitle: endsOnPaywall ? "Continue" : "Start day 1") {
                     finishPlan()
                 }
-                case .paywall: PaywallScreen(story: PaywallStory(onboarding: model), onClose: nil, onUnlocked: onFinish)
+                case .paywall: PaywallScreen(moment: .onboarding, onClose: nil, onUnlocked: onFinish)
                 }
             }
             // One identity per step, so a step that leaves is really removed (without it the
