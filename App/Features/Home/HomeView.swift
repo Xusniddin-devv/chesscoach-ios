@@ -47,13 +47,13 @@ struct HomeView: View {
     }
 
     var body: some View {
-        let profile = ProfileModel(records: allRecords)
+        let profile = ProfileModel(records: allRecords, platformRating: profiles.first?.platformRating)
         let nextBot = BotLadder(records: allRecords, profile: profile).next ?? .suggested
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    HomeHeader(streak: streak, rating: profile.estimate ?? profiles.first.map(\.currentRating),
-                               hasEstimate: profile.estimate != nil || profiles.first != nil,
+                    HomeHeader(streak: streak, rating: profile.rating ?? profiles.first.map(\.currentRating),
+                               hasEstimate: profile.rating != nil || profiles.first != nil,
                                goal: profiles.first?.goalRating, goalDate: profiles.first?.goalDate,
                                played: profile.finishedCount)
                     coach(profile, nextBot: nextBot)

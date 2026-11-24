@@ -18,6 +18,15 @@ import StockfishKit
 final class OnboardingModel {
     enum Step: Hashable {
         case welcome, find, importing, question(Int), reveal, goal, plan
+
+        /// The user has picked an account (or started the new-player questions): from here
+        /// onboarding runs to its save, even if a profile synced from another device appears.
+        var isEngaged: Bool {
+            switch self {
+            case .welcome, .find: false
+            case .importing, .question, .reveal, .goal, .plan: true
+            }
+        }
     }
 
     enum Lookup: Equatable {

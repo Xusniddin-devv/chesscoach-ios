@@ -27,6 +27,16 @@ final class UserProfile {
 
     var importPlatform: ImportPlatform? { ImportPlatform(rawValue: platform) }
     var tier: RatingTier { RatingTier(rating: currentRating) }
+
+    /// The chess.com / Lichess rating of an imported player, which the app shows as it is
+    /// (`ProfileModel.rating`). Nil for a new player: their `currentRating` is only the
+    /// onboarding questions' starting guess, and the saved games' estimate replaces it.
+    var platformRating: Int? { importPlatform != nil ? currentRating : nil }
+}
+
+extension Array where Element == UserProfile {
+    /// The profile that counts: the latest saved (sync can leave copies until they merge).
+    var current: UserProfile? { self.max { $0.updated < $1.updated } }
 }
 
 /// The current week of training, stored as JSON so the plan format can grow.

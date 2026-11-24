@@ -94,6 +94,37 @@ public enum GoalModel {
         return Int((raw / 50).rounded(.up)) * 50
     }
 
+    /// Rating points the goal picker shows at once.
+    public static let pickerSpan = 1500
+
+    /// The goal picker's range: from 300 below `current`, kept inside the distribution
+    /// (`RatingDistribution.range`) unless the player is near or above its top, where it
+    /// reaches past `current` so a goal above today's rating can always be picked.
+    public static func pickerWindow(current: Int) -> ClosedRange<Int> {
+        let base = roundDown(current)
+        let range = RatingDistribution.range
+        var lo = max(range.lowerBound, base - 300)
+        if lo + pickerSpan > range.upperBound {
+            let hi = max(range.upperBound, base + 150)
+            lo = hi - pickerSpan
+        }
+        return lo...(lo + pickerSpan)
+    }
+
+    /// The lowest goal the picker allows: the next 50 above today's rating.
+    public static func minimumTarget(current: Int) -> Int {
+        roundDown(current) + 50
+    }
+
+    /// A picked goal kept above today's rating and inside the picker.
+    public static func clampTarget(_ target: Int, current: Int) -> Int {
+        min(max(target, minimumTarget(current: current)), pickerWindow(current: current).upperBound)
+    }
+
+    private static func roundDown(_ rating: Int) -> Int {
+        rating / RatingDistribution.bucketWidth * RatingDistribution.bucketWidth
+    }
+
     /// The honest line above "Practice daily with Chess Coach and you can do it."
     public static func verdict(chance: Int, months: Int) -> String {
         let span = months == 1 ? "a month" : "\(months) months"

@@ -40,6 +40,14 @@ public func estimateRating(_ games: [RatedGame]) -> Int? {
     return Int(((average / 10) + 0.5).rounded(.down)) * 10  // JS Math.round
 }
 
+/// The rating the app shows for the player. An imported player's platform rating (chess.com
+/// or Lichess, the time control picked at onboarding) as it is: the app's own estimate is
+/// clamped to 300…2400 and rates bot games at the bot's Elo, so it cannot stand for a
+/// platform-rated player. Without a platform rating (new players): `estimateRating(games)`.
+public func playerRating(platform: Int?, games: [RatedGame]) -> Int? {
+    platform ?? estimateRating(games)
+}
+
 /// Rating milestones (web levels, web-rules.md "Engine strength").
 public let ratingMilestones: [(elo: Int, name: String)] = [
     (600, "Beginner I"), (800, "Beginner II"), (1000, "Novice I"), (1200, "Novice II"),

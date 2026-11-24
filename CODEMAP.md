@@ -14,7 +14,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | SwiftData container (CloudKit-mirrored `cloud.store` when the build syncs, else `local.store`; legacy `default.store` moved once; `-debugEmptyStore`), the one model list | `App/Services/ModelStore.swift` (`ModelStore.models`; `DataReset.models` = same) |
 | Failed saves: `ModelContext.saveReporting`, `SaveIssues`, inline `SaveNotice` (Retry) | `App/Persistence/SaveReporting.swift`, overlay in `RootTabView` |
 | Privacy manifest (required-reason APIs, no tracking) | `App/PrivacyInfo.xcprivacy`; TestFlight owner checklist `docs/TESTFLIGHT.md` |
-| Onboarding gate (local flag or a synced `UserProfile`), tabs (Home, Puzzles, Learn, Profile); player rating sync from saved games; sync-duplicate merge on launch / remote change | `App/AppShell/RootTabView.swift` |
+| Onboarding gate (local flag or a synced `UserProfile`, never cutting an onboarding in progress: `showsTabs`, `Step.isEngaged`), tabs (Home, Puzzles, Learn, Profile); player rating sync (`ProfileModel.rating`); daily platform-rating refresh (`App/Services/PlatformRatingRefresh.swift`); sync-duplicate merge on launch / remote change | `App/AppShell/RootTabView.swift` |
 | Shared engine access, sessions, review models, player rating + wording | `App/EngineHub.swift` |
 | Design tokens (colours, type, spacing, radii) | `App/DesignSystem/Tokens.swift` |
 | Buttons, labels, avatar tiles (bots, user tier piece), move badge, pill | `App/DesignSystem/Components/*` |
@@ -23,7 +23,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Icons (Icons8 iOS Filled, potrace SVG templates; brand logos the only exception) | `App/Resources/Assets.xcassets/Icons/`, lock `icons8.json` |
 | Saved game record (SwiftData), in-place update (`revision`), decode cache (`GameCache`: snapshot, `finalFen`, `blunderPuzzles`), sync duplicates (`unique` on read; `mergeDuplicates` / `mergeCopies` keep the smallest immutable `rowID` and move the best content onto it; rules `ChessCore/Persistence/GameDedupe.swift`) | `App/Persistence/GameRecord.swift` |
 | Puzzle / lesson progress, streak rows, `TrainingStore` | `App/Persistence/TrainingModels.swift` |
-| User profile (platform, rating, goal), training plan, imported games | `App/Persistence/ProfileModels.swift` (`ProfileStore`) |
+| User profile (platform, rating, goal; `platformRating` = an imported player's shown rating), training plan, imported games | `App/Persistence/ProfileModels.swift` (`ProfileStore`) |
 | Sounds, haptics (`.gameFeedback`), voice input | `App/Services/Sound.swift`, `Haptics.swift`, `Voice.swift` |
 | Pro status (RevenueCat or StoreKit, `-forcePro YES|NO`) | `App/Services/Purchases.swift` (`Entitlements`) |
 | App icon | `App/Resources/Assets.xcassets/AppIcon.appiconset` |
@@ -74,7 +74,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 
 | Feature | Files |
 |---|---|
-| Bot picker = sparring ladder (bot, mode, colour); ladder rules | `App/Features/Play/BotPickerView.swift`, `ChessCore/Play/BotLadder.swift` |
+| Bot picker = sparring ladder (bot, mode, colour); ladder rules (next skips bots `tooEasy` below the rating) | `App/Features/Play/BotPickerView.swift`, `ChessCore/Play/BotLadder.swift` |
 | Game screen, flat action bar (incl. hold-to-talk mic cell), saving | `App/Features/Play/PlayView.swift`, `App/Features/Play/PlayModel.swift`, `App/Features/Voice/VoiceMicButton.swift` |
 | Voice move parsing (spoken text → UCI) | `ChessCore/Voice/VoiceMove.swift` |
 | Game logic: board, grading queue, bot moves, interrupts, take-back | `ChessCore/Play/GameSession.swift` |
@@ -99,7 +99,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Profile tab "You" (piece hero + goal line, last-games filmstrip, ribbon, habits, "Fix it", Settings gear) | `App/Features/Profile/ProfileView.swift` |
-| Stats from saved games (bots + imports, never freeplay) | `App/Features/Profile/ProfileModel.swift` |
+| Stats from saved games (bots + imports, never freeplay); `rating` = platform rating for imports, else `estimate` | `App/Features/Profile/ProfileModel.swift` |
 | "Fix it" puzzles for a habit (own positions first, then bank) | `ChessCore/Puzzles/BlunderPuzzles.swift` (`fixIt`) |
 
 ## Puzzles
@@ -136,7 +136,7 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Paywall, `ProFeature`, `ProGate`, `UpgradeButton`, puzzle / lesson / habit allowances (`WeaknessAllowance`) | `App/Features/Paywall/PaywallView.swift`, `ProGate.swift` |
 | Licenses (GPLv3, Stockfish, chesskit, RevenueCat, Lichess CC0, Icons8) | `App/Features/Licenses/LicensesView.swift`, `App/Resources/Licenses/*.txt` |
 | Build config (RevenueCat key from gitignored `Config/Secrets.xcconfig`), StoreKit test file, entitlements | `Config/App.xcconfig`, `Config/ChessCoach.storekit`, `App/ChessCoach.entitlements`, `App/Info.plist` |
-| Rating estimate, tiers (pieces), milestones, weaknesses, motif wording | `ChessCore/Profile/ProfileStats.swift` |
+| Rating estimate, `playerRating(platform:games:)`, tiers (pieces), milestones, weaknesses, motif wording; goal picker window / clamp in `ChessCore/Onboarding/GoalModel.swift` | `ChessCore/Profile/ProfileStats.swift` |
 
 ## Grading and explanations (ChessCore/Analysis)
 

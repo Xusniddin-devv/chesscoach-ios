@@ -15,34 +15,54 @@ struct RootTabView: View {
     @Query private var profiles: [UserProfile]
     @State private var tab: TabID = .home
     @State private var saveIssues = SaveIssues.shared
+    /// The user is mid-onboarding (picked an account or started the questions).
+    @State private var onboardingEngaged = false
 
-    private var isOnboarded: Bool { hasOnboarded || !profiles.isEmpty }
+    private var isOnboarded: Bool {
+        Self.showsTabs(hasOnboarded: hasOnboarded, hasProfile: !profiles.isEmpty, onboardingEngaged: onboardingEngaged)
+    }
+
+    /// Onboarded here, or a profile synced from another device (new phone, reinstall) before
+    /// the user started onboarding. Once they have picked an account, a synced profile must
+    /// not cut the flow: their choice would never be saved and the old account's rating and
+    /// goal would show instead. Onboarding's save then replaces that profile.
+    static func showsTabs(hasOnboarded: Bool, hasProfile: Bool, onboardingEngaged: Bool) -> Bool {
+        hasOnboarded || (hasProfile && !onboardingEngaged)
+    }
 
     var body: some View {
         Group {
             if isOnboarded || Self.skipsOnboarding {
                 tabs.transition(.opacity)
             } else {
-                OnboardingFlow { withAnimation(.easeInOut(duration: 0.4)) { hasOnboarded = true } }
+                OnboardingFlow(onEngagedChange: { onboardingEngaged = $0 }) {
+                    withAnimation(.easeInOut(duration: 0.4)) { hasOnboarded = true }
+                }
                     .transition(.opacity)
             }
         }
         .tint(DS.Color.accent)
         .preferredColorScheme(.dark)
-        // The player's level follows the saved games: Training thresholds and wording.
-        .task(id: GameRecord.fingerprint(records)) {
-            let profile = ProfileModel(records: records)
+        // The player's level: the platform rating for an imported player, else the saved
+        // games' estimate. Training thresholds and wording.
+        .task(id: [GameRecord.fingerprint(records), profiles.current?.platformRating ?? 0]) {
+            let profile = ProfileModel(records: records, platformRating: profiles.current?.platformRating)
             hub.playerRating = profile.trainingRating
             hub.playerTier = profile.tier
         }
         // A profile synced from another device: onboarded here too (the background full
         // pass waits for this flag).
         .onChange(of: profiles.isEmpty, initial: true) { _, empty in
-            if !empty && !hasOnboarded { hasOnboarded = true }
+            if !empty && !hasOnboarded && !onboardingEngaged { hasOnboarded = true }
         }
         // Copies of one game left by sync (a re-import on a second phone) are merged at
         // launch and whenever iCloud delivers changes.
         .task { GameRecord.mergeDuplicates(in: context) }
+        // An imported player's chess.com / Lichess rating, refreshed at most once a day.
+        .task(id: profiles.isEmpty) {
+            guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+            await PlatformRatingRefresh.refreshIfDue(in: context)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in
             GameRecord.mergeDuplicates(in: context)
         }
