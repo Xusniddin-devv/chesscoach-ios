@@ -343,6 +343,9 @@ final class PlayModel {
     /// 0…1 while the summary analysis runs; nil otherwise.
     private(set) var summaryProgress: Double?
     @ObservationIgnored private var summaryTask: Task<GameAnalysis, any Error>?
+    /// Set by `cancelSummaryAnalysis()`, also before the run has started (it may still be
+    /// waiting for the last grades).
+    @ObservationIgnored private var summaryCancelled = false
 
     /// Analyses the finished game once its live grades are in (the engine is free then).
     /// Returns when the run ends; a cancelled or failed run leaves `summaryAnalysis` nil
@@ -350,7 +353,7 @@ final class PlayModel {
     func analyzeFinishedGame(engine: any ChessEngine) async {
         guard isOver, summaryAnalysis == nil, summaryTask == nil, !session.moves.isEmpty else { return }
         _ = await session.finalSnapshot()
-        guard !Task.isCancelled, !isSaved, summaryTask == nil else { return }
+        guard !Task.isCancelled, !summaryCancelled, !isSaved, summaryTask == nil else { return }
         let analyzer = GameAnalyzer(engine: engine, depth: ReviewModel.depth)
         let startFen = session.startFen
         let moves = session.moves
@@ -375,6 +378,7 @@ final class PlayModel {
 
     /// Stops the summary analysis (leaving for a rematch or another bot).
     func cancelSummaryAnalysis() {
+        summaryCancelled = true
         summaryTask?.cancel()
         summaryTask = nil
         summaryProgress = nil

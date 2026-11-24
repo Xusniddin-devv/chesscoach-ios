@@ -57,6 +57,51 @@ struct PlayFlowTests {
         #expect(records.first?.snapshot?.verdicts.map(\.ply) == [1, 3, 5])
     }
 
+    // MARK: Result panel
+
+    /// The panel's analysis gives both sides' numbers and is saved with the game.
+    @Test func summaryAnalysisCoversBothSidesAndIsSaved() async throws {
+        let (model, engine) = try await scholarsMate()
+        await model.analyzeFinishedGame(engine: engine)
+        let analysis = try #require(model.summaryAnalysis)
+        #expect(analysis.verdicts.count == 7)
+        #expect(model.summaryAccuracy(for: .black) != nil)
+        #expect(!model.summaryCounts(for: .black).isEmpty)
+        #expect(model.summaryProgress == nil)
+
+        let context = try inMemoryContext()
+        try await model.save(in: context)
+        let snapshot = try #require(try context.fetch(FetchDescriptor<GameRecord>()).first?.snapshot)
+        #expect(snapshot.analysis == analysis)
+        #expect(model.savedGameID == snapshot.id)
+    }
+
+    /// Leaving for a rematch stops the analysis; the game is saved without it.
+    @Test func cancelledSummarySavesWithoutAnalysis() async throws {
+        let (model, engine) = try await scholarsMate()
+        #expect(await eventually { model.session.pendingGradeCount == 0 })
+        engine.holdAnalyses()
+        let run = Task { await model.analyzeFinishedGame(engine: engine) }
+        #expect(await eventually { model.summaryProgress != nil })
+        model.cancelSummaryAnalysis()
+        engine.releaseAnalyses()
+        await run.value
+        #expect(model.summaryAnalysis == nil)
+        let context = try inMemoryContext()
+        try await model.save(in: context)
+        #expect(try context.fetch(FetchDescriptor<GameRecord>()).first?.snapshot?.analysis == nil)
+    }
+
+    /// Cancelled while it still waits for the last grade: it never starts.
+    @Test func summaryCancelledBeforeItStartsNeverRuns() async throws {
+        let (model, engine) = try await scholarsMate()
+        let run = Task { await model.analyzeFinishedGame(engine: engine) }
+        model.cancelSummaryAnalysis()
+        await run.value
+        #expect(model.summaryAnalysis == nil)
+        #expect(model.summaryProgress == nil)
+    }
+
     // MARK: Hint
 
     /// The user moved while the hint was searching: the hint is dropped, which is not a failure.
