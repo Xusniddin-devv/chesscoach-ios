@@ -133,11 +133,11 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Feature | Files |
 |---|---|
 | Settings (pushed from Profile's gear): play defaults, feedback, Pro, about, re-import (Pro), reset | `App/Features/Settings/SettingsView.swift`, `SettingsRows.swift`, `Preferences.swift` (`Pref`, `AppInfo`) |
-| Paywall screen (coach + goal road + trial timeline + plans pinned with the CTA; `PaywallScreen`, in-app sheet `PaywallView`, launch gate `PaywallGate`) | `App/Features/Paywall/PaywallView.swift` |
-| Hard paywall: `HARD_PAYWALL` build setting (`HardPaywall.isOn`, env `\.hardPaywall`), launch routing (`LaunchRoute`: onboarding / checking / paywall / tabs), the coach's personalised line (`PaywallStory`), trial timeline from the store's intro offer (`TrialTimeline`), day-before reminder notification (`TrialReminder`) | `App/Features/Paywall/HardPaywall.swift`, routing in `App/AppShell/RootTabView.swift`, onboarding's `.paywall` step in `OnboardingFlow.swift` |
+| Paywall screen (coach on the board edge, two-line headline, one quiet line, CTA, text switch to the other plan; `PaywallScreen`, in-app sheet `PaywallView`, launch gate `PaywallGate`) | `App/Features/Paywall/PaywallView.swift` |
+| Hard paywall: `HARD_PAYWALL` build setting (`HardPaywall.isOn`, env `\.hardPaywall`), launch routing (`LaunchRoute`: onboarding / checking / paywall / tabs), the paywall's words from the store's product and intro offer, 25-word budget (`PaywallCopy`), day-before reminder notification (`TrialReminder`) | `App/Features/Paywall/HardPaywall.swift`, routing in `App/AppShell/RootTabView.swift`, onboarding's `.paywall` step in `OnboardingFlow.swift` |
 | `ProFeature`, `ProGate`, `UpgradeButton`, puzzle / lesson / habit allowances (`WeaknessAllowance`), the free tier when `HARD_PAYWALL=0` | `App/Features/Paywall/ProGate.swift` |
 | Licenses (GPLv3, Stockfish, chesskit, RevenueCat, Lichess CC0, Icons8) | `App/Features/Licenses/LicensesView.swift`, `App/Resources/Licenses/*.txt` |
-| Build config (RevenueCat key from gitignored `Config/Secrets.xcconfig`, `HARD_PAYWALL`), StoreKit test file (yearly 7-day and monthly 3-day trials; also a test-bundle resource), entitlements | `Config/App.xcconfig`, `Config/ChessCoach.storekit`, `App/ChessCoach.entitlements`, `App/Info.plist` |
+| Build config (RevenueCat key from gitignored `Config/Secrets.xcconfig`, `HARD_PAYWALL`), StoreKit test file (yearly 3-day free trial, monthly none; also a test-bundle resource), entitlements | `Config/App.xcconfig`, `Config/ChessCoach.storekit`, `App/ChessCoach.entitlements`, `App/Info.plist` |
 | Rating estimate, tiers (pieces), milestones, weaknesses, motif wording | `ChessCore/Profile/ProfileStats.swift` |
 
 ## Grading and explanations (ChessCore/Analysis)
@@ -169,4 +169,4 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 |---|---|
 | ChessCore (Swift Testing, `swift test`) | `Packages/ChessCore/Tests/ChessCoreTests/*` (fake engine: `Support/FakeEngine.swift`) |
 | StockfishKit | `Packages/StockfishKit/Tests/StockfishKitTests/*` |
-| App (simulator) | `AppTests/*` — Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), settings / paywall, hard paywall gate matrix + trial timeline + StoreKitTest plans (`HardPaywallTests.swift`), training store, onboarding, launch, merge invariants (`MergeIntegrationTests.swift`), decode cache / sync duplicates / store files / privacy manifest (`SyncAndStoreTests.swift`), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
+| App (simulator) | `AppTests/*`: Play flow, Review, Profile, Freeplay + Guess (`FreeplayTests.swift`: saving, freeplay exclusion), settings / paywall, hard paywall gate matrix + paywall words + StoreKitTest plans (`HardPaywallTests.swift`), training store, onboarding, launch, merge invariants (`MergeIntegrationTests.swift`), decode cache / sync duplicates / store files / privacy manifest (`SyncAndStoreTests.swift`), scaffold geometry, persistence (fake engine: `AppTests/Support/FakeEngine.swift`) |
