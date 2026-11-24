@@ -35,7 +35,7 @@ struct WelcomeStep: View {
                     .font(.system(size: 40, weight: .bold))
                     .foregroundStyle(DS.Color.text)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Bring your chess.com or Lichess games. Stockfish 18 reads every move right here on your iPhone.")
+                Text("Bring your chess.com or Lichess games. Every move is read right here on your iPhone. Powered by Stockfish.")
                     .font(DS.Font.body)
                     .foregroundStyle(DS.Color.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

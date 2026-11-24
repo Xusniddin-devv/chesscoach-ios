@@ -186,7 +186,7 @@ private struct CoachHeader: View {
                 .font(DS.Font.headline)
                 .foregroundStyle(DS.Color.text)
                 .padding(.top, DS.Spacing.s)
-            Text("Reads your games with Stockfish 18, on this iPhone")
+            Text("Reads your games on this iPhone · Powered by Stockfish")
                 .font(DS.Font.caption)
                 .foregroundStyle(DS.Color.textSecondary)
         }
