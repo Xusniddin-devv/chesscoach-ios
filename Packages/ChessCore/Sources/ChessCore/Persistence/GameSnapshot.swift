@@ -38,12 +38,28 @@ public struct GameSnapshot: Codable, Sendable, Equatable {
     public var schemaVersion: Int
     public var analysis: GameAnalysis?
     public var openingName: String?
+    /// Where the game was played: nil for games against our bots, "chesscom" / "lichess" for imports.
+    public var source: String?
+    /// Imported games: the human opponent (bots are named by `botId`).
+    public var opponentName: String?
+    public var opponentRating: Int?
+    /// Imported games: the game's page on the platform.
+    public var externalURL: String?
+
+    /// True for games brought in from chess.com or Lichess.
+    public var isImported: Bool { source != nil }
 
     public init(id: UUID, date: Date, botId: String, userColor: Piece.Color, mode: PlayMode,
                 startFen: String, moves: [String], sans: [String], result: GameResult,
                 verdicts: [Verdict], analysisVersion: Int, playerRatingUsed: Int,
                 schemaVersion: Int = GameSnapshot.currentSchemaVersion,
-                analysis: GameAnalysis? = nil, openingName: String? = nil) {
+                analysis: GameAnalysis? = nil, openingName: String? = nil,
+                source: String? = nil, opponentName: String? = nil, opponentRating: Int? = nil,
+                externalURL: String? = nil) {
+        self.source = source
+        self.opponentName = opponentName
+        self.opponentRating = opponentRating
+        self.externalURL = externalURL
         self.analysis = analysis
         self.openingName = openingName
         self.schemaVersion = schemaVersion
@@ -83,6 +99,10 @@ extension GameSnapshot {
         // A broken or newer analysis block is dropped: the game stays viewable and can be re-analysed.
         analysis = (try? c.decodeIfPresent(GameAnalysis.self, forKey: .analysis)) ?? nil
         openingName = try? c.decodeIfPresent(String.self, forKey: .openingName)
+        source = try? c.decodeIfPresent(String.self, forKey: .source)
+        opponentName = try? c.decodeIfPresent(String.self, forKey: .opponentName)
+        opponentRating = try? c.decodeIfPresent(Int.self, forKey: .opponentRating)
+        externalURL = try? c.decodeIfPresent(String.self, forKey: .externalURL)
     }
 }
 

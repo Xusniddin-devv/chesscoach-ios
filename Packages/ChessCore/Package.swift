@@ -22,7 +22,7 @@ let package = Package(
         ),
         // Dev-time tool: scripts/gen-openings.sh regenerates Resources/openings.json.
         .executableTarget(name: "GenOpenings", dependencies: ["ChessCore"]),
-        .testTarget(name: "ChessCoreTests", dependencies: ["ChessCore"]),
+        .testTarget(name: "ChessCoreTests", dependencies: ["ChessCore"], resources: [.copy("Fixtures")]),
     ],
     swiftLanguageModes: [.v6]
 )
