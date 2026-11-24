@@ -1,0 +1,94 @@
+<!doctype html><meta charset="utf-8"><title>Profile concept</title>
+<style>
+:root{--bg:#131516;--s1:#1D2022;--s2:#2A2E31;--tx:#ECEEEE;--tx2:rgba(236,238,238,.58);--ac:#FF6A1A;--L:#D6D9D8;--D:#7D8483;--bad:#FF3B46}
+*{box-sizing:border-box;margin:0}
+body{background:#0b0c0d;display:flex;gap:40px;justify-content:center;padding:30px;font-family:-apple-system,"SF Pro Text",system-ui;color:var(--tx)}
+.ph{width:393px;background:var(--bg);border-radius:48px;padding:58px 20px 40px;overflow:hidden}
+.mono{font-family:"SF Mono",ui-monospace,monospace}
+h1{font:700 34px/1 system-ui,sans-serif;letter-spacing:-.5px;margin:6px 0 22px}
+h2{font:600 20px/1.2 system-ui,sans-serif;letter-spacing:-.3px;margin:30px 0 12px}
+.sub{color:var(--tx2);font-size:15px}
+/* hero */
+.hero{position:relative;height:250px;margin:0 -20px;padding:0 20px;overflow:hidden}
+.hero .piece{position:absolute;right:-30px;top:-10px;width:250px;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55))}
+.hero .rank{font-size:15px;color:var(--tx2);margin-top:8px}
+.hero .rating{font:800 96px/0.9 system-ui,sans-serif;letter-spacing:-4px;margin-top:4px}
+.hero .tier{font:700 26px/1 system-ui,sans-serif;letter-spacing:-.4px;margin-top:6px}
+.track{display:flex;align-items:center;gap:3px;margin-top:22px;width:230px}
+.track i{flex:1;height:10px;border-radius:2px;background:var(--s2)}
+.track i.on{background:var(--L)} .track i.on:nth-child(even){background:var(--D)}
+.track img{width:26px;margin-left:6px;opacity:.45}
+.track-cap{font-size:13px;color:var(--tx2);margin-top:8px}
+.goal{margin-top:6px;font-size:13px;color:var(--tx2)}
+.goal b{color:var(--ac);font-weight:600}
+/* filmstrip */
+.strip{display:flex;gap:10px;overflow:hidden;margin-right:-20px}
+.g{flex:0 0 112px}
+.mb{display:grid;grid-template-columns:repeat(8,1fr);width:112px;height:112px;border-radius:8px;overflow:hidden;position:relative}
+.mb div{position:relative}.mb img{position:absolute;inset:0;width:100%;height:100%}
+.res{position:absolute;left:6px;top:6px;z-index:3;font:700 11px/1 system-ui,sans-serif;padding:4px 6px;border-radius:5px;background:var(--bg)}
+.res.w{color:var(--ac)}.res.l{color:var(--tx2)}
+.gmeta{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px}
+.gmeta img{width:20px;height:20px;border-radius:5px;background:var(--D)}
+.gmeta .mono{margin-left:auto;color:var(--tx2);font-size:12px}
+/* ribbon */
+.rib{display:flex;align-items:flex-end;gap:8px;height:120px;padding:0 2px}
+.col{flex:1;display:flex;flex-direction:column-reverse;border-radius:4px;overflow:hidden;height:100%}
+.col span{display:block}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--tx2);margin-top:10px}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.accline{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.accline .big{font:800 44px/1 system-ui,sans-serif;letter-spacing:-1.5px}
+.accline .up{color:var(--ac);font-size:14px;font-weight:600}
+/* pattern */
+.pat{display:flex;gap:14px;background:var(--s1);border-radius:18px;padding:14px}
+.pat .mb{width:118px;height:118px;flex:0 0 118px}
+.pat h3{font:600 17px/1.25 system-ui,sans-serif;margin-bottom:6px}
+.pips{display:flex;gap:4px;margin:2px 0 10px}.pips i{width:16px;height:5px;border-radius:3px;background:var(--s2)}.pips i.on{background:var(--bad)}
+.btn{display:inline-block;background:var(--ac);color:#fff;font:600 14px system-ui,sans-serif;padding:9px 14px;border-radius:11px;box-shadow:0 3px 0 #CC4F0C}
+.row{display:flex;justify-content:space-between;align-items:center;padding:14px 2px;border-bottom:1px solid var(--s2);font-size:16px}
+.row .pips{margin:0}
+.badge{position:absolute;right:-3px;top:-3px;z-index:4;width:22px;height:22px;border-radius:50%;background:var(--bad);border:2px solid var(--bg);font:900 10px/18px system-ui,sans-serif;text-align:center;color:#131516}
+</style>
+<div class="ph">
+  <h1>You</h1>
+  <div class="hero">
+    <img class="piece" src="wn.png">
+    <div class="rank">Your piece</div>
+    <div class="rating">940</div>
+    <div class="tier">Knight</div>
+    <div class="track"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><img src="wb.png"></div>
+    <div class="track-cap">60 points to Bishop</div>
+    <div class="goal">Goal <b>1200 by March</b> · on track</div>
+  </div>
+
+  <h2>Your last games</h2>
+  <div class="strip" id="strip"></div>
+
+  <h2>How you move</h2>
+  <div class="accline"><span class="big">82</span><span class="sub">accuracy, last 7 games</span><span class="up">↑ 6</span></div>
+  <div class="rib" id="rib"></div>
+  <div class="legend"><span><i style="background:#6FB24A"></i>Good+</span><span><i style="background:#F0C15C"></i>Inaccuracy</span><span><i style="background:#F59A2E"></i>Mistake</span><span><i style="background:#FF3B46"></i>Blunder</span></div>
+
+  <h2>What keeps costing you</h2>
+  <div class="pat">
+    <div class="mb" id="pb"></div>
+    <div>
+      <h3>You leave pieces undefended</h3>
+      <div class="sub" style="font-size:14px">Like Bc4 here — Pip took it for free.</div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+      <span class="btn">Fix it · 5 puzzles</span>
+    </div>
+  </div>
+  <div class="row"><span>Walking into forks</span><span class="pips"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+  <div class="row"><span>Queen out too early</span><span class="pips"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+</div>
+<script>
+function board(el,fen,size,hi){const rows=fen.split(' ')[0].split('/');let r=0;rows.forEach(row=>{let c=0;for(const ch of row){if(/\d/.test(ch)){for(let i=0;i<+ch;i++)sq(r,c++,null)}else sq(r,c++,ch)}r++});
+function sq(r,c,p){const d=document.createElement('div');d.style.background=(r+c)%2?'var(--D)':'var(--L)';if(hi&&hi[0]==r&&hi[1]==c){d.style.boxShadow='inset 0 0 0 99px rgba(255,59,70,.55)';const b=document.createElement('span');b.className='badge';b.textContent='??';d.appendChild(b)}
+if(p){const im=document.createElement('img');im.src=(p==p.toUpperCase()?'w':'b')+p.toLowerCase()+'.png';d.appendChild(im)}el.appendChild(d)}}
+const games=[["6k1/5ppp/8/8/8/8/5PPP/3R2K1","w","Pip","pip.png","91"],["r1b2rk1/pp3ppp/2n5/3q4/3P4/2P5/P4PPP/R2QKB1R","l","Blaze","blaze.png","54"],["8/8/4k3/8/3K4/8/4P3/8","w","Wall","wall.png","88"],["r4rk1/1pp2ppp/p1n5/4p3/2B1P1b1/2NP4/PPP3PP/R4RK1","w","Pip","pip.png","79"]];
+const s=document.getElementById('strip');games.forEach(g=>{const w=document.createElement('div');w.className='g';const b=document.createElement('div');b.className='mb';board(b,g[0]);const t=document.createElement('span');t.className='res '+g[1];t.textContent=g[1]=='w'?'Won':'Lost';b.appendChild(t);w.appendChild(b);w.insertAdjacentHTML('beforeend',`<div class="gmeta"><img src="${g[3]}">${g[2]}<span class="mono">${g[4]}%</span></div>`);s.appendChild(w)});
+const rib=document.getElementById('rib');[[70,15,10,5],[82,10,5,3],[60,20,12,8],[88,8,4,0],[75,12,8,5],[90,6,4,0],[84,10,6,0]].forEach(v=>{const c=document.createElement('div');c.className='col';const t=v.reduce((a,b)=>a+b);['#6FB24A','#F0C15C','#F59A2E','#FF3B46'].forEach((col,i)=>{const sp=document.createElement('span');sp.style.height=(v[i]/t*100)+'%';sp.style.background=col;c.appendChild(sp)});rib.appendChild(c)});
+board(document.getElementById('pb'),"r1bqkbnr/pp1ppppp/8/2pP4/2B5/8/PPP2PPP/RNBQK1NR",null,[4,2]);
+</script>

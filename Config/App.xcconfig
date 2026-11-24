@@ -1,0 +1,17 @@
+// App build settings that may carry local values.
+//
+// REVENUECAT_API_KEY: RevenueCat public iOS SDK key (appl_…). Empty = StoreKit 2 only
+// (purchases go straight to StoreKit; the scheme's ChessCoach.storekit serves them in the
+// Simulator). Put the real key in Config/Secrets.xcconfig (gitignored) or pass it on the
+// xcodebuild command line; never commit it here.
+REVENUECAT_API_KEY =
+
+// CLOUDKIT_SYNC: 1 opens the store with CloudKit mirroring (iCloud.uz.xq.chessc, see
+// App/Services/ModelStore.swift); 0 keeps it local. Defaults to 1. Set CLOUDKIT_SYNC = 0 in
+// Config/Secrets.xcconfig for a signing team without the iCloud capability.
+CLOUDKIT_SYNC = 1
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(CLOUDKIT_SYNC_FLAG_$(CLOUDKIT_SYNC))
+CLOUDKIT_SYNC_FLAG_1 = CLOUDKIT_SYNC
+CLOUDKIT_SYNC_FLAG_0 =
+
+#include? "Secrets.xcconfig"

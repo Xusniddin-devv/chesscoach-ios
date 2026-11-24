@@ -1,0 +1,15 @@
+# Xcode / SwiftPM
+.build/
+DerivedData/
+build/
+xcuserdata/
+*.xcuserstate
+.swiftpm/
+.DS_Store
+*.nnue
+.superpowers/
+*.xcodeproj
+
+# Local secrets (RevenueCat key etc.)
+Config/Secrets.xcconfig
+.build-dd/

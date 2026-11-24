@@ -12,6 +12,14 @@ toCp(score, side):  v = score.mate != nil ? sign(mate) * (10000 - 10*|mate|) : (
 ```
 (i.e. result is White-relative cp; mates map to ±(10000 − 10·N)).
 
+**Deliberate deviation (iOS): `mate 0`.** When the side to move is already checkmated, Stockfish
+prints `info depth 0 score mate 0`. The web formula gives `sign(0) = 0` → 0 cp, so the mating move
+looked like it threw away a forced mate (`miss` + `missed-mate`, ≈50 win-% drop). That is a bug in
+the web app too. iOS maps `mate 0` to −10000 from the side to move's view (the mated side has lost):
+`v = mate == 0 ? -10000 : sign(mate) * (10000 - 10*|mate|)`. Stalemate is reported as `cp 0` and is
+unaffected. Golden tests: `toCpMateZeroMeansSideToMoveIsMated`, `checkmatingMoveIsBestNotMiss`.
+`analysisVersion` stays 1 (Plan 1 has never shipped).
+
 ## Win percentage (White-relative cp → White win %)
 
 ```

@@ -146,7 +146,7 @@ docs/design/references/<screen>/notes.md      per-screen references (Task 12)
 @Test func legalMoveCountAndStates() {
   #expect(Rules.legalMoveCount(fen: Rules.startFen) == 20)
   #expect(Rules.state(fen: "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1", history: []) == .stalemate)
-  #expect(Rules.state(fen: "6Qk/8/6K1/8/8/8/8/8 b - - 0 1", history: []) == .checkmate(winner: .white))
+  #expect(Rules.state(fen: "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1", history: []) == .checkmate(winner: .white))
 }
 @Test func threefoldFromHistory() {
   let moves = ["g1f3","g8f6","f3g1","f6g8","g1f3","g8f6","f3g1","f6g8"]
@@ -279,7 +279,7 @@ docs/design/references/<screen>/notes.md      per-screen references (Task 12)
   #expect(await e.searchCount == 1)
 }
 @Test func terminalPositionReturnsNoMove() async throws {   // Review Focus 4
-  let r = try await StockfishEngine().analyze(AnalysisRequest(startFen: "6Qk/8/6K1/8/8/8/8/8 b - - 0 1", moves: [], depth: 6, multiPV: 2))
+  let r = try await StockfishEngine().analyze(AnalysisRequest(startFen: "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1", moves: [], depth: 6, multiPV: 2))
   #expect(r.bestMove == "")
 }
 @Test func restartRecoversAfterQuit() async throws {          // Review Focus 5

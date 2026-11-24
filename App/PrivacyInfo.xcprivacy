@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Chess Coach privacy manifest (app target). Keep it in step with docs/TESTFLIGHT.md
+  ("Privacy nutrition label").
+  - No tracking, no tracking domains.
+  - Collected data: none by the app itself. Games, progress and the profile stay on the device
+    and in the user's own iCloud private database; chess.com / Lichess are asked for public
+    games of the name the user types and keep nothing for us. RevenueCat (when a key is set)
+    declares Purchase History in its own manifest (purchases-ios-spm/Sources/PrivacyInfo.xcprivacy),
+    which Xcode merges into the app's privacy report.
+  - Required-reason APIs used by the app's own code and the bundled engine:
+    UserDefaults (settings, @AppStorage) -> CA92.1;
+    file metadata: FileManager.attributesOfItem(.size) on the bundled NNUE nets
+    (StockfishResources.isNonEmptyFile) and fstat() on tablebase files in the engine
+    (syzygy/tbprobe.cpp), both files inside the app container -> C617.1.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

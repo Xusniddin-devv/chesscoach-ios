@@ -1,0 +1,102 @@
+name: ChessCoach
+options:
+  bundleIdPrefix: uz.xq
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
+packages:
+  ChessCore:
+    path: Packages/ChessCore
+  StockfishKit:
+    path: Packages/StockfishKit
+  ChessKit:
+    url: https://github.com/chesskit-studio/chesskit-swift
+    exactVersion: 0.17.0
+  # RevenueCat's SPM mirror of purchases-ios (MIT); smaller checkout than the main repo.
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm
+    exactVersion: 5.103.2
+targets:
+  ChessCoach:
+    type: application
+    platform: iOS
+    sources:
+      # PrivacyInfo.xcprivacy (privacy manifest) is listed on its own so it is always a
+      # bundle resource; App Store Connect refuses uploads without it (ITMS-91053).
+      - path: App
+        excludes:
+          - PrivacyInfo.xcprivacy
+      - path: App/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - package: ChessCore
+      - package: StockfishKit
+      - package: ChessKit
+      - package: RevenueCat
+        product: RevenueCat
+    configFiles:
+      Debug: Config/App.xcconfig
+      Release: Config/App.xcconfig
+    preBuildScripts:
+      # The nets are gitignored; without them the app builds but the engine dies at the first
+      # search. Names as in scripts/fetch-nnue.sh and StockfishResources.swift.
+      - name: Check NNUE nets
+        basedOnDependencyAnalysis: false
+        script: |
+          NNUE="$SRCROOT/Packages/StockfishKit/Sources/StockfishKit/Resources/nnue"
+          for net in nn-c288c895ea92.nnue nn-37f18f62d772.nnue; do
+            if [ ! -f "$NNUE/$net" ]; then
+              echo "error: NNUE nets missing — run scripts/fetch-nnue.sh ($net not found)"
+              exit 1
+            fi
+          done
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: uz.xq.chessc
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Chess Coach
+        INFOPLIST_KEY_UIUserInterfaceStyle: Dark
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        MARKETING_VERSION: "0.1.0"
+        # Settings / Paywall / Voice / CloudKit (feat/settings-paywall)
+        INFOPLIST_FILE: App/Info.plist
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Chess Coach listens while you hold the mic button so you can say your move."
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Your spoken move is turned into text on this iPhone. Nothing is sent anywhere."
+        CODE_SIGN_ENTITLEMENTS: App/ChessCoach.entitlements
+        CURRENT_PROJECT_VERSION: "1"
+        # Only HTTPS (Apple's exempt encryption): no export-compliance question per build.
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+  ChessCoachTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - AppTests
+    dependencies:
+      - target: ChessCoach
+      - package: ChessCore
+      - package: StockfishKit
+      - package: ChessKit
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: uz.xq.chessc.tests
+schemes:
+  ChessCoach:
+    build:
+      targets:
+        ChessCoach: all
+    run:
+      # Simulator purchases without App Store Connect (monthly $4.99, yearly $29.99 + 7-day trial).
+      storeKitConfiguration: Config/ChessCoach.storekit
+    test:
+      targets:
+        - ChessCoachTests
