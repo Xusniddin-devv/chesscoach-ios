@@ -1,0 +1,16 @@
+{
+  "humanlikeBelow": 1500,
+  "uciEloOffset": 200,
+  "limitedMovetimeMs": 800,
+  "fullFrom": 2500,
+  "fullDepth": 15,
+  "humanlikeDepth": 8,
+  "humanlikeMultiPV": 12,
+  "anchors": [
+    { "elo": 600, "temperatureCp": 250, "blunderChance": 0.21 },
+    { "elo": 800, "temperatureCp": 190, "blunderChance": 0.14 },
+    { "elo": 1000, "temperatureCp": 135, "blunderChance": 0.08 },
+    { "elo": 1300, "temperatureCp": 80, "blunderChance": 0.035 },
+    { "elo": 1500, "temperatureCp": 60, "blunderChance": 0.02 }
+  ]
+}
