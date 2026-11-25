@@ -49,7 +49,7 @@ extension GlobalEngineSuite {
             _ = try await e.opponentMove(startFen: Rules.startFen, moves: [], elo: 1600)
             let options = await e.lastSearchOptions
             #expect(options.contains("setoption name UCI_LimitStrength value true"))
-            #expect(options.contains("setoption name UCI_Elo value 1350"))
+            #expect(options.contains("setoption name UCI_Elo value 1400"))
         }
 
         @Test(arguments: [600, 1600])

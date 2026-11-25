@@ -72,14 +72,16 @@ public struct BotTuning: Codable, Equatable, Sendable {
     }
 
     public static let builtIn = BotTuning(
-        humanlikeBelow: 1500, uciEloOffset: 250, limitedMovetimeMs: 800,
+        humanlikeBelow: 1500, uciEloOffset: 200, limitedMovetimeMs: 800,
         fullFrom: 2500, fullDepth: 15, humanlikeDepth: 8, humanlikeMultiPV: 12,
+        // From two BotCalibration runs, aimed at human ACPL for each rating (docs/reference/
+        // engine-measurements.md). Keep in step with gh-pages config/bots.json.
         anchors: [
-            Anchor(elo: 600, temperatureCp: 300, blunderChance: 0.25),
-            Anchor(elo: 800, temperatureCp: 220, blunderChance: 0.16),
-            Anchor(elo: 1000, temperatureCp: 160, blunderChance: 0.10),
-            Anchor(elo: 1300, temperatureCp: 100, blunderChance: 0.05),
-            Anchor(elo: 1500, temperatureCp: 70, blunderChance: 0.03),
+            Anchor(elo: 600, temperatureCp: 250, blunderChance: 0.21),
+            Anchor(elo: 800, temperatureCp: 190, blunderChance: 0.14),
+            Anchor(elo: 1000, temperatureCp: 135, blunderChance: 0.08),
+            Anchor(elo: 1300, temperatureCp: 80, blunderChance: 0.035),
+            Anchor(elo: 1500, temperatureCp: 60, blunderChance: 0.02),
         ])
 
     /// Every value inside safe bounds, anchors sorted; no anchors falls back to the built-in ones.

@@ -4,11 +4,15 @@ import Testing
 
 @Test func botStylesAcrossTheLadder() {
     let t = BotTuning.builtIn
-    #expect(botStyle(elo: 600, tuning: t) == .humanlike(HumanlikeStyle(depth: 8, multiPV: 12, temperatureCp: 300, blunderChance: 0.25)))
-    #expect(botStyle(elo: 900, tuning: t) == .humanlike(HumanlikeStyle(depth: 8, multiPV: 12, temperatureCp: 190, blunderChance: 0.13)))
-    #expect(botStyle(elo: 1600, tuning: t) == .limited(uciElo: 1350, movetimeMs: 800))
+    #expect(botStyle(elo: 600, tuning: t) == .humanlike(HumanlikeStyle(depth: 8, multiPV: 12, temperatureCp: 250, blunderChance: 0.21)))
+    if case .humanlike(let s) = botStyle(elo: 900, tuning: t) {  // halfway between 800 and 1000
+        #expect(s.temperatureCp == 162.5 && abs(s.blunderChance - 0.11) < 1e-9)
+    } else {
+        Issue.record("900 should be humanlike")
+    }
+    #expect(botStyle(elo: 1600, tuning: t) == .limited(uciElo: 1400, movetimeMs: 800))
     #expect(botStyle(elo: 1500, tuning: t) == .limited(uciElo: 1320, movetimeMs: 800))
-    #expect(botStyle(elo: 2300, tuning: t) == .limited(uciElo: 2050, movetimeMs: 800))
+    #expect(botStyle(elo: 2300, tuning: t) == .limited(uciElo: 2100, movetimeMs: 800))
     #expect(botStyle(elo: 3000, tuning: t) == .full(depth: 15))  // lesson opponents
 }
 
