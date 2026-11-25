@@ -38,16 +38,40 @@ extension GlobalEngineSuite {
             #expect(await e.searchCount == before + 1)
         }
 
-        @Test func opponentReturnsLegalMove() async throws {
-            let uci = try await StockfishEngine.shared.opponentMove(startFen: Rules.startFen, moves: ["e2e4"], elo: 600)
+        @Test(arguments: [600, 1300, 1600, 2300, 3000])
+        func opponentReturnsLegalMove(elo: Int) async throws {
+            let uci = try await StockfishEngine.shared.opponentMove(startFen: Rules.startFen, moves: ["e2e4"], elo: elo)
             #expect(Rules.apply(uci: uci, to: Rules.fen(startFen: Rules.startFen, moves: ["e2e4"])!) != nil)
         }
 
-        @Test func analysisAfterOpponentRestoresAnalystOptions() async throws {
+        @Test func limitedOpponentSendsUCIElo() async throws {
             let e = StockfishEngine.shared
-            _ = try await e.opponentMove(startFen: Rules.startFen, moves: [], elo: 600)  // Skill Level 0, MultiPV 1
+            _ = try await e.opponentMove(startFen: Rules.startFen, moves: [], elo: 1600)
+            let options = await e.lastSearchOptions
+            #expect(options.contains("setoption name UCI_LimitStrength value true"))
+            #expect(options.contains("setoption name UCI_Elo value 1350"))
+        }
+
+        @Test(arguments: [600, 1600])
+        func analysisAfterOpponentRestoresAnalystOptions(elo: Int) async throws {
+            let e = StockfishEngine.shared
+            _ = try await e.opponentMove(startFen: Rules.startFen, moves: [], elo: elo)
+            await e.clearCache()  // a cached answer sends no options
             let r = try await e.analyze(.init(startFen: "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", moves: [], depth: 10, multiPV: 3))
             #expect(r.bestMove == "d1d8" && r.lines.map(\.multipv) == [1, 2, 3])
+            let options = await e.lastSearchOptions
+            #expect(options.contains("setoption name UCI_LimitStrength value false"))
+            #expect(options.contains("setoption name Skill Level value 20"))
+        }
+
+        @Test func humanlikeOpponentTakesAFreeQueen() async throws {
+            // Black queen hangs on d5 to exd5; even Pip finds it almost always (blunders aside).
+            let fen = "rnb1kbnr/ppp1pppp/8/3q4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 3"
+            var takes = 0
+            for _ in 0..<20 where try await StockfishEngine.shared.opponentMove(startFen: fen, moves: [], elo: 1000) == "e4d5" {
+                takes += 1
+            }
+            #expect(takes >= 15)
         }
 
         @Test func cancelledAnalyzeDoesNotRestartEngine() async throws {

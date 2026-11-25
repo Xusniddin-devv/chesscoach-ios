@@ -2,8 +2,9 @@
 //
 // The bridge owns std::cin/std::cout globally, so there is exactly one engine:
 // `StockfishEngine.shared`. Analysis and the bot opponent share it by switching options:
-// `opponentMove` sets Skill Level / MultiPV 1, and every `analyze` sets Skill Level 20 and
-// its MultiPV again before searching.
+// `opponentMove` sets its strength options (see `botStyle`), and every analysis search sets
+// UCI_LimitStrength false, Skill Level 20 and its MultiPV again before searching, so a bot's
+// limit never leaks into a review.
 //
 // Requests run one at a time in arrival order (an internal FIFO), so no command but the
 // search itself is ever in flight: `setoption`, `position` and `go` are only sent once the
@@ -93,7 +94,7 @@ public actor StockfishEngine: ChessEngine {
         defer { release() }
         let lines = try await search(
             startFen: startFen, moves: moves,
-            options: ["Skill Level": "20", "MultiPV": "\(multiPV)"],
+            options: Self.analystOptions(multiPV: multiPV),
             go: "go movetime \(milliseconds)")
         return lines.compactMap(UCIParser.info).map(\.depth).max() ?? 0
     }
@@ -130,26 +131,54 @@ public actor StockfishEngine: ChessEngine {
         let go = request.nodes.map { "go nodes \($0)" } ?? "go depth \(request.depth)"
         let lines = try await search(
             startFen: request.startFen, moves: request.moves,
-            options: ["Skill Level": "20", "MultiPV": "\(request.multiPV)"],
+            options: Self.analystOptions(multiPV: request.multiPV),
             go: go)
-        var deepest: [Int: PVLine] = [:]
-        for line in lines.compactMap(UCIParser.info) where line.depth >= deepest[line.multipv]?.depth ?? 0 {
-            deepest[line.multipv] = line
-        }
         return AnalysisResult(
             bestMove: lines.last.flatMap(UCIParser.bestMove) ?? "",
-            lines: deepest.values.sorted { $0.multipv < $1.multipv })
+            lines: Self.deepestLines(lines))
+    }
+
+    private static func analystOptions(multiPV: Int) -> KeyValuePairs<String, String> {
+        ["UCI_LimitStrength": "false", "Skill Level": "20", "MultiPV": "\(multiPV)"]
+    }
+
+    /// The deepest line reported for each MultiPV slot, in slot order.
+    private static func deepestLines(_ output: [String]) -> [PVLine] {
+        var deepest: [Int: PVLine] = [:]
+        for line in output.compactMap(UCIParser.info) where line.depth >= deepest[line.multipv]?.depth ?? 0 {
+            deepest[line.multipv] = line
+        }
+        return deepest.values.sorted { $0.multipv < $1.multipv }
     }
 
     public func opponentMove(startFen: String, moves: [String], elo: Int) async throws -> String {
         await acquire()
         defer { release() }
-        let level = levelSettings(elo: elo)
-        let lines = try await search(
-            startFen: startFen, moves: moves,
-            options: ["UCI_LimitStrength": "false", "Skill Level": "\(level.skillLevel)", "MultiPV": "1"],
-            go: "go depth \(level.depth) movetime 2500")
-        return lines.last.flatMap(UCIParser.bestMove) ?? ""
+        switch botStyle(elo: elo) {
+        case .full(let depth):
+            let output = try await search(
+                startFen: startFen, moves: moves,
+                options: ["UCI_LimitStrength": "false", "Skill Level": "20", "MultiPV": "1"],
+                go: "go depth \(depth) movetime 2500")
+            return output.last.flatMap(UCIParser.bestMove) ?? ""
+        case .limited(let uciElo, let movetimeMs):
+            let output = try await search(
+                startFen: startFen, moves: moves,
+                options: ["UCI_LimitStrength": "true", "UCI_Elo": "\(uciElo)", "Skill Level": "20", "MultiPV": "1"],
+                go: "go movetime \(movetimeMs)")
+            return output.last.flatMap(UCIParser.bestMove) ?? ""
+        case .humanlike(let style):
+            let output = try await search(
+                startFen: startFen, moves: moves,
+                options: ["UCI_LimitStrength": "false", "Skill Level": "20", "MultiPV": "\(style.multiPV)"],
+                go: "go depth \(style.depth) movetime 2500")
+            let engineBest = output.last.flatMap(UCIParser.bestMove) ?? ""
+            guard let fen = Rules.fen(startFen: startFen, moves: moves) else { return engineBest }
+            let legal = Rules.legalMoves(fen: fen)
+            guard !legal.isEmpty else { return engineBest }
+            var rng = SystemRandomNumberGenerator()
+            return pickHumanlikeMove(lines: Self.deepestLines(output), legalMoves: legal, style: style, using: &rng)
+        }
     }
 
     /// Quits the engine and starts a fresh one with its nets loaded. If the new start fails,

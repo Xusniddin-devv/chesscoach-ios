@@ -79,7 +79,8 @@ vendored Stockfish 18 build. Design rules: `docs/design/decisions.md`; grading n
 | Game screen, flat action bar (incl. hold-to-talk mic cell), saving | `App/Features/Play/PlayView.swift`, `App/Features/Play/PlayModel.swift`, `App/Features/Voice/VoiceMicButton.swift` |
 | Voice move parsing (spoken text → UCI) | `ChessCore/Voice/VoiceMove.swift` |
 | Game logic: board, grading queue, bot moves, interrupts, take-back | `ChessCore/Play/GameSession.swift` |
-| Bots, bot strength / pacing, Training thresholds | `ChessCore/Play/Bots.swift`, `ChessCore/Play/Levels.swift`, `ChessCore/Play/PlayerProfile.swift` |
+| Bots, bot strength (`botStyle`: humanlike picker below 1500, Stockfish `UCI_Elo` above, `BotTuning`), pacing, Training thresholds | `ChessCore/Play/Bots.swift`, `ChessCore/Play/Levels.swift`, `ChessCore/Play/PlayerProfile.swift`; engine side `StockfishKit/StockfishEngine.swift` (`opponentMove`); measurement `StockfishKitTests/BotCalibration.swift` (`BOT_CALIBRATION=1`) |
+| Remote bot tuning (GitHub Pages `config/bots.json`, daily, clamped) | `App/Services/BotTuningSync.swift` |
 | Coach card (Training interrupt; coach figure + chip text; explanation Pro-gated) | `App/Features/Play/CoachCard.swift` |
 | Game-over result panel (players, accuracy, class chips, key moment), summary analysis, confetti | `App/Features/Play/GameOverSheet.swift`, `PlayModel.swift` (summary), `ConfettiBurst.swift`, `UserAccuracy.swift`, `ChessCore/Analysis/GameSummary.swift` |
 | DEBUG autoplay / launch arguments | `App/Features/Play/DebugAutoplay.swift` |

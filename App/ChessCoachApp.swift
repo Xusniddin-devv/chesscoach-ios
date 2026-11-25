@@ -28,6 +28,11 @@ struct ChessCoachApp: App {
                 // must not wait for the engine to load its nets (seconds on a cold start).
                 .task { await entitlements.start() }
                 .task {
+                    // Bot strength: last downloaded numbers now, a fresh copy in the background.
+                    BotTuningSync.applyCached()
+                    if !Self.isTestHost { await BotTuningSync.refresh() }
+                }
+                .task {
                     await hub.configure()
                     analysis.attach(container.mainContext)
                     if UserDefaults.standard.bool(forKey: Pref.hasOnboarded) { analysis.resumeStoredWork() }
